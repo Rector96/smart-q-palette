@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { SUBJECTS, type ExamMode } from "@/lib/subjects";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowLeft, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { BookOpen, ArrowLeft, Check, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +16,11 @@ const SelectSubjects = () => {
   const navigate = useNavigate();
 
   const [selected, setSelected] = useState<string[]>(preselected ? [preselected] : []);
+  const [customMinutes, setCustomMinutes] = useState(60);
 
   const isMock = mode === "mock";
   const maxSubjects = isMock ? 4 : 1;
+  const showTimer = mode === "cbt" || mode === "mock";
 
   const toggleSubject = (id: string) => {
     if (selected.includes(id)) {
@@ -29,7 +33,8 @@ const SelectSubjects = () => {
   const handleStart = () => {
     if (selected.length === 0) return;
     const subjects = selected.join(",");
-    navigate(`/exam?mode=${mode}&subjects=${subjects}`);
+    const timerParam = showTimer ? `&timer=${customMinutes}` : "";
+    navigate(`/exam?mode=${mode}&subjects=${subjects}${timerParam}`);
   };
 
   return (
@@ -41,7 +46,7 @@ const SelectSubjects = () => {
           </Button>
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <span className="font-bold text-sm">
               Select {isMock ? "4 Subjects" : "Subject"}
             </span>
           </div>
@@ -83,6 +88,29 @@ const SelectSubjects = () => {
             );
           })}
         </div>
+
+        {/* Custom Timer */}
+        {showTimer && (
+          <Card className="mt-6 border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-semibold">Set Exam Duration</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={5}
+                  max={180}
+                  value={customMinutes}
+                  onChange={(e) => setCustomMinutes(Math.max(5, Math.min(180, Number(e.target.value))))}
+                  className="h-9 w-24 text-sm"
+                />
+                <span className="text-xs text-muted-foreground">minutes (5–180)</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mt-6 flex justify-center">
           <Button

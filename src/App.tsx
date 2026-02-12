@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import SelectSubjects from "./pages/SelectSubjects";
 import Exam from "./pages/Exam";
 import Results from "./pages/Results";
+import AITutor from "./pages/AITutor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/select-subjects" element={<ProtectedRoute><SelectSubjects /></ProtectedRoute>} />
             <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
             <Route path="/results/:sessionId" element={<ProtectedRoute><Results /></ProtectedRoute>} />
+            <Route path="/ai-tutor" element={<ProtectedRoute><AITutor /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
