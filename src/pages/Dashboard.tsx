@@ -71,7 +71,7 @@ const Dashboard = () => {
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm tracking-tight">JAMB AI</span>
+            <span className="font-bold text-sm tracking-tight">SurePass</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground hidden sm:block">

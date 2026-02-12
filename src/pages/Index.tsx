@@ -1,13 +1,15 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import heroImage from "@/assets/hero-students.jpg";
 import {
   BookOpen, ArrowRight, Zap, Shield, BarChart3, Bot, Target,
   CheckCircle2, Star, Users, BookOpenCheck, Clock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect } from "react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -52,18 +54,25 @@ const Index = () => {
     { value: "4.9", label: "User Rating" },
   ];
 
+  const quickFaqs = [
+    { q: "How much does SurePass cost?", a: "You get 2 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features." },
+    { q: "Can I share exams with friends?", a: "Yes! Generate a share link after taking an exam. Your friends can take the same exam and compare scores." },
+    { q: "How does the AI Tutor work?", a: "Our AI tutor provides 24/7 personalized explanations for any JAMB topic, helping you understand complex concepts easily." },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
       <header className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-20">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <span className="font-bold text-sm tracking-tight">JAMB AI</span>
+          <span className="font-bold text-sm tracking-tight">SurePass</span>
         </div>
         <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
           <a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a>
+          <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
         </nav>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
@@ -79,21 +88,24 @@ const Index = () => {
       <section className="max-w-6xl mx-auto px-4 py-16 sm:py-24">
         <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-medium mb-6">
-            <Zap className="h-3 w-3" /> AI-Powered Learning Platform
+            <Zap className="h-3 w-3" /> AI-Powered JAMB Preparation
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
             Ace Your JAMB Exam with{" "}
-            <span className="text-primary">Smart Practice</span>
+            <span className="text-primary">SurePass</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            Practice with real JAMB CBT questions, get instant AI explanations, and track your progress. Join 50,000+ students already preparing smarter.
+            Practice with real JAMB CBT questions, get instant AI explanations, and track your progress. Join 50,000+ students preparing smarter.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <Button className="h-11 px-8 text-sm" onClick={() => navigate("/auth")}>
               Start Learning Free <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
-          <div className="mt-6 flex items-center justify-center gap-1">
+          <div className="mt-4 text-xs text-muted-foreground">
+            ✨ 2 free exam sessions · No credit card required
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-1">
             {[...Array(5)].map((_, i) => (
               <Star key={i} className="h-3.5 w-3.5 text-warning fill-warning" />
             ))}
@@ -102,7 +114,18 @@ const Index = () => {
         </motion.div>
       </section>
 
-      {/* Stats */}
+      {/* Hero Image */}
+      <section className="max-w-5xl mx-auto px-4 -mt-4 mb-8">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
+          <img
+            src={heroImage}
+            alt="Nigerian students preparing for JAMB using SurePass CBT platform"
+            className="w-full rounded-2xl shadow-2xl border border-border/30"
+            loading="lazy"
+          />
+        </motion.div>
+      </section>
+
       <section className="bg-primary text-primary-foreground py-10">
         <div className="max-w-6xl mx-auto px-4 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {stats.map((s) => (
@@ -125,13 +148,7 @@ const Index = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-            >
+            <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
               <Card className="border-border/50 hover:border-primary/20 transition-colors h-full">
                 <CardContent className="p-6">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
@@ -169,7 +186,7 @@ const Index = () => {
               <Card className="border-border/50 overflow-hidden">
                 <div className="bg-primary/5 px-4 py-2 border-b border-border/50 flex items-center gap-2">
                   <Bot className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold">JAMB AI Tutor</span>
+                  <span className="text-xs font-semibold">SurePass AI Tutor</span>
                   <span className="text-[10px] text-success ml-auto">● Online</span>
                 </div>
                 <CardContent className="p-4 space-y-3">
@@ -202,14 +219,7 @@ const Index = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {steps.map((s, i) => (
-            <motion.div
-              key={s.step}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="text-center"
-            >
+            <motion.div key={s.step} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="text-center">
               <div className="text-3xl font-bold text-primary/20 mb-2">{s.step}</div>
               <h3 className="text-sm font-semibold mb-1">{s.title}</h3>
               <p className="text-xs text-muted-foreground">{s.desc}</p>
@@ -227,13 +237,7 @@ const Index = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
-              <motion.div
-                key={t.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
+              <motion.div key={t.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                 <Card className="border-border/50 h-full">
                   <CardContent className="p-5">
                     <div className="flex gap-0.5 mb-3">
@@ -259,16 +263,36 @@ const Index = () => {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="max-w-3xl mx-auto px-4 py-16 sm:py-20">
+        <div className="text-center mb-10">
+          <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">FAQ</p>
+          <h2 className="text-2xl sm:text-3xl font-bold">Frequently Asked Questions</h2>
+        </div>
+        <Accordion type="single" collapsible className="space-y-2">
+          {quickFaqs.map((faq, i) => (
+            <AccordionItem key={i} value={`faq-${i}`} className="border border-border/50 rounded-lg px-4">
+              <AccordionTrigger className="text-sm font-medium hover:no-underline">{faq.q}</AccordionTrigger>
+              <AccordionContent className="text-xs text-muted-foreground leading-relaxed">{faq.a}</AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+        <div className="text-center mt-4">
+          <Link to="/faq" className="text-xs text-primary hover:underline">View all FAQs →</Link>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20 text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to Start Preparing?</h2>
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Join thousands of students already using JAMB AI to prepare smarter and score higher.
+            Join thousands of students already using SurePass to prepare smarter and score higher.
           </p>
           <Button className="h-11 px-8 text-sm" onClick={() => navigate("/auth")}>
             Start Learning Free <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
+          <p className="text-xs text-muted-foreground mt-3">2 free exams · No credit card required</p>
         </motion.div>
       </section>
 
@@ -279,7 +303,7 @@ const Index = () => {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="h-4 w-4 text-primary" />
-                <span className="font-bold text-xs">JAMB AI</span>
+                <span className="font-bold text-xs">SurePass</span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 AI-powered JAMB preparation platform helping Nigerian students achieve their academic dreams.
@@ -289,27 +313,27 @@ const Index = () => {
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Product</p>
               <ul className="space-y-1 text-[10px] text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground">Features</a></li>
-                <li><a href="#" className="hover:text-foreground">AI Tutor</a></li>
-                <li><a href="#" className="hover:text-foreground">CBT Practice</a></li>
+                <li><Link to="/faq" className="hover:text-foreground">FAQ</Link></li>
+                <li><a href="#how-it-works" className="hover:text-foreground">How It Works</a></li>
               </ul>
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Company</p>
               <ul className="space-y-1 text-[10px] text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground">About</a></li>
-                <li><a href="#" className="hover:text-foreground">Contact</a></li>
+                <li><Link to="/about" className="hover:text-foreground">About Us</Link></li>
+                <li><Link to="/contact" className="hover:text-foreground">Contact Us</Link></li>
               </ul>
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Legal</p>
               <ul className="space-y-1 text-[10px] text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground">Privacy</a></li>
-                <li><a href="#" className="hover:text-foreground">Terms</a></li>
+                <li><Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="hover:text-foreground">Terms of Service</Link></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border pt-4 text-center">
-            <p className="text-[10px] text-muted-foreground">© 2026 JAMB AI. All rights reserved.</p>
+            <p className="text-[10px] text-muted-foreground">© 2026 SurePass. All rights reserved.</p>
           </div>
         </div>
       </footer>

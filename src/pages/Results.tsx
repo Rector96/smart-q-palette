@@ -5,10 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Trophy, Target, Clock, ArrowLeft, RotateCcw } from "lucide-react";
+import { BookOpen, Trophy, Target, Clock, ArrowLeft, RotateCcw, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 const Results = () => {
+  const { toast } = useToast();
   const { sessionId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -148,6 +150,22 @@ const Results = () => {
         <div className="flex gap-3 justify-center pt-2">
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Dashboard
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={async () => {
+            if (!session) return;
+            const code = Math.random().toString(36).substring(2, 10);
+            await supabase.from("shared_exams").insert({
+              share_code: code,
+              creator_id: user!.id,
+              session_id: sessionId!,
+              mode: session.mode,
+              subjects: session.subjects,
+            } as any);
+            const url = `${window.location.origin}/exam?mode=${session.mode}&subjects=${session.subjects.join(",")}&share=${code}`;
+            await navigator.clipboard.writeText(url);
+            toast({ title: "Link copied!", description: "Share with friends so they can take the same exam." });
+          }}>
+            <Share2 className="h-3.5 w-3.5 mr-1" /> Share
           </Button>
           <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/select-subjects?mode=practice")}>
             <RotateCcw className="h-3.5 w-3.5 mr-1" /> Try Again
