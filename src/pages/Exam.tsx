@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,15 +10,17 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ArrowRight, Flag, Clock, CheckCircle2, XCircle,
-  BookOpen, Send, Loader2
+  BookOpen, Send, Loader2, Share2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import SubscriptionModal from "@/components/SubscriptionModal";
 
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
   const subjectsParam = searchParams.get("subjects") || "";
   const timerParam = searchParams.get("timer");
+  const shareCode = searchParams.get("share");
   const subjects = subjectsParam.split(",").filter(Boolean);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -36,47 +38,74 @@ const Exam = () => {
   const [timeLeft, setTimeLeft] = useState(customDuration);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showNav, setShowNav] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
-  const questionStartRef = useRef<number>(Date.now());
+  const [showSubscription, setShowSubscription] = useState(false);
+  const [trialBlocked, setTrialBlocked] = useState(false);
+  const timerRef = useState<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useState<number>(Date.now());
+  const questionStartRef = useState<number>(Date.now());
 
   const isTimed = mode === "cbt" || mode === "mock";
   const isPractice = mode === "practice";
 
+  // Check trial limit
   useEffect(() => {
     if (!user) return;
-    const loadQuestions = async () => {
-      setLoading(true);
-      let allQuestions: QuestionWithShuffledOptions[] = [];
-      for (const subject of subjects) {
-        const qs = await fetchSmartQuestions(subject, user.id, 60, mode);
-        allQuestions = [...allQuestions, ...qs];
-      }
-      setQuestions(allQuestions);
-      const { data: session } = await supabase
-        .from("exam_sessions")
-        .insert({ user_id: user.id, mode, subjects, total_questions: allQuestions.length })
-        .select()
+    const checkTrial = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("trial_count, is_subscribed")
+        .eq("user_id", user.id)
         .single();
-      if (session) setSessionId(session.id);
-      setLoading(false);
-      startTimeRef.current = Date.now();
-      questionStartRef.current = Date.now();
+      if (profile && !profile.is_subscribed && profile.trial_count >= 2) {
+        setTrialBlocked(true);
+        setShowSubscription(true);
+        setLoading(false);
+        return;
+      }
+      loadQuestions();
     };
-    loadQuestions();
+    checkTrial();
   }, [user]);
 
+  const loadQuestions = async () => {
+    if (!user) return;
+    setLoading(true);
+    let allQuestions: QuestionWithShuffledOptions[] = [];
+    for (const subject of subjects) {
+      const qs = await fetchSmartQuestions(subject, user.id, 60, mode);
+      allQuestions = [...allQuestions, ...qs];
+    }
+    setQuestions(allQuestions);
+    const { data: session } = await supabase
+      .from("exam_sessions")
+      .insert({ user_id: user.id, mode, subjects, total_questions: allQuestions.length })
+      .select()
+      .single();
+    if (session) setSessionId(session.id);
+
+    // Increment trial count
+    const { data: prof } = await supabase.from("profiles").select("trial_count").eq("user_id", user.id).single();
+    if (prof) {
+      await supabase.from("profiles").update({ trial_count: (prof.trial_count || 0) + 1 } as any).eq("user_id", user.id);
+    }
+
+    setLoading(false);
+    startTimeRef[1](Date.now());
+    questionStartRef[1](Date.now());
+  };
+
   useEffect(() => {
-    if (!isTimed || loading) return;
-    timerRef.current = setInterval(() => {
+    if (!isTimed || loading || trialBlocked) return;
+    const interval = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) { clearInterval(timerRef.current!); handleSubmit(); return 0; }
+        if (prev <= 1) { clearInterval(interval); handleSubmit(); return 0; }
         if (prev === 300) toast({ title: "⏰ 5 minutes remaining!", variant: "destructive" });
         return prev - 1;
       });
     }, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isTimed, loading]);
+    timerRef[1](interval);
+    return () => clearInterval(interval);
+  }, [isTimed, loading, trialBlocked]);
 
   const currentQuestion = questions[currentIndex];
 
@@ -95,16 +124,32 @@ const Exam = () => {
   };
 
   const goToQuestion = (index: number) => {
-    questionStartRef.current = Date.now();
+    questionStartRef[1](Date.now());
     setCurrentIndex(index);
     setShowResult(false);
     setShowNav(false);
   };
 
-  const handleSubmit = useCallback(async () => {
+  const handleShare = async () => {
+    if (!sessionId || !user) return;
+    const code = Math.random().toString(36).substring(2, 10);
+    await supabase.from("shared_exams").insert({
+      share_code: code,
+      creator_id: user.id,
+      session_id: sessionId,
+      mode,
+      subjects,
+      timer_minutes: timerParam ? Number(timerParam) : null,
+    });
+    const url = `${window.location.origin}/exam?mode=${mode}&subjects=${subjects.join(",")}&share=${code}${timerParam ? `&timer=${timerParam}` : ""}`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Link copied!", description: "Share this link with your friends to take the same exam." });
+  };
+
+  const handleSubmit = async () => {
     if (!user || !sessionId || submitting) return;
     setSubmitting(true);
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef[0]) clearInterval(timerRef[0]);
     let correct = 0;
     const historyEntries = questions.map((q) => {
       const userAnswer = answers[q.id] || "";
@@ -113,11 +158,11 @@ const Exam = () => {
       return { user_id: user.id, question_id: q.id, selected_answer: userAnswer || "X", is_correct: isCorrect, session_id: sessionId, time_spent_seconds: 0 };
     });
     await supabase.from("user_history").insert(historyEntries);
-    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
+    const duration = Math.round((Date.now() - startTimeRef[0]) / 1000);
     const scorePercentage = questions.length > 0 ? (correct / questions.length) * 100 : 0;
     await supabase.from("exam_sessions").update({ correct_answers: correct, score_percentage: scorePercentage, duration_seconds: duration, completed: true, completed_at: new Date().toISOString() }).eq("id", sessionId);
     navigate(`/results/${sessionId}`);
-  }, [user, sessionId, submitting, questions, answers, navigate]);
+  };
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -132,6 +177,25 @@ const Exam = () => {
           <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
           <p className="text-xs text-muted-foreground">Loading questions...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (trialBlocked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} />
+        <Card className="max-w-sm w-full">
+          <CardContent className="p-6 text-center">
+            <BookOpen className="h-8 w-8 mx-auto mb-3 text-primary" />
+            <p className="text-sm font-medium">Free trials used up</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">Subscribe to ₦1,500 to continue learning with SurePass.</p>
+            <div className="flex gap-2 justify-center">
+              <Button variant="outline" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>Back</Button>
+              <Button className="h-8 text-xs" onClick={() => setShowSubscription(true)}>Subscribe Now</Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -159,13 +223,16 @@ const Exam = () => {
             <BookOpen className="h-4 w-4 text-primary" />
             <span className="text-xs font-semibold capitalize">{mode} Mode</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isTimed && (
               <div className={cn("flex items-center gap-1 text-xs font-mono font-semibold", timeLeft < 300 ? "text-destructive" : "text-foreground")}>
                 <Clock className="h-3.5 w-3.5" />
                 {formatTime(timeLeft)}
               </div>
             )}
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleShare} title="Share exam">
+              <Share2 className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setShowNav(!showNav)}>
               {currentIndex + 1}/{questions.length}
             </Button>

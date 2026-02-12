@@ -61,7 +61,9 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          is_subscribed: boolean
           preferred_subjects: string[] | null
+          trial_count: number
           updated_at: string
           user_id: string
         }
@@ -69,7 +71,9 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_subscribed?: boolean
           preferred_subjects?: string[] | null
+          trial_count?: number
           updated_at?: string
           user_id: string
         }
@@ -77,7 +81,9 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_subscribed?: boolean
           preferred_subjects?: string[] | null
+          trial_count?: number
           updated_at?: string
           user_id?: string
         }
@@ -136,6 +142,47 @@ export type Database = {
           year?: number | null
         }
         Relationships: []
+      }
+      shared_exams: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          mode: string
+          session_id: string | null
+          share_code: string
+          subjects: string[]
+          timer_minutes: number | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          mode: string
+          session_id?: string | null
+          share_code: string
+          subjects?: string[]
+          timer_minutes?: number | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          mode?: string
+          session_id?: string | null
+          share_code?: string
+          subjects?: string[]
+          timer_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_exams_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "exam_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_history: {
         Row: {

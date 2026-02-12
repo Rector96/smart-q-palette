@@ -52,7 +52,7 @@ const Auth = () => {
         <div className="flex items-center justify-center gap-2 mb-6">
           <BookOpen className="h-7 w-7 text-primary" />
           <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            SmartCBT
+            SurePass
           </h1>
         </div>
 
