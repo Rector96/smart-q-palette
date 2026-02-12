@@ -1,9 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowRight, Zap, Shield, BarChart3 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  BookOpen, ArrowRight, Zap, Shield, BarChart3, Bot, Target,
+  CheckCircle2, Star, Users, BookOpenCheck, Clock
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect } from "react";
+
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5 },
+};
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -13,72 +23,295 @@ const Index = () => {
     if (!loading && user) navigate("/dashboard", { replace: true });
   }, [user, loading]);
 
+  const features = [
+    { icon: Bot, title: "AI Tutor", desc: "Get instant explanations and personalized guidance from our intelligent AI tutor, available 24/7." },
+    { icon: BookOpenCheck, title: "Real CBT Experience", desc: "Practice with an interface that mirrors the actual JAMB CBT exam environment perfectly." },
+    { icon: BarChart3, title: "Progress Tracking", desc: "Monitor your performance with detailed analytics and identify areas for improvement." },
+    { icon: Target, title: "Adaptive Learning", desc: "Questions adapt to your skill level, focusing on topics where you need more practice." },
+    { icon: Zap, title: "Instant Feedback", desc: "Get immediate feedback on your answers with detailed explanations for each question." },
+    { icon: BookOpen, title: "25,000+ Questions", desc: "Access our extensive database of past JAMB questions across all 14 subjects." },
+  ];
+
+  const steps = [
+    { step: "01", title: "Create Account", desc: "Sign up in seconds with your email" },
+    { step: "02", title: "Choose Subjects", desc: "Select your JAMB subjects and set your target score" },
+    { step: "03", title: "Practice Daily", desc: "Take practice tests and learn with AI assistance" },
+    { step: "04", title: "Ace Your Exam", desc: "Walk into JAMB confident and prepared to succeed" },
+  ];
+
+  const testimonials = [
+    { name: "Chinedu O.", year: "JAMB 2024", score: 342, text: "The AI tutor helped me understand Physics concepts I struggled with for months. Scored way above my target!" },
+    { name: "Amina B.", year: "JAMB 2024", score: 328, text: "The CBT practice environment was exactly like the real exam. I felt so confident on exam day!" },
+    { name: "Tunde A.", year: "JAMB 2024", score: 356, text: "Best investment for my JAMB prep. The adaptive questions really helped me improve quickly." },
+  ];
+
+  const stats = [
+    { value: "50K+", label: "Active Students" },
+    { value: "25K+", label: "Practice Questions" },
+    { value: "95%", label: "Pass Rate" },
+    { value: "4.9", label: "User Rating" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      {/* Nav */}
+      <header className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-20">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <span className="font-bold text-sm tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            SmartCBT
-          </span>
+          <span className="font-bold text-sm tracking-tight">JAMB AI</span>
         </div>
-        <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
-          Get Started <ArrowRight className="h-3.5 w-3.5 ml-1" />
-        </Button>
+        <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
+          <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+          <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
+          <a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a>
+        </nav>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
+            Sign In
+          </Button>
+          <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
+            Get Started <ArrowRight className="h-3.5 w-3.5 ml-1" />
+          </Button>
+        </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-16 sm:py-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center max-w-2xl mx-auto"
-        >
-          <h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight"
-            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-          >
+      {/* Hero */}
+      <section className="max-w-6xl mx-auto px-4 py-16 sm:py-24">
+        <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-medium mb-6">
+            <Zap className="h-3 w-3" /> AI-Powered Learning Platform
+          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
             Ace Your JAMB Exam with{" "}
             <span className="text-primary">Smart Practice</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            14 subjects, smart question randomization, real CBT simulation, and detailed analytics — all in one platform.
+            Practice with real JAMB CBT questions, get instant AI explanations, and track your progress. Join 50,000+ students already preparing smarter.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Button className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
-              Start Practicing <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-            <Button variant="outline" className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
-              Create Account
+            <Button className="h-11 px-8 text-sm" onClick={() => navigate("/auth")}>
+              Start Learning Free <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
+          <div className="mt-6 flex items-center justify-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="h-3.5 w-3.5 text-warning fill-warning" />
+            ))}
+            <span className="text-xs text-muted-foreground ml-1.5">Rated 4.9/5 by 50,000+ students</span>
+          </div>
         </motion.div>
+      </section>
 
-        {/* Features */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-20 grid grid-cols-1 sm:grid-cols-3 gap-6"
-        >
-          {[
-            { icon: Zap, title: "Smart Engine", desc: "Algorithm-based question selection with difficulty balancing and no repetition." },
-            { icon: Shield, title: "Real CBT Simulation", desc: "Timed exams, auto-submit, question navigation — just like the real JAMB." },
-            { icon: BarChart3, title: "Performance Analytics", desc: "Track progress, identify weak topics, and improve with every session." },
-          ].map((f) => (
-            <div key={f.title} className="text-center p-6">
-              <f.icon className="h-8 w-8 mx-auto mb-3 text-primary" />
-              <h3 className="text-sm font-semibold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                {f.title}
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-            </div>
+      {/* Stats */}
+      <section className="bg-primary text-primary-foreground py-10">
+        <div className="max-w-6xl mx-auto px-4 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+          {stats.map((s) => (
+            <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <p className="text-2xl sm:text-3xl font-bold">{s.value}</p>
+              <p className="text-xs opacity-80 mt-0.5">{s.label}</p>
+            </motion.div>
           ))}
-        </motion.div>
-      </main>
+        </div>
+      </section>
 
-      <footer className="border-t border-border py-6 text-center">
-        <p className="text-[10px] text-muted-foreground">© 2026 SmartCBT. Built for Nigerian students.</p>
+      {/* Features */}
+      <section id="features" className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
+        <div className="text-center mb-12">
+          <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Features</p>
+          <h2 className="text-2xl sm:text-3xl font-bold">Everything You Need to Succeed</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+            Our platform combines cutting-edge AI technology with proven learning methods.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Card className="border-border/50 hover:border-primary/20 transition-colors h-full">
+                <CardContent className="p-6">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                    <f.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold mb-1">{f.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* AI Section */}
+      <section className="bg-secondary/50 py-16 sm:py-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+              <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">AI Technology</p>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">Meet Your Personal AI Study Companion</h2>
+              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                Our AI tutor understands your learning style and provides personalized explanations that make complex concepts simple.
+              </p>
+              <ul className="space-y-3">
+                {["Explains concepts in simple language", "Available 24/7 for instant help", "Remembers your weak areas", "Provides step-by-step solutions"].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+              <Card className="border-border/50 overflow-hidden">
+                <div className="bg-primary/5 px-4 py-2 border-b border-border/50 flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold">JAMB AI Tutor</span>
+                  <span className="text-[10px] text-success ml-auto">● Online</span>
+                </div>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex justify-end">
+                    <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3 py-2 text-xs max-w-[75%]">
+                      I don't understand how to solve quadratic equations 😕
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Bot className="h-3 w-3 text-primary" />
+                    </div>
+                    <div className="bg-secondary rounded-2xl rounded-bl-md px-3 py-2 text-xs max-w-[75%] leading-relaxed">
+                      No worries! Let me break it down step by step. A quadratic equation has the form ax² + bx + c = 0. The key is to find values of x that make this true...
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how-it-works" className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
+        <div className="text-center mb-12">
+          <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Simple Process</p>
+          <h2 className="text-2xl sm:text-3xl font-bold">How It Works</h2>
+          <p className="text-sm text-muted-foreground mt-2">Get started in minutes and begin your journey to JAMB success</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {steps.map((s, i) => (
+            <motion.div
+              key={s.step}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="text-center"
+            >
+              <div className="text-3xl font-bold text-primary/20 mb-2">{s.step}</div>
+              <h3 className="text-sm font-semibold mb-1">{s.title}</h3>
+              <p className="text-xs text-muted-foreground">{s.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section id="testimonials" className="bg-secondary/50 py-16 sm:py-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Testimonials</p>
+            <h2 className="text-2xl sm:text-3xl font-bold">What Students Say</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <motion.div
+                key={t.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card className="border-border/50 h-full">
+                  <CardContent className="p-5">
+                    <div className="flex gap-0.5 mb-3">
+                      {[...Array(5)].map((_, j) => (
+                        <Star key={j} className="h-3 w-3 text-warning fill-warning" />
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-4">"{t.text}"</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold">{t.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{t.year}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-primary">{t.score}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to Start Preparing?</h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+            Join thousands of students already using JAMB AI to prepare smarter and score higher.
+          </p>
+          <Button className="h-11 px-8 text-sm" onClick={() => navigate("/auth")}>
+            Start Learning Free <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span className="font-bold text-xs">JAMB AI</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                AI-powered JAMB preparation platform helping Nigerian students achieve their academic dreams.
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Product</p>
+              <ul className="space-y-1 text-[10px] text-muted-foreground">
+                <li><a href="#features" className="hover:text-foreground">Features</a></li>
+                <li><a href="#" className="hover:text-foreground">AI Tutor</a></li>
+                <li><a href="#" className="hover:text-foreground">CBT Practice</a></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Company</p>
+              <ul className="space-y-1 text-[10px] text-muted-foreground">
+                <li><a href="#" className="hover:text-foreground">About</a></li>
+                <li><a href="#" className="hover:text-foreground">Contact</a></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Legal</p>
+              <ul className="space-y-1 text-[10px] text-muted-foreground">
+                <li><a href="#" className="hover:text-foreground">Privacy</a></li>
+                <li><a href="#" className="hover:text-foreground">Terms</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-border pt-4 text-center">
+            <p className="text-[10px] text-muted-foreground">© 2026 JAMB AI. All rights reserved.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );
