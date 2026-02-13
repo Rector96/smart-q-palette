@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, ArrowLeft, Check, Clock } from "lucide-react";
+import { ArrowLeft, Check, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import Logo from "@/components/Logo";
 
 const SelectSubjects = () => {
   const [searchParams] = useSearchParams();
@@ -23,11 +24,8 @@ const SelectSubjects = () => {
   const showTimer = mode === "cbt" || mode === "mock";
 
   const toggleSubject = (id: string) => {
-    if (selected.includes(id)) {
-      setSelected(selected.filter((s) => s !== id));
-    } else if (selected.length < maxSubjects) {
-      setSelected([...selected, id]);
-    }
+    if (selected.includes(id)) setSelected(selected.filter((s) => s !== id));
+    else if (selected.length < maxSubjects) setSelected([...selected, id]);
   };
 
   const handleStart = () => {
@@ -44,20 +42,14 @@ const SelectSubjects = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm">
-              Select {isMock ? "4 Subjects" : "Subject"}
-            </span>
-          </div>
+          <Logo size="sm" showText={false} />
+          <span className="font-bold text-sm">Select {isMock ? "4 Subjects" : "Subject"}</span>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6">
         <p className="text-xs text-muted-foreground mb-4">
-          {isMock
-            ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)`
-            : `Select a subject for ${mode} mode`}
+          {isMock ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)` : `Select a subject for ${mode} mode`}
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -65,15 +57,7 @@ const SelectSubjects = () => {
             const isSelected = selected.includes(subject.id);
             return (
               <motion.div key={subject.id} whileTap={{ scale: 0.97 }}>
-                <Card
-                  className={cn(
-                    "cursor-pointer transition-all border-2",
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-border/50 hover:border-primary/30"
-                  )}
-                  onClick={() => toggleSubject(subject.id)}
-                >
+                <Card className={cn("cursor-pointer transition-all border-2", isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")} onClick={() => toggleSubject(subject.id)}>
                   <CardContent className="p-4 text-center relative">
                     {isSelected && (
                       <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
@@ -89,7 +73,6 @@ const SelectSubjects = () => {
           })}
         </div>
 
-        {/* Custom Timer */}
         {showTimer && (
           <Card className="mt-6 border-border/50">
             <CardContent className="p-4">
@@ -98,14 +81,7 @@ const SelectSubjects = () => {
                 <Label className="text-sm font-semibold">Set Exam Duration</Label>
               </div>
               <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min={5}
-                  max={180}
-                  value={customMinutes}
-                  onChange={(e) => setCustomMinutes(Math.max(5, Math.min(180, Number(e.target.value))))}
-                  className="h-9 w-24 text-sm"
-                />
+                <Input type="number" min={5} max={180} value={customMinutes} onChange={(e) => setCustomMinutes(Math.max(5, Math.min(180, Number(e.target.value))))} className="h-9 w-24 text-sm" />
                 <span className="text-xs text-muted-foreground">minutes (5–180)</span>
               </div>
             </CardContent>
@@ -113,11 +89,7 @@ const SelectSubjects = () => {
         )}
 
         <div className="mt-6 flex justify-center">
-          <Button
-            onClick={handleStart}
-            disabled={isMock ? selected.length !== 4 : selected.length === 0}
-            className="h-9 px-8 text-sm"
-          >
+          <Button onClick={handleStart} disabled={isMock ? selected.length !== 4 : selected.length === 0} className="h-9 px-8 text-sm">
             Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"}
           </Button>
         </div>

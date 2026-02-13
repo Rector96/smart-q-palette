@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import Logo from "@/components/Logo";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -26,20 +26,16 @@ const AITutor = () => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
     const userMsg: Message = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
-
     let assistantSoFar = "";
 
     try {
@@ -56,7 +52,6 @@ const AITutor = () => {
         const errData = await resp.json().catch(() => ({}));
         throw new Error(errData.error || `Error ${resp.status}`);
       }
-
       if (!resp.body) throw new Error("No response body");
 
       const reader = resp.body.getReader();
@@ -67,7 +62,6 @@ const AITutor = () => {
         const { done, value } = await reader.read();
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
-
         let newlineIndex: number;
         while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
           let line = textBuffer.slice(0, newlineIndex);
@@ -137,24 +131,13 @@ const AITutor = () => {
         <div className="px-4 py-4 space-y-4">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
+              <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 {msg.role === "assistant" && (
                   <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="h-3.5 w-3.5 text-primary" />
                   </div>
                 )}
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-secondary text-secondary-foreground rounded-bl-md"
-                  }`}
-                >
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-secondary-foreground rounded-bl-md"}`}>
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
                 {msg.role === "user" && (
@@ -180,11 +163,7 @@ const AITutor = () => {
           {messages.length === 1 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
               {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => { setInput(prompt); }}
-                  className="text-left p-3 rounded-xl border border-border/50 hover:border-primary/30 transition-colors text-xs text-muted-foreground hover:text-foreground"
-                >
+                <button key={prompt} onClick={() => { setInput(prompt); }} className="text-left p-3 rounded-xl border border-border/50 hover:border-primary/30 transition-colors text-xs text-muted-foreground hover:text-foreground">
                   {prompt}
                 </button>
               ))}
@@ -195,18 +174,8 @@ const AITutor = () => {
 
       <footer className="border-t border-border bg-card/80 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto px-4 py-3">
-          <form
-            onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
-            className="flex gap-2"
-          >
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything about JAMB..."
-              className="h-10 text-sm flex-1"
-              disabled={isLoading}
-            />
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
+            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about JAMB..." className="h-10 text-sm flex-1" disabled={isLoading} />
             <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={isLoading || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>

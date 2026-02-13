@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield } from "lucide-react";
+import Logo from "@/components/Logo";
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
@@ -21,13 +22,7 @@ const AdminDashboard = () => {
         supabase.from("questions").select("*", { count: "exact", head: true }),
       ]);
       const revenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-      setStats({
-        totalUsers: totalUsers || 0,
-        paidUsers: paidUsers || 0,
-        revenue,
-        totalSessions: totalSessions || 0,
-        totalQuestions: totalQuestions || 0,
-      });
+      setStats({ totalUsers: totalUsers || 0, paidUsers: paidUsers || 0, revenue, totalSessions: totalSessions || 0, totalQuestions: totalQuestions || 0 });
     };
     fetchStats();
   }, []);
@@ -50,9 +45,12 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm">Admin Panel</span>
+          <div className="flex items-center gap-3">
+            <Logo size="sm" showText={false} />
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-primary" />
+              <span className="font-bold text-sm">Admin Panel</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>Dashboard</Button>
@@ -63,7 +61,6 @@ const AdminDashboard = () => {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <h1 className="text-lg font-bold">Admin Overview</h1>
-
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {cards.map((c) => (
             <Link key={c.label} to={c.link}>
@@ -77,7 +74,6 @@ const AdminDashboard = () => {
             </Link>
           ))}
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {navItems.map((item) => (
             <Link key={item.path} to={item.path}>

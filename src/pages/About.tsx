@@ -1,8 +1,9 @@
-import { BookOpen, ArrowLeft, Target, Users, Brain, Shield } from "lucide-react";
+import { ArrowLeft, Target, Users, Brain, Shield, Heart, GraduationCap, Lightbulb } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import Logo from "@/components/Logo";
 
 const values = [
   { icon: Target, title: "Excellence", desc: "We strive to provide the highest quality JAMB preparation materials and AI-powered learning tools." },
@@ -11,42 +12,75 @@ const values = [
   { icon: Shield, title: "Trust", desc: "Your data privacy and security are our top priorities. We never compromise on protecting our students." },
 ];
 
+const team = [
+  { name: "Our Mission", icon: GraduationCap, desc: "To democratize quality exam preparation for every Nigerian student, regardless of their location or economic background." },
+  { name: "Our Vision", icon: Lightbulb, desc: "A Nigeria where every student has access to world-class exam prep tools, powered by AI and driven by passion." },
+  { name: "Our Promise", icon: Heart, desc: "We promise to continuously improve our platform, listen to student feedback, and keep our pricing affordable." },
+];
+
 const About = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm tracking-tight">SurePass</span>
-          </div>
+          <Logo size="sm" />
         </div>
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold mb-2">About SurePass</h1>
-        <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-          SurePass is Nigeria's leading AI-powered JAMB CBT preparation platform. We're on a mission to help every Nigerian student achieve their dream university score through smart, personalized, and affordable exam preparation.
-        </p>
-        
-        <section className="mb-10">
-          <h2 className="text-lg font-bold mb-2">Our Story</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Founded by a team of educators and technologists who understand the challenges Nigerian students face, SurePass was built to bridge the gap between traditional coaching and modern AI technology. We believe that with the right tools, every student can excel in JAMB and secure admission into their dream university.
-          </p>
-        </section>
 
-        <section className="mb-10">
-          <h2 className="text-lg font-bold mb-4">Our Values</h2>
+      <main className="max-w-4xl mx-auto px-4 py-12">
+        {/* Hero */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-16">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4">About <span className="text-primary">Pass</span><span className="text-[hsl(var(--success))]">Smartly</span></h1>
+          <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+            Nigeria's leading AI-powered JAMB CBT preparation platform. We're on a mission to help every Nigerian student achieve their dream university score through smart, personalized, and affordable exam preparation.
+          </p>
+        </motion.div>
+        
+        {/* Mission/Vision/Promise */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
+          {team.map((t, i) => (
+            <motion.div key={t.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+              <Card className="border-border/50 h-full text-center">
+                <CardContent className="p-6">
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <t.icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-bold mb-2">{t.name}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Our Story */}
+        <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-16">
+          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-8">
+            <h2 className="text-xl font-bold mb-3">Our Story</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              Founded by a team of educators and technologists who understand the challenges Nigerian students face, PassSmartly was built to bridge the gap between traditional coaching and modern AI technology.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              We believe that with the right tools, every student can excel in JAMB and secure admission into their dream university. Our platform combines 25,000+ carefully curated questions with a powerful AI tutor that adapts to each student's unique learning needs.
+            </p>
+          </div>
+        </motion.section>
+
+        {/* Values */}
+        <section className="mb-16">
+          <h2 className="text-xl font-bold mb-6 text-center">Our Values</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {values.map((v, i) => (
               <motion.div key={v.title} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                <Card className="border-border/50 h-full">
-                  <CardContent className="p-4">
-                    <v.icon className="h-5 w-5 text-primary mb-2" />
+                <Card className="border-border/50 h-full hover:border-primary/20 transition-colors">
+                  <CardContent className="p-5">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                      <v.icon className="h-5 w-5 text-primary" />
+                    </div>
                     <h3 className="text-sm font-semibold mb-1">{v.title}</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
                   </CardContent>
@@ -56,16 +90,28 @@ const About = () => {
           </div>
         </section>
 
-        <section>
-          <h2 className="text-lg font-bold mb-2">What Makes Us Different</h2>
-          <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-            <li>✅ 25,000+ past JAMB questions across all 14 subjects</li>
-            <li>✅ AI Tutor available 24/7 for personalized explanations</li>
-            <li>✅ Smart question engine that adapts to your level</li>
-            <li>✅ Real CBT exam simulation environment</li>
-            <li>✅ Affordable subscription at just ₦1,500</li>
-          </ul>
-        </section>
+        {/* What Makes Us Different */}
+        <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <h2 className="text-xl font-bold mb-4 text-center">What Makes Us Different</h2>
+          <div className="bg-secondary/50 rounded-2xl p-6">
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              {[
+                "25,000+ past JAMB questions across all 14 subjects",
+                "AI Tutor available 24/7 for personalized explanations",
+                "Smart question engine that adapts to your level",
+                "Real CBT exam simulation environment",
+                "Affordable one-time payment of just ₦1,500",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3">
+                  <div className="h-5 w-5 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                    <span className="text-success text-xs">✓</span>
+                  </div>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </motion.section>
       </main>
     </div>
   );
