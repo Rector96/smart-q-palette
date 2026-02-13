@@ -1,19 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import PageLoader from "@/components/PageLoader";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) return <Navigate to="/" replace />;
+  if (loading) return <PageLoader />;
+  if (!user) return <Navigate to="/auth" replace />;
 
   return <>{children}</>;
 };

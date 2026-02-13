@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import heroImage from "@/assets/hero-students.jpg";
 import {
-  BookOpen, ArrowRight, Zap, Shield, BarChart3, Bot, Target,
+  ArrowRight, Zap, BarChart3, Bot, Target,
   CheckCircle2, Star, Users, BookOpenCheck, Clock, Crown, CreditCard
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import SubscriptionModal from "@/components/SubscriptionModal";
+import Logo from "@/components/Logo";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -33,7 +34,7 @@ const Index = () => {
     { icon: BarChart3, title: "Progress Tracking", desc: "Monitor your performance with detailed analytics and identify areas for improvement." },
     { icon: Target, title: "Adaptive Learning", desc: "Questions adapt to your skill level, focusing on topics where you need more practice." },
     { icon: Zap, title: "Instant Feedback", desc: "Get immediate feedback on your answers with detailed explanations for each question." },
-    { icon: BookOpen, title: "25,000+ Questions", desc: "Access our extensive database of past exam questions across all subjects." },
+    { icon: BookOpenCheck, title: "25,000+ Questions", desc: "Access our extensive database of past exam questions across all subjects." },
   ];
 
   const steps = [
@@ -57,10 +58,10 @@ const Index = () => {
   ];
 
   const quickFaqs = [
-    { q: "How much does SurePass cost?", a: "You get 2 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
+    { q: "How much does PassSmartly cost?", a: "You get 2 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
     { q: "Can I share exams with friends?", a: "Yes! Generate a share link after taking an exam. Your friends can take the same exam and compare scores." },
     { q: "How does the AI Tutor work?", a: "Our AI tutor provides 24/7 personalized explanations for any topic, helping you understand complex concepts easily." },
-    { q: "What exams does SurePass cover?", a: "SurePass covers JAMB, WAEC, NECO, POST-UTME, and other Nigerian examinations across all subjects." },
+    { q: "What exams does PassSmartly cover?", a: "PassSmartly covers JAMB, WAEC, NECO, POST-UTME, and other Nigerian examinations across all subjects." },
   ];
 
   const pricingBenefits = [
@@ -76,10 +77,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Nav */}
       <header className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-20">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <span className="font-bold text-sm tracking-tight">SurePass</span>
-        </div>
+        <Logo size="sm" />
         <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
@@ -104,7 +102,7 @@ const Index = () => {
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
             Ace Your Exams with{" "}
-            <span className="text-primary">SurePass</span>
+            <span className="text-primary">Pass</span><span className="text-[hsl(var(--success))]">Smartly</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
             Practice with real CBT questions for JAMB, WAEC, NECO & more. Get instant AI explanations and track your progress. Join 50,000+ students preparing smarter.
@@ -131,7 +129,7 @@ const Index = () => {
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
           <img
             src={heroImage}
-            alt="Nigerian students preparing for exams using SurePass CBT platform"
+            alt="Nigerian students preparing for exams using PassSmartly CBT platform"
             className="w-full rounded-2xl shadow-2xl border border-border/30"
             loading="lazy"
           />
@@ -184,7 +182,6 @@ const Index = () => {
             <p className="text-sm text-muted-foreground mt-2">Start free, upgrade when you're ready</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Free Plan */}
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               <Card className="border-border/50 h-full">
                 <CardContent className="p-6">
@@ -207,7 +204,6 @@ const Index = () => {
                 </CardContent>
               </Card>
             </motion.div>
-            {/* Pro Plan */}
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
               <Card className="border-primary/30 bg-primary/5 h-full relative overflow-hidden">
                 <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] px-3 py-0.5 rounded-bl-lg font-medium">Popular</div>
@@ -261,7 +257,7 @@ const Index = () => {
               <Card className="border-border/50 overflow-hidden">
                 <div className="bg-primary/5 px-4 py-2 border-b border-border/50 flex items-center gap-2">
                   <Bot className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold">SurePass AI Tutor</span>
+                  <span className="text-xs font-semibold">PassSmartly AI Tutor</span>
                   <span className="text-[10px] text-success ml-auto">● Online</span>
                 </div>
                 <CardContent className="p-4 space-y-3">
@@ -366,7 +362,7 @@ const Index = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to Start Preparing?</h2>
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Join thousands of students already using SurePass to prepare smarter and score higher.
+            Join thousands of students already using PassSmartly to prepare smarter and score higher.
           </p>
           <Button className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
             Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
@@ -380,10 +376,7 @@ const Index = () => {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="h-4 w-4 text-primary" />
-                <span className="font-bold text-xs">SurePass</span>
-              </div>
+              <Logo size="sm" className="mb-3" />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 AI-powered exam preparation platform helping Nigerian students achieve their academic dreams.
               </p>
@@ -412,7 +405,7 @@ const Index = () => {
             </div>
           </div>
           <div className="border-t border-border pt-4 text-center">
-            <p className="text-[10px] text-muted-foreground">© 2026 SurePass. All rights reserved.</p>
+            <p className="text-[10px] text-muted-foreground">© 2026 PassSmartly. All rights reserved.</p>
           </div>
         </div>
       </footer>
