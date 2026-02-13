@@ -5,11 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import heroImage from "@/assets/hero-students.jpg";
 import {
   BookOpen, ArrowRight, Zap, Shield, BarChart3, Bot, Target,
-  CheckCircle2, Star, Users, BookOpenCheck, Clock
+  CheckCircle2, Star, Users, BookOpenCheck, Clock, Crown, CreditCard
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import SubscriptionModal from "@/components/SubscriptionModal";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -20,6 +21,7 @@ const fadeUp = {
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [showSubscription, setShowSubscription] = useState(false);
 
   useEffect(() => {
     if (!loading && user) navigate("/dashboard", { replace: true });
@@ -27,24 +29,24 @@ const Index = () => {
 
   const features = [
     { icon: Bot, title: "AI Tutor", desc: "Get instant explanations and personalized guidance from our intelligent AI tutor, available 24/7." },
-    { icon: BookOpenCheck, title: "Real CBT Experience", desc: "Practice with an interface that mirrors the actual JAMB CBT exam environment perfectly." },
+    { icon: BookOpenCheck, title: "Real CBT Experience", desc: "Practice with an interface that mirrors the actual exam CBT environment perfectly." },
     { icon: BarChart3, title: "Progress Tracking", desc: "Monitor your performance with detailed analytics and identify areas for improvement." },
     { icon: Target, title: "Adaptive Learning", desc: "Questions adapt to your skill level, focusing on topics where you need more practice." },
     { icon: Zap, title: "Instant Feedback", desc: "Get immediate feedback on your answers with detailed explanations for each question." },
-    { icon: BookOpen, title: "25,000+ Questions", desc: "Access our extensive database of past JAMB questions across all 14 subjects." },
+    { icon: BookOpen, title: "25,000+ Questions", desc: "Access our extensive database of past exam questions across all subjects." },
   ];
 
   const steps = [
     { step: "01", title: "Create Account", desc: "Sign up in seconds with your email" },
-    { step: "02", title: "Choose Subjects", desc: "Select your JAMB subjects and set your target score" },
+    { step: "02", title: "Choose Subjects", desc: "Select your exam subjects and set your target" },
     { step: "03", title: "Practice Daily", desc: "Take practice tests and learn with AI assistance" },
-    { step: "04", title: "Ace Your Exam", desc: "Walk into JAMB confident and prepared to succeed" },
+    { step: "04", title: "Ace Your Exam", desc: "Walk into your exam confident and prepared" },
   ];
 
   const testimonials = [
-    { name: "Chinedu O.", year: "JAMB 2024", score: 342, text: "The AI tutor helped me understand Physics concepts I struggled with for months. Scored way above my target!" },
-    { name: "Amina B.", year: "JAMB 2024", score: 328, text: "The CBT practice environment was exactly like the real exam. I felt so confident on exam day!" },
-    { name: "Tunde A.", year: "JAMB 2024", score: 356, text: "Best investment for my JAMB prep. The adaptive questions really helped me improve quickly." },
+    { name: "Chinedu O.", year: "2024", score: 342, text: "The AI tutor helped me understand Physics concepts I struggled with for months. Scored way above my target!" },
+    { name: "Amina B.", year: "2024", score: 328, text: "The CBT practice environment was exactly like the real exam. I felt so confident on exam day!" },
+    { name: "Tunde A.", year: "2024", score: 356, text: "Best investment for my exam prep. The adaptive questions really helped me improve quickly." },
   ];
 
   const stats = [
@@ -55,9 +57,19 @@ const Index = () => {
   ];
 
   const quickFaqs = [
-    { q: "How much does SurePass cost?", a: "You get 2 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features." },
+    { q: "How much does SurePass cost?", a: "You get 2 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
     { q: "Can I share exams with friends?", a: "Yes! Generate a share link after taking an exam. Your friends can take the same exam and compare scores." },
-    { q: "How does the AI Tutor work?", a: "Our AI tutor provides 24/7 personalized explanations for any JAMB topic, helping you understand complex concepts easily." },
+    { q: "How does the AI Tutor work?", a: "Our AI tutor provides 24/7 personalized explanations for any topic, helping you understand complex concepts easily." },
+    { q: "What exams does SurePass cover?", a: "SurePass covers JAMB, WAEC, NECO, POST-UTME, and other Nigerian examinations across all subjects." },
+  ];
+
+  const pricingBenefits = [
+    "Unlimited exam sessions",
+    "All subjects & 25,000+ questions",
+    "AI Tutor — 24/7 access",
+    "Progress tracking & analytics",
+    "Exam sharing with friends",
+    "Priority support",
   ];
 
   return (
@@ -70,8 +82,8 @@ const Index = () => {
         </div>
         <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+          <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
-          <a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a>
           <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
         </nav>
         <div className="flex gap-2">
@@ -85,27 +97,27 @@ const Index = () => {
       </header>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 py-16 sm:py-24">
+      <section className="max-w-6xl mx-auto px-4 py-12 sm:py-20">
         <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-medium mb-6">
-            <Zap className="h-3 w-3" /> AI-Powered JAMB Preparation
+            <Zap className="h-3 w-3" /> AI-Powered Exam Preparation
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
-            Ace Your JAMB Exam with{" "}
+            Ace Your Exams with{" "}
             <span className="text-primary">SurePass</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            Practice with real JAMB CBT questions, get instant AI explanations, and track your progress. Join 50,000+ students preparing smarter.
+            Practice with real CBT questions for JAMB, WAEC, NECO & more. Get instant AI explanations and track your progress. Join 50,000+ students preparing smarter.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Button className="h-11 px-8 text-sm" onClick={() => navigate("/auth")}>
-              Start Learning Free <ArrowRight className="h-4 w-4 ml-1" />
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Button className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
+              Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
-          <div className="mt-4 text-xs text-muted-foreground">
+          <div className="mt-3 text-xs text-muted-foreground">
             ✨ 2 free exam sessions · No credit card required
           </div>
-          <div className="mt-4 flex items-center justify-center gap-1">
+          <div className="mt-3 flex items-center justify-center gap-1">
             {[...Array(5)].map((_, i) => (
               <Star key={i} className="h-3.5 w-3.5 text-warning fill-warning" />
             ))}
@@ -115,11 +127,11 @@ const Index = () => {
       </section>
 
       {/* Hero Image */}
-      <section className="max-w-5xl mx-auto px-4 -mt-4 mb-8">
+      <section className="max-w-5xl mx-auto px-4 -mt-2 mb-8">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
           <img
             src={heroImage}
-            alt="Nigerian students preparing for JAMB using SurePass CBT platform"
+            alt="Nigerian students preparing for exams using SurePass CBT platform"
             className="w-full rounded-2xl shadow-2xl border border-border/30"
             loading="lazy"
           />
@@ -163,8 +175,71 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section id="pricing" className="bg-secondary/50 py-16 sm:py-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Pricing</p>
+            <h2 className="text-2xl sm:text-3xl font-bold">Simple, Affordable Pricing</h2>
+            <p className="text-sm text-muted-foreground mt-2">Start free, upgrade when you're ready</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Free Plan */}
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <Card className="border-border/50 h-full">
+                <CardContent className="p-6">
+                  <h3 className="text-sm font-semibold mb-1">Free Trial</h3>
+                  <div className="flex items-baseline gap-1 mb-4">
+                    <span className="text-2xl font-bold">₦0</span>
+                    <span className="text-xs text-muted-foreground">/ 2 sessions</span>
+                  </div>
+                  <ul className="space-y-2 mb-6">
+                    {["2 free exam sessions", "All subjects available", "Basic progress view", "AI Tutor preview"].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-xs">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button variant="outline" className="w-full h-9 text-xs" onClick={() => navigate("/auth")}>
+                    Get Started Free
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+            {/* Pro Plan */}
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+              <Card className="border-primary/30 bg-primary/5 h-full relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] px-3 py-0.5 rounded-bl-lg font-medium">Popular</div>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Crown className="h-4 w-4 text-warning" />
+                    <h3 className="text-sm font-semibold">Pro — Lifetime</h3>
+                  </div>
+                  <div className="flex items-baseline gap-1 mb-4">
+                    <span className="text-2xl font-bold">₦1,500</span>
+                    <span className="text-xs text-muted-foreground">/ one-time</span>
+                  </div>
+                  <ul className="space-y-2 mb-6">
+                    {pricingBenefits.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-xs">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button className="w-full h-9 text-xs" onClick={() => setShowSubscription(true)}>
+                    <CreditCard className="h-3.5 w-3.5 mr-1" /> Pay Now
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* AI Section */}
-      <section className="bg-secondary/50 py-16 sm:py-20">
+      <section className="py-16 sm:py-20">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
@@ -211,25 +286,27 @@ const Index = () => {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
-        <div className="text-center mb-12">
-          <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Simple Process</p>
-          <h2 className="text-2xl sm:text-3xl font-bold">How It Works</h2>
-          <p className="text-sm text-muted-foreground mt-2">Get started in minutes and begin your journey to JAMB success</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((s, i) => (
-            <motion.div key={s.step} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="text-center">
-              <div className="text-3xl font-bold text-primary/20 mb-2">{s.step}</div>
-              <h3 className="text-sm font-semibold mb-1">{s.title}</h3>
-              <p className="text-xs text-muted-foreground">{s.desc}</p>
-            </motion.div>
-          ))}
+      <section id="how-it-works" className="bg-secondary/50 py-16 sm:py-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Simple Process</p>
+            <h2 className="text-2xl sm:text-3xl font-bold">How It Works</h2>
+            <p className="text-sm text-muted-foreground mt-2">Get started in minutes and begin your journey to exam success</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {steps.map((s, i) => (
+              <motion.div key={s.step} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="text-center">
+                <div className="text-3xl font-bold text-primary/20 mb-2">{s.step}</div>
+                <h3 className="text-sm font-semibold mb-1">{s.title}</h3>
+                <p className="text-xs text-muted-foreground">{s.desc}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section id="testimonials" className="bg-secondary/50 py-16 sm:py-20">
+      <section id="testimonials" className="py-16 sm:py-20">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
             <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">Testimonials</p>
@@ -264,21 +341,23 @@ const Index = () => {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="max-w-3xl mx-auto px-4 py-16 sm:py-20">
-        <div className="text-center mb-10">
-          <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">FAQ</p>
-          <h2 className="text-2xl sm:text-3xl font-bold">Frequently Asked Questions</h2>
-        </div>
-        <Accordion type="single" collapsible className="space-y-2">
-          {quickFaqs.map((faq, i) => (
-            <AccordionItem key={i} value={`faq-${i}`} className="border border-border/50 rounded-lg px-4">
-              <AccordionTrigger className="text-sm font-medium hover:no-underline">{faq.q}</AccordionTrigger>
-              <AccordionContent className="text-xs text-muted-foreground leading-relaxed">{faq.a}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-        <div className="text-center mt-4">
-          <Link to="/faq" className="text-xs text-primary hover:underline">View all FAQs →</Link>
+      <section id="faq" className="bg-secondary/50 py-16 sm:py-20">
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-2">FAQ</p>
+            <h2 className="text-2xl sm:text-3xl font-bold">Frequently Asked Questions</h2>
+          </div>
+          <Accordion type="single" collapsible className="space-y-2">
+            {quickFaqs.map((faq, i) => (
+              <AccordionItem key={i} value={`faq-${i}`} className="border border-border/50 rounded-lg px-4">
+                <AccordionTrigger className="text-sm font-medium hover:no-underline">{faq.q}</AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">{faq.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          <div className="text-center mt-4">
+            <Link to="/faq" className="text-xs text-primary hover:underline">View all FAQs →</Link>
+          </div>
         </div>
       </section>
 
@@ -289,8 +368,8 @@ const Index = () => {
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
             Join thousands of students already using SurePass to prepare smarter and score higher.
           </p>
-          <Button className="h-11 px-8 text-sm" onClick={() => navigate("/auth")}>
-            Start Learning Free <ArrowRight className="h-4 w-4 ml-1" />
+          <Button className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
+            Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
           <p className="text-xs text-muted-foreground mt-3">2 free exams · No credit card required</p>
         </motion.div>
@@ -306,15 +385,15 @@ const Index = () => {
                 <span className="font-bold text-xs">SurePass</span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI-powered JAMB preparation platform helping Nigerian students achieve their academic dreams.
+                AI-powered exam preparation platform helping Nigerian students achieve their academic dreams.
               </p>
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Product</p>
               <ul className="space-y-1 text-[10px] text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground">Features</a></li>
+                <li><a href="#pricing" className="hover:text-foreground">Pricing</a></li>
                 <li><Link to="/faq" className="hover:text-foreground">FAQ</Link></li>
-                <li><a href="#how-it-works" className="hover:text-foreground">How It Works</a></li>
               </ul>
             </div>
             <div>
@@ -337,6 +416,8 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,16 +7,36 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   BookOpen, LogOut, Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain
+  Sparkles, Flame, Brain, Shield
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { isAdmin } = useAdmin();
+  const { toast } = useToast();
   const [stats, setStats] = useState({ sessions: 0, avgScore: 0, totalQuestions: 0 });
   const [profile, setProfile] = useState<{ full_name: string | null }>({ full_name: null });
   const [streak, setStreak] = useState(0);
+
+  // Auto-verify payment on return from Paystack
+  useEffect(() => {
+    const verifyPayment = async () => {
+      const ref = searchParams.get("reference") || searchParams.get("trxref");
+      if (!ref || !user) return;
+      try {
+        const res = await supabase.functions.invoke("paystack-verify", { body: { reference: ref } });
+        if (res.data?.status === "success") {
+          toast({ title: "🎉 Payment successful!", description: "Your account has been upgraded to Pro." });
+        }
+      } catch {}
+    };
+    verifyPayment();
+  }, [searchParams, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -77,6 +97,11 @@ const Dashboard = () => {
             <span className="text-xs text-muted-foreground hidden sm:block">
               {profile.full_name || user?.email}
             </span>
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="h-8 text-xs">
+                <Shield className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={signOut} className="h-8 text-xs">
               <LogOut className="h-3.5 w-3.5" />
             </Button>

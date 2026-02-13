@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
 import { Loader2 } from "lucide-react";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -21,6 +22,13 @@ const Terms = lazy(() => import("./pages/Terms"));
 const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Admin pages
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
+const AdminContent = lazy(() => import("./pages/admin/AdminContent"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 
 const queryClient = new QueryClient();
 
@@ -51,6 +59,12 @@ const App = () => (
               <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
               <Route path="/results/:sessionId" element={<ProtectedRoute><Results /></ProtectedRoute>} />
               <Route path="/ai-tutor" element={<ProtectedRoute><AITutor /></ProtectedRoute>} />
+              {/* Admin routes */}
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+              <Route path="/admin/payments" element={<AdminRoute><AdminPayments /></AdminRoute>} />
+              <Route path="/admin/content" element={<AdminRoute><AdminContent /></AdminRoute>} />
+              <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

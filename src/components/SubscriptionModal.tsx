@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Crown, CheckCircle2, CreditCard, Copy } from "lucide-react";
+import { Crown, CheckCircle2, CreditCard, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   open: boolean;
@@ -11,11 +14,43 @@ interface Props {
 
 const SubscriptionModal = ({ open, onOpenChange }: Props) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const copyAccount = () => {
-    navigator.clipboard.writeText("0123456789 - SurePass Education Ltd - GTBank");
-    toast({ title: "Copied!", description: "Bank details copied to clipboard." });
+  const handlePaystack = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("paystack-initialize", {
+        body: {
+          amount: 150000, // ₦1,500 in kobo
+          callback_url: `${window.location.origin}/dashboard?payment=verify`,
+        },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+      const result = res.data;
+      if (result?.data?.authorization_url) {
+        window.location.href = result.data.authorization_url;
+      } else {
+        throw new Error("Failed to initialize payment");
+      }
+    } catch (err: any) {
+      toast({ title: "Payment error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const benefits = [
+    "Unlimited exam sessions",
+    "All subjects & 25,000+ questions",
+    "AI Tutor with 24/7 access",
+    "Detailed analytics & progress tracking",
+    "Exam sharing with friends",
+    "Priority support",
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,14 +72,7 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
               <span className="text-xs text-muted-foreground">/ lifetime access</span>
             </div>
             <ul className="space-y-2">
-              {[
-                "Unlimited exam sessions",
-                "All 14 subjects & 25,000+ questions",
-                "AI Tutor with 24/7 access",
-                "Detailed analytics & progress tracking",
-                "Exam sharing with friends",
-                "Priority support",
-              ].map((f) => (
+              {benefits.map((f) => (
                 <li key={f} className="flex items-center gap-2 text-xs">
                   <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
                   {f}
@@ -55,25 +83,12 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
         </Card>
 
         <div className="space-y-3">
-          <div>
-            <p className="text-xs font-semibold mb-1">Payment Details:</p>
-            <Card className="border-border/50">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium">GTBank</p>
-                    <p className="text-xs text-muted-foreground">0123456789</p>
-                    <p className="text-xs text-muted-foreground">SurePass Education Ltd</p>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyAccount}>
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            After payment, send proof of payment (screenshot) to <span className="font-medium text-foreground">support@surepass.ng</span> or WhatsApp <span className="font-medium text-foreground">+234 800 SUREPASS</span>. Access will be activated within minutes.
+          <Button className="w-full h-10 text-sm" onClick={handlePaystack} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CreditCard className="h-4 w-4 mr-2" />}
+            Pay with Paystack
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+            Secure payment via Paystack · Card, Bank Transfer, USSD supported · Instant activation after payment
           </p>
         </div>
       </DialogContent>
