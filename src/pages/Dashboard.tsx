@@ -1,12 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
-  LogOut, Trophy, Target, Clock, ChevronRight,
+  LogOut, Trophy, Target, Clock, ChevronRight, ChevronLeft,
   Sparkles, Flame, Brain, Shield, Crown, Lock
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -27,6 +27,11 @@ const Dashboard = () => {
   const [streak, setStreak] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/", { replace: true });
+  };
+
   useEffect(() => {
     const verifyPayment = async () => {
       const ref = searchParams.get("reference") || searchParams.get("trxref");
@@ -35,7 +40,6 @@ const Dashboard = () => {
         const res = await supabase.functions.invoke("paystack-verify", { body: { reference: ref } });
         if (res.data?.status === "success") {
           toast({ title: "🎉 Payment successful!", description: "Your account has been upgraded to Pro." });
-          // Refresh profile
           const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
           if (prof) setProfile(prof);
         }
@@ -83,8 +87,13 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Logo size="sm" />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/")}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Link to="/"><Logo size="sm" /></Link>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
             {isPro ? (
               <Badge variant="default" className="text-[10px] h-5 gap-1 bg-primary/10 text-primary border-primary/20">
                 <Crown className="h-3 w-3" /> Pro
@@ -100,7 +109,7 @@ const Dashboard = () => {
                 <Shield className="h-3.5 w-3.5" />
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={signOut} className="h-8 text-xs"><LogOut className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="h-8 text-xs"><LogOut className="h-3.5 w-3.5" /></Button>
           </div>
         </div>
       </header>

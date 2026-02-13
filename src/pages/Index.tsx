@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import heroImage from "@/assets/hero-students.jpg";
+import paystackBanner from "@/assets/paystack-banner.png";
 import {
   ArrowRight, Zap, BarChart3, Bot, Target,
   CheckCircle2, Star, Users, BookOpenCheck, Clock, Crown, CreditCard
@@ -23,10 +24,9 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [showSubscription, setShowSubscription] = useState(false);
+  const isLoggedIn = !loading && !!user;
 
-  useEffect(() => {
-    if (!loading && user) navigate("/dashboard", { replace: true });
-  }, [user, loading]);
+  // No auto-redirect — homepage detects auth state and adapts UI
 
   const features = [
     { icon: Bot, title: "AI Tutor", desc: "Get instant explanations and personalized guidance from our intelligent AI tutor, available 24/7." },
@@ -77,7 +77,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Nav */}
       <header className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-20">
-        <Logo size="sm" />
+        <Link to="/"><Logo size="sm" /></Link>
         <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
@@ -85,12 +85,20 @@ const Index = () => {
           <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
         </nav>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
-            Sign In
-          </Button>
-          <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
-            Get Started <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
+          {isLoggedIn ? (
+            <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>
+              Continue to Dashboard <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+              <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
+                Get Started <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
@@ -107,14 +115,22 @@ const Index = () => {
           <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
             Practice with real CBT questions for JAMB, WAEC, NECO & more. Get instant AI explanations and track your progress. Join 50,000+ students preparing smarter.
           </p>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <Button className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
-              Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
+          <div className="mt-6 flex justify-center">
+            {isLoggedIn ? (
+              <Button className="h-10 px-6 text-sm max-w-xs w-full sm:w-auto" onClick={() => navigate("/dashboard")}>
+                Continue Practicing <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button className="h-10 px-6 text-sm max-w-xs w-full sm:w-auto" onClick={() => navigate("/auth")}>
+                Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
           </div>
-          <div className="mt-3 text-xs text-muted-foreground">
-            ✨ 2 free exam sessions · No credit card required
-          </div>
+          {!isLoggedIn && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              ✨ 2 free exam sessions · No credit card required
+            </div>
+          )}
           <div className="mt-3 flex items-center justify-center gap-1">
             {[...Array(5)].map((_, i) => (
               <Star key={i} className="h-3.5 w-3.5 text-warning fill-warning" />
@@ -173,6 +189,37 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Paystack Payment Section */}
+      <section className="max-w-5xl mx-auto px-4 py-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <Card className="border-border/50 overflow-hidden shadow-lg">
+            <CardContent className="p-0">
+              <div className="grid md:grid-cols-2 items-center">
+                <div className="p-6 md:p-8 space-y-3">
+                  <h3 className="text-lg sm:text-xl font-bold">Pay securely with Paystack</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    Paystack is a safe and secure way to pay online with multiple payment channels, including card, bank transfer, USSD, and more!
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {["Visa", "Mastercard", "Bank Transfer", "USSD"].map((m) => (
+                      <span key={m} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/50">{m}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-center p-4 md:p-6">
+                  <img
+                    src={paystackBanner}
+                    alt="Pay securely with Paystack - card, bank, USSD"
+                    className="w-full max-w-xs md:max-w-sm rounded-xl shadow-md"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="bg-secondary/50 py-16 sm:py-20">
         <div className="max-w-6xl mx-auto px-4">
@@ -198,8 +245,8 @@ const Index = () => {
                       </li>
                     ))}
                   </ul>
-                  <Button variant="outline" className="w-full h-9 text-xs" onClick={() => navigate("/auth")}>
-                    Get Started Free
+                  <Button variant="outline" className="w-full h-9 text-xs" onClick={() => navigate(isLoggedIn ? "/dashboard" : "/auth")}>
+                    {isLoggedIn ? "Go to Dashboard" : "Get Started Free"}
                   </Button>
                 </CardContent>
               </Card>
@@ -224,8 +271,8 @@ const Index = () => {
                       </li>
                     ))}
                   </ul>
-                  <Button className="w-full h-9 text-xs" onClick={() => setShowSubscription(true)}>
-                    <CreditCard className="h-3.5 w-3.5 mr-1" /> Pay Now
+                  <Button className="w-full h-9 text-xs" onClick={() => isLoggedIn ? setShowSubscription(true) : navigate("/auth")}>
+                    <CreditCard className="h-3.5 w-3.5 mr-1" /> {isLoggedIn ? "Pay Now" : "Sign Up to Pay"}
                   </Button>
                 </CardContent>
               </Card>
@@ -364,10 +411,16 @@ const Index = () => {
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
             Join thousands of students already using PassSmartly to prepare smarter and score higher.
           </p>
-          <Button className="h-10 px-6 text-sm" onClick={() => navigate("/auth")}>
-            Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
-          </Button>
-          <p className="text-xs text-muted-foreground mt-3">2 free exams · No credit card required</p>
+          {isLoggedIn ? (
+            <Button className="h-10 px-6 text-sm max-w-xs" onClick={() => navigate("/dashboard")}>
+              Continue Practicing <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button className="h-10 px-6 text-sm max-w-xs" onClick={() => navigate("/auth")}>
+              Create Free Account <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+          {!isLoggedIn && <p className="text-xs text-muted-foreground mt-3">2 free exams · No credit card required</p>}
         </motion.div>
       </section>
 
@@ -376,7 +429,7 @@ const Index = () => {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8">
             <div>
-              <Logo size="sm" className="mb-3" />
+              <Link to="/"><Logo size="sm" className="mb-3" /></Link>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 AI-powered exam preparation platform helping Nigerian students achieve their academic dreams.
               </p>
