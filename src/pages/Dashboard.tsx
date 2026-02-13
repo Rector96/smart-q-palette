@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   LogOut, Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield
+  Sparkles, Flame, Brain, Shield, Crown, Lock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
 import Logo from "@/components/Logo";
+import SubscriptionModal from "@/components/SubscriptionModal";
+import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -21,8 +23,9 @@ const Dashboard = () => {
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
   const [stats, setStats] = useState({ sessions: 0, avgScore: 0, totalQuestions: 0 });
-  const [profile, setProfile] = useState<{ full_name: string | null }>({ full_name: null });
+  const [profile, setProfile] = useState<{ full_name: string | null; trial_count: number; is_subscribed: boolean }>({ full_name: null, trial_count: 0, is_subscribed: false });
   const [streak, setStreak] = useState(0);
+  const [showSubscription, setShowSubscription] = useState(false);
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -32,6 +35,9 @@ const Dashboard = () => {
         const res = await supabase.functions.invoke("paystack-verify", { body: { reference: ref } });
         if (res.data?.status === "success") {
           toast({ title: "🎉 Payment successful!", description: "Your account has been upgraded to Pro." });
+          // Refresh profile
+          const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
+          if (prof) setProfile(prof);
         }
       } catch {}
     };
@@ -41,7 +47,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
+      const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
       if (prof) setProfile(prof);
       const { data: sessions } = await supabase.from("exam_sessions").select("*").eq("user_id", user.id).eq("completed", true).order("completed_at", { ascending: false });
       if (sessions && sessions.length > 0) {
@@ -62,12 +68,32 @@ const Dashboard = () => {
     fetchData();
   }, [user]);
 
+  const attemptsLeft = Math.max(0, 2 - profile.trial_count);
+  const isPro = profile.is_subscribed;
+
+  const handleStartTest = () => {
+    if (!isPro && attemptsLeft <= 0) {
+      setShowSubscription(true);
+      return;
+    }
+    navigate("/select-subjects?mode=practice");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Logo size="sm" />
           <div className="flex items-center gap-3">
+            {isPro ? (
+              <Badge variant="default" className="text-[10px] h-5 gap-1 bg-primary/10 text-primary border-primary/20">
+                <Crown className="h-3 w-3" /> Pro
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] h-5 gap-1">
+                Free · {attemptsLeft}/2 left
+              </Badge>
+            )}
             <span className="text-xs text-muted-foreground hidden sm:block">{profile.full_name || user?.email}</span>
             {isAdmin && (
               <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="h-8 text-xs">
@@ -82,17 +108,35 @@ const Dashboard = () => {
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-lg font-bold">Welcome back{profile.full_name ? `, ${profile.full_name}` : ""} 👋</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">You're making great progress. Keep it up!</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isPro ? "You have unlimited access. Keep crushing it!" : `You have ${attemptsLeft} free attempt${attemptsLeft !== 1 ? "s" : ""} remaining.`}
+          </p>
         </motion.div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Button className="h-12 text-sm justify-start gap-2" onClick={() => navigate("/select-subjects?mode=practice")}>
-            <Brain className="h-4 w-4" /> Start Practice Test
+          <Button className="h-12 text-sm justify-start gap-2 shadow-md" onClick={handleStartTest}>
+            {!isPro && attemptsLeft <= 0 ? <Lock className="h-4 w-4" /> : <Brain className="h-4 w-4" />}
+            Start Practice Test
           </Button>
-          <Button variant="outline" className="h-12 text-sm justify-start gap-2" onClick={() => navigate("/ai-tutor")}>
+          <Button variant="outline" className="h-12 text-sm justify-start gap-2 shadow-sm" onClick={() => navigate("/ai-tutor")}>
             <Sparkles className="h-4 w-4" /> Ask AI Tutor
           </Button>
         </div>
+
+        {!isPro && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowSubscription(true)}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <Crown className="h-5 w-5 text-primary shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold">Upgrade to Pro — ₦1,500</p>
+                  <p className="text-[10px] text-muted-foreground">Unlock unlimited exams, AI tutor & more</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
@@ -101,7 +145,7 @@ const Dashboard = () => {
             { icon: Clock, label: "Questions", value: stats.totalQuestions, color: "text-primary" },
             { icon: Flame, label: "Streak", value: `${streak} days`, color: "text-warning" },
           ].map((stat) => (
-            <Card key={stat.label} className="border-border/50">
+            <Card key={stat.label} className="border-border/50 shadow-sm">
               <CardContent className="p-3 text-center">
                 <stat.icon className={`h-4 w-4 mx-auto mb-1 ${stat.color}`} />
                 <p className="text-lg font-bold">{stat.value}</p>
@@ -111,7 +155,7 @@ const Dashboard = () => {
           ))}
         </div>
 
-        <Card className="border-border/50 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => navigate("/ai-tutor")}>
+        <Card className="border-border/50 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/ai-tutor")}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center shrink-0">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
@@ -129,13 +173,23 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {EXAM_MODES.map((mode) => (
               <motion.div key={mode.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-colors" onClick={() => navigate(`/select-subjects?mode=${mode.id}`)}>
+                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md" onClick={() => {
+                  if (!isPro && attemptsLeft <= 0 && mode.id !== "revision") {
+                    setShowSubscription(true);
+                    return;
+                  }
+                  navigate(`/select-subjects?mode=${mode.id}`);
+                }}>
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-sm">{mode.name}</p>
                       <p className="text-[11px] text-muted-foreground">{mode.description}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    {!isPro && attemptsLeft <= 0 && mode.id !== "revision" ? (
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -148,7 +202,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {SUBJECTS.map((subject) => (
               <motion.div key={subject.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-colors" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
+                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
                   <CardContent className="p-3 text-center">
                     <subject.icon className="h-5 w-5 mx-auto mb-1.5 text-primary" />
                     <p className="text-[10px] font-medium leading-tight">{subject.name}</p>
@@ -159,6 +213,8 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+
+      <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} />
     </div>
   );
 };

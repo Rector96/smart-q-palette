@@ -159,7 +159,7 @@ const Index = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((f, i) => (
             <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-              <Card className="border-border/50 hover:border-primary/20 transition-colors h-full">
+              <Card className="border-border/50 hover:border-primary/20 transition-all shadow-sm hover:shadow-md h-full">
                 <CardContent className="p-6">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                     <f.icon className="h-5 w-5 text-primary" />
@@ -183,7 +183,7 @@ const Index = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <Card className="border-border/50 h-full">
+               <Card className="border-border/50 h-full shadow-sm">
                 <CardContent className="p-6">
                   <h3 className="text-sm font-semibold mb-1">Free Trial</h3>
                   <div className="flex items-baseline gap-1 mb-4">
@@ -205,7 +205,7 @@ const Index = () => {
               </Card>
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-              <Card className="border-primary/30 bg-primary/5 h-full relative overflow-hidden">
+              <Card className="border-primary/30 bg-primary/5 h-full relative overflow-hidden shadow-md">
                 <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] px-3 py-0.5 rounded-bl-lg font-medium">Popular</div>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-2 mb-1">
@@ -254,7 +254,7 @@ const Index = () => {
               </ul>
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-              <Card className="border-border/50 overflow-hidden">
+              <Card className="border-border/50 overflow-hidden shadow-md">
                 <div className="bg-primary/5 px-4 py-2 border-b border-border/50 flex items-center gap-2">
                   <Bot className="h-4 w-4 text-primary" />
                   <span className="text-xs font-semibold">PassSmartly AI Tutor</span>
@@ -311,7 +311,7 @@ const Index = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
               <motion.div key={t.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                <Card className="border-border/50 h-full">
+                <Card className="border-border/50 h-full shadow-sm">
                   <CardContent className="p-5">
                     <div className="flex gap-0.5 mb-3">
                       {[...Array(5)].map((_, j) => (
