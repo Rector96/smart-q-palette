@@ -26,7 +26,9 @@ const Exam = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const questionCountParam = searchParams.get("count");
   const customDuration = timerParam ? Number(timerParam) * 60 : 60 * 60;
+  const requestedCount = questionCountParam ? Number(questionCountParam) : 60;
 
   const [questions, setQuestions] = useState<QuestionWithShuffledOptions[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -72,7 +74,7 @@ const Exam = () => {
     setLoading(true);
     let allQuestions: QuestionWithShuffledOptions[] = [];
     for (const subject of subjects) {
-      const qs = await fetchSmartQuestions(subject, user.id, 60, mode);
+      const qs = await fetchSmartQuestions(subject, user.id, requestedCount, mode);
       allQuestions = [...allQuestions, ...qs];
     }
     setQuestions(allQuestions);
@@ -189,7 +191,7 @@ const Exam = () => {
           <CardContent className="p-6 text-center">
             <BookOpen className="h-8 w-8 mx-auto mb-3 text-primary" />
             <p className="text-sm font-medium">Free trials used up</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Subscribe to ₦1,500 to continue learning with SurePass.</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">Subscribe for ₦1,500 to continue learning with PassSmartly.</p>
             <div className="flex gap-2 justify-center">
               <Button variant="outline" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>Back</Button>
               <Button className="h-8 text-xs" onClick={() => setShowSubscription(true)}>Subscribe Now</Button>

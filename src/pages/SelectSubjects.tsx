@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SUBJECTS, type ExamMode } from "@/lib/subjects";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Check, Clock } from "lucide-react";
+import { ArrowLeft, Check, Clock, Hash } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
+
+const QUESTION_PRESETS = [20, 40, 60, 80, 100];
 
 const SelectSubjects = () => {
   const [searchParams] = useSearchParams();
@@ -18,21 +20,35 @@ const SelectSubjects = () => {
 
   const [selected, setSelected] = useState<string[]>(preselected ? [preselected] : []);
   const [customMinutes, setCustomMinutes] = useState(60);
+  const [questionCount, setQuestionCount] = useState(60);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const isMock = mode === "mock";
   const maxSubjects = isMock ? 4 : 1;
   const showTimer = mode === "cbt" || mode === "mock";
 
   const toggleSubject = (id: string) => {
-    if (selected.includes(id)) setSelected(selected.filter((s) => s !== id));
-    else if (selected.length < maxSubjects) setSelected([...selected, id]);
+    if (selected.includes(id)) {
+      setSelected(selected.filter((s) => s !== id));
+    } else if (selected.length < maxSubjects) {
+      setSelected([...selected, id]);
+    }
   };
+
+  // Auto-scroll to bottom when a subject is selected
+  useEffect(() => {
+    if (selected.length > 0) {
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 150);
+    }
+  }, [selected]);
 
   const handleStart = () => {
     if (selected.length === 0) return;
     const subjects = selected.join(",");
     const timerParam = showTimer ? `&timer=${customMinutes}` : "";
-    navigate(`/exam?mode=${mode}&subjects=${subjects}${timerParam}`);
+    navigate(`/exam?mode=${mode}&subjects=${subjects}&count=${questionCount}${timerParam}`);
   };
 
   return (
@@ -57,7 +73,7 @@ const SelectSubjects = () => {
             const isSelected = selected.includes(subject.id);
             return (
               <motion.div key={subject.id} whileTap={{ scale: 0.97 }}>
-                <Card className={cn("cursor-pointer transition-all border-2", isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")} onClick={() => toggleSubject(subject.id)}>
+                <Card className={cn("cursor-pointer transition-all border-2 shadow-sm hover:shadow-md", isSelected ? "border-primary bg-primary/5 shadow-md" : "border-border/50 hover:border-primary/30")} onClick={() => toggleSubject(subject.id)}>
                   <CardContent className="p-4 text-center relative">
                     {isSelected && (
                       <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
@@ -73,26 +89,66 @@ const SelectSubjects = () => {
           })}
         </div>
 
-        {showTimer && (
-          <Card className="mt-6 border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-4 w-4 text-primary" />
-                <Label className="text-sm font-semibold">Set Exam Duration</Label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Input type="number" min={5} max={180} value={customMinutes} onChange={(e) => setCustomMinutes(Math.max(5, Math.min(180, Number(e.target.value))))} className="h-9 w-24 text-sm" />
-                <span className="text-xs text-muted-foreground">minutes (5–180)</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Question Count & Timer - shown after subject selection */}
+        {selected.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-6 space-y-4">
+            {/* Question Count */}
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Hash className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-semibold">Number of Questions</Label>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {QUESTION_PRESETS.map((preset) => (
+                    <Button
+                      key={preset}
+                      variant={questionCount === preset ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setQuestionCount(preset)}
+                    >
+                      {preset}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={5}
+                    max={200}
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(Math.max(5, Math.min(200, Number(e.target.value))))}
+                    className="h-9 w-24 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">custom (5–200)</span>
+                </div>
+              </CardContent>
+            </Card>
 
-        <div className="mt-6 flex justify-center">
-          <Button onClick={handleStart} disabled={isMock ? selected.length !== 4 : selected.length === 0} className="h-9 px-8 text-sm">
-            Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"}
-          </Button>
-        </div>
+            {showTimer && (
+              <Card className="border-border/50 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <Label className="text-sm font-semibold">Set Exam Duration</Label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input type="number" min={5} max={180} value={customMinutes} onChange={(e) => setCustomMinutes(Math.max(5, Math.min(180, Number(e.target.value))))} className="h-9 w-24 text-sm" />
+                    <span className="text-xs text-muted-foreground">minutes (5–180)</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="flex justify-center">
+              <Button onClick={handleStart} disabled={isMock ? selected.length !== 4 : selected.length === 0} className="h-10 px-8 text-sm shadow-md">
+                Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"} — {questionCount} Questions
+              </Button>
+            </div>
+          </motion.div>
+        )}
+        <div ref={bottomRef} />
       </main>
     </div>
   );
