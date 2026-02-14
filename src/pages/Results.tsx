@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Trophy, Target, Clock, ArrowLeft, RotateCcw, Share2 } from "lucide-react";
+import { BookOpen, Trophy, Target, Clock, ArrowLeft, RotateCcw, Share2, CheckCircle2, XCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,27 +15,26 @@ const Results = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
+  const [profileName, setProfileName] = useState("");
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
+  const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user || !sessionId) return;
 
     const fetchResults = async () => {
-      const { data: sess } = await supabase
-        .from("exam_sessions")
-        .select("*")
-        .eq("id", sessionId)
-        .single();
+      const [{ data: sess }, { data: prof }, { data: hist }] = await Promise.all([
+        supabase.from("exam_sessions").select("*").eq("id", sessionId).single(),
+        supabase.from("profiles").select("full_name").eq("user_id", user.id).single(),
+        supabase.from("user_history").select("*, questions(*)").eq("session_id", sessionId),
+      ]);
       if (sess) setSession(sess);
+      if (prof?.full_name) setProfileName(prof.full_name);
 
-      const { data: history } = await supabase
-        .from("user_history")
-        .select("*, questions(*)")
-        .eq("session_id", sessionId);
-
-      if (history) {
+      if (hist) {
+        setHistory(hist);
         const breakdown: Record<string, { correct: number; total: number }> = {};
-        history.forEach((h: any) => {
+        hist.forEach((h: any) => {
           const topic = h.questions?.topic || "Unknown";
           if (!breakdown[topic]) breakdown[topic] = { correct: 0, total: 0 };
           breakdown[topic].total++;
@@ -59,6 +58,7 @@ const Results = () => {
   const grade = score >= 70 ? "A" : score >= 60 ? "B" : score >= 50 ? "C" : score >= 40 ? "D" : "F";
   const duration = session.duration_seconds || 0;
   const mins = Math.floor(duration / 60);
+  const passed = score >= 50;
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,11 +75,19 @@ const Results = () => {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        {/* Score Card */}
+        {/* Congratulations / Score Card */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
           <Card className="border-border/50 overflow-hidden">
+            <div className={`h-20 ${passed ? "bg-gradient-to-r from-[hsl(var(--success))] to-primary" : "bg-gradient-to-r from-destructive to-primary"} relative overflow-hidden`}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-primary-foreground">
+                  <p className="text-lg font-bold">{passed ? "🎉 Congratulations!" : "Keep Trying! 💪"}</p>
+                  {profileName && <p className="text-xs opacity-80">{profileName}</p>}
+                </div>
+              </div>
+            </div>
             <CardContent className="p-6 text-center">
-              <div className="relative inline-flex items-center justify-center w-24 h-24 mb-4">
+              <div className="relative inline-flex items-center justify-center w-24 h-24 mb-4 -mt-12">
                 <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
                   <circle
@@ -89,7 +97,7 @@ const Results = () => {
                     strokeDasharray={`${score * 2.64} 264`}
                   />
                 </svg>
-                <span className="absolute text-xl font-bold">{Math.round(score)}%</span>
+                <span className="absolute text-xl font-bold bg-card rounded-full h-16 w-16 flex items-center justify-center shadow-md">{Math.round(score)}%</span>
               </div>
               <p className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Grade: {grade}</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -103,7 +111,7 @@ const Results = () => {
         <div className="grid grid-cols-3 gap-3">
           <Card className="border-border/50">
             <CardContent className="p-3 text-center">
-              <Trophy className="h-4 w-4 mx-auto mb-1 text-primary" />
+              <Trophy className="h-4 w-4 mx-auto mb-1 text-[hsl(var(--success))]" />
               <p className="text-sm font-bold">{session.correct_answers}</p>
               <p className="text-[10px] text-muted-foreground">Correct</p>
             </CardContent>
@@ -143,6 +151,33 @@ const Results = () => {
                   </div>
                 );
               })}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Answer Review */}
+        {history.length > 0 && (
+          <Card className="border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Your Answers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+              {history.map((h: any, idx: number) => (
+                <div key={h.id} className={`p-2.5 rounded-lg border text-xs ${h.is_correct ? "bg-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20" : "bg-destructive/5 border-destructive/20"}`}>
+                  <div className="flex items-start gap-2">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${h.is_correct ? "bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]" : "bg-destructive text-destructive-foreground"}`}>{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium line-clamp-2">{h.questions?.question_text || "Question"}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        {h.is_correct ? <CheckCircle2 className="h-3 w-3 text-[hsl(var(--success))]" /> : <XCircle className="h-3 w-3 text-destructive" />}
+                        <span className={h.is_correct ? "text-[hsl(var(--success))]" : "text-destructive"}>
+                          {h.is_correct ? "Correct" : `Wrong — Answer: ${h.questions?.correct_answer || ""}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
