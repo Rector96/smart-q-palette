@@ -25,8 +25,7 @@ const SelectSubjects = () => {
 
   const isMock = mode === "mock";
   const maxSubjects = isMock ? 4 : 1;
-  const showTimer = mode === "cbt" || mode === "mock";
-
+  const showTimer = true; // All modes can set time
   const toggleSubject = (id: string) => {
     if (selected.includes(id)) {
       setSelected(selected.filter((s) => s !== id));

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   LogOut, Trophy, Target, Clock, ChevronRight, ChevronLeft,
-  Sparkles, Flame, Brain, Shield, Crown, Lock
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -15,6 +15,13 @@ import { useToast } from "@/hooks/use-toast";
 import Logo from "@/components/Logo";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import { Badge } from "@/components/ui/badge";
+
+const EXAM_MODE_ICONS: Record<string, any> = {
+  practice: Brain,
+  cbt: Clock,
+  mock: BookOpen,
+  revision: Flame,
+};
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -72,7 +79,7 @@ const Dashboard = () => {
     fetchData();
   }, [user]);
 
-  const attemptsLeft = Math.max(0, 2 - profile.trial_count);
+  const attemptsLeft = Math.max(0, 3 - profile.trial_count);
   const isPro = profile.is_subscribed;
 
   const handleStartTest = () => {
@@ -82,6 +89,13 @@ const Dashboard = () => {
     }
     navigate("/select-subjects?mode=practice");
   };
+
+  const statCards = [
+    { icon: Trophy, label: "Sessions", value: stats.sessions, color: "text-primary" },
+    { icon: Target, label: "Avg Score", value: `${stats.avgScore}%`, color: "text-[hsl(var(--success))]" },
+    { icon: Clock, label: "Questions", value: stats.totalQuestions, color: "text-primary" },
+    { icon: Flame, label: "Streak", value: `${streak} days`, color: "text-warning" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,7 +114,7 @@ const Dashboard = () => {
               </Badge>
             ) : (
               <Badge variant="outline" className="text-[10px] h-5 gap-1">
-                Free · {attemptsLeft}/2 left
+                Free · {attemptsLeft}/3 left
               </Badge>
             )}
             <span className="text-xs text-muted-foreground hidden sm:block">{profile.full_name || user?.email}</span>
@@ -122,19 +136,59 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
+        {/* Primary Actions */}
         <div className="grid grid-cols-2 gap-3">
-          <Button className="h-12 text-sm justify-start gap-2 shadow-md" onClick={handleStartTest}>
-            {!isPro && attemptsLeft <= 0 ? <Lock className="h-4 w-4" /> : <Brain className="h-4 w-4" />}
-            Start Practice Test
-          </Button>
-          <Button variant="outline" className="h-12 text-sm justify-start gap-2 shadow-sm" onClick={() => navigate("/ai-tutor")}>
-            <Sparkles className="h-4 w-4" /> Ask AI Tutor
-          </Button>
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Button className="w-full h-14 text-sm justify-start gap-3 shadow-md rounded-xl bg-primary hover:bg-primary/90" onClick={handleStartTest}>
+              <div className="h-8 w-8 rounded-lg bg-primary-foreground/20 flex items-center justify-center">
+                <Rocket className="h-4 w-4" />
+              </div>
+              <span className="font-semibold">Start Practice Test</span>
+              <ChevronRight className="h-4 w-4 ml-auto" />
+            </Button>
+          </motion.div>
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Button variant="outline" className="w-full h-14 text-sm justify-start gap-3 shadow-sm rounded-xl border-border/50" onClick={() => navigate("/ai-tutor")}>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <span className="font-semibold">Ask AI Tutor</span>
+              <ChevronRight className="h-4 w-4 ml-auto" />
+            </Button>
+          </motion.div>
         </div>
 
+        {/* AI Tutor Card */}
+        <Card className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-xl" onClick={() => navigate("/ai-tutor")}>
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold">AI Tutor</p>
+              <p className="text-xs text-muted-foreground">Get instant help with any topic. Your personal AI study companion is ready!</p>
+            </div>
+            <span className="text-[10px] text-[hsl(var(--success))] font-medium">● Online</span>
+          </CardContent>
+        </Card>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-4 gap-3">
+          {statCards.map((stat) => (
+            <Card key={stat.label} className="border-border/50 shadow-sm rounded-xl">
+              <CardContent className="p-3 text-center">
+                <stat.icon className={`h-5 w-5 mx-auto mb-1.5 ${stat.color}`} />
+                <p className="text-lg font-bold">{stat.value}</p>
+                <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Upgrade Banner */}
         {!isPro && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowSubscription(true)}>
+            <Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-xl" onClick={() => setShowSubscription(true)}>
               <CardContent className="p-3 flex items-center gap-3">
                 <Crown className="h-5 w-5 text-primary shrink-0" />
                 <div className="flex-1">
@@ -147,71 +201,46 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { icon: Trophy, label: "Sessions", value: stats.sessions, color: "text-primary" },
-            { icon: Target, label: "Avg Score", value: `${stats.avgScore}%`, color: "text-primary" },
-            { icon: Clock, label: "Questions", value: stats.totalQuestions, color: "text-primary" },
-            { icon: Flame, label: "Streak", value: `${streak} days`, color: "text-warning" },
-          ].map((stat) => (
-            <Card key={stat.label} className="border-border/50 shadow-sm">
-              <CardContent className="p-3 text-center">
-                <stat.icon className={`h-4 w-4 mx-auto mb-1 ${stat.color}`} />
-                <p className="text-lg font-bold">{stat.value}</p>
-                <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="border-border/50 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/ai-tutor")}>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold">AI Tutor</p>
-              <p className="text-[11px] text-muted-foreground">Get instant help with any topic. Your personal AI study companion is ready!</p>
-            </div>
-            <span className="text-[10px] text-success font-medium">● Online</span>
-          </CardContent>
-        </Card>
-
+        {/* Exam Modes */}
         <div>
-          <h2 className="text-sm font-semibold mb-3">Choose Exam Mode</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {EXAM_MODES.map((mode) => (
-              <motion.div key={mode.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md" onClick={() => {
-                  if (!isPro && attemptsLeft <= 0 && mode.id !== "revision") {
-                    setShowSubscription(true);
-                    return;
-                  }
-                  navigate(`/select-subjects?mode=${mode.id}`);
-                }}>
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">{mode.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{mode.description}</p>
-                    </div>
-                    {!isPro && attemptsLeft <= 0 && mode.id !== "revision" ? (
-                      <Lock className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+          <h2 className="text-sm font-bold mb-3">Choose Exam Mode</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {EXAM_MODES.map((mode) => {
+              const Icon = EXAM_MODE_ICONS[mode.id] || Brain;
+              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision";
+              return (
+                <motion.div key={mode.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                  <Card
+                    className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl"
+                    onClick={() => {
+                      if (locked) { setShowSubscription(true); return; }
+                      navigate(`/select-subjects?mode=${mode.id}`);
+                    }}
+                  >
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm">{mode.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{mode.description}</p>
+                      </div>
+                      {locked ? <Lock className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
+        {/* Subjects */}
         <div>
-          <h2 className="text-sm font-semibold mb-3">Subjects</h2>
+          <h2 className="text-sm font-bold mb-3">Subjects</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {SUBJECTS.map((subject) => (
               <motion.div key={subject.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
+                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
                   <CardContent className="p-3 text-center">
                     <subject.icon className="h-5 w-5 mx-auto mb-1.5 text-primary" />
                     <p className="text-[10px] font-medium leading-tight">{subject.name}</p>
