@@ -158,7 +158,7 @@ const Auth = () => {
 
             {mode === "signup" && (
               <p className="mt-3 text-[10px] text-muted-foreground text-center leading-relaxed">
-                By creating an account, you agree to our Terms of Service and Privacy Policy. Start with 2 free exam sessions!
+                By creating an account, you agree to our Terms of Service and Privacy Policy. Start with 3 free exam sessions!
               </p>
             )}
           </CardContent>

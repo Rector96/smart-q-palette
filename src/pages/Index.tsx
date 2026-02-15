@@ -117,29 +117,36 @@ const Index = () => {
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             {isLoggedIn ? (
-              <Button className="h-11 px-6 text-sm" onClick={() => navigate("/dashboard")}>
-                Continue Practicing <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
+              <>
+                <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/dashboard")}>
+                  Dashboard <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+                <Button variant="outline" className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/select-subjects?mode=practice")}>
+                  Continue
+                </Button>
+              </>
             ) : (
-              <Button className="h-11 px-6 text-sm" onClick={() => navigate("/auth")}>
-                Start CBT Practice <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
+              <>
+                <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/auth")}>
+                  Get Started <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+                <motion.div
+                  animate={{ rotate: [0, -2, 2, -2, 0] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                >
+                  <Button
+                    variant="outline"
+                    className="h-11 px-5 text-sm gap-2 shadow-md hover:shadow-lg transition-shadow border-border/50 rounded-xl"
+                    onClick={() => window.open("https://play.google.com/store", "_blank")}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                      <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
+                    </svg>
+                    Google Play
+                  </Button>
+                </motion.div>
+              </>
             )}
-            <motion.div
-              animate={{ rotate: [0, -2, 2, -2, 0] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-            >
-              <Button
-                variant="outline"
-                className="h-11 px-5 text-sm gap-2 shadow-md hover:shadow-lg transition-shadow border-border/50"
-                onClick={() => window.open("https://play.google.com/store", "_blank")}
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                  <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
-                </svg>
-                Google Play
-              </Button>
-            </motion.div>
           </div>
           {!isLoggedIn && (
             <div className="mt-3 text-xs text-muted-foreground">

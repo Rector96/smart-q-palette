@@ -6,13 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
-  LogOut, Trophy, Target, Clock, ChevronRight, ChevronLeft,
+  Trophy, Target, Clock, ChevronRight,
   Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
-import Logo from "@/components/Logo";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,11 +32,6 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<{ full_name: string | null; trial_count: number; is_subscribed: boolean }>({ full_name: null, trial_count: 0, is_subscribed: false });
   const [streak, setStreak] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/", { replace: true });
-  };
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -99,96 +93,87 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/")}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Link to="/"><Logo size="sm" /></Link>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {isPro ? (
-              <Badge variant="default" className="text-[10px] h-5 gap-1 bg-primary/10 text-primary border-primary/20">
-                <Crown className="h-3 w-3" /> Pro
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] h-5 gap-1">
-                Free · {attemptsLeft}/3 left
-              </Badge>
-            )}
-            <span className="text-xs text-muted-foreground hidden sm:block">{profile.full_name || user?.email}</span>
-            {isAdmin && (
-              <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="h-8 text-xs">
-                <Shield className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="h-8 text-xs"><LogOut className="h-3.5 w-3.5" /></Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-5">
+        {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-lg font-bold">Welcome back{profile.full_name ? `, ${profile.full_name}` : ""} 👋</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isPro ? "You have unlimited access. Keep crushing it!" : `You have ${attemptsLeft} free attempt${attemptsLeft !== 1 ? "s" : ""} remaining.`}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                Welcome back{profile.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""} 👋
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isPro ? "You have unlimited access. Keep crushing it!" : `You have ${attemptsLeft} free attempt${attemptsLeft !== 1 ? "s" : ""} remaining.`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {isPro ? (
+                <Badge variant="default" className="text-[10px] h-5 gap-1 bg-primary/10 text-primary border-primary/20">
+                  <Crown className="h-3 w-3" /> Pro
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] h-5 gap-1">
+                  Free · {attemptsLeft}/3
+                </Badge>
+              )}
+              {isAdmin && (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/admin")}>
+                  <Shield className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
         </motion.div>
 
         {/* Primary Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button className="w-full h-14 text-sm justify-start gap-3 shadow-md rounded-xl bg-primary hover:bg-primary/90" onClick={handleStartTest}>
-              <div className="h-8 w-8 rounded-lg bg-primary-foreground/20 flex items-center justify-center">
-                <Rocket className="h-4 w-4" />
-              </div>
-              <span className="font-semibold">Start Practice Test</span>
-              <ChevronRight className="h-4 w-4 ml-auto" />
+        <div className="flex gap-3">
+          <motion.div whileTap={{ scale: 0.98 }} className="flex-1">
+            <Button className="w-full h-12 text-sm gap-2 rounded-xl shadow-md bg-primary hover:bg-primary/90" onClick={handleStartTest}>
+              <Rocket className="h-4 w-4" />
+              Start Practice Test
             </Button>
           </motion.div>
           <motion.div whileTap={{ scale: 0.98 }}>
-            <Button variant="outline" className="w-full h-14 text-sm justify-start gap-3 shadow-sm rounded-xl border-border/50" onClick={() => navigate("/ai-tutor")}>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-primary" />
-              </div>
-              <span className="font-semibold">Ask AI Tutor</span>
-              <ChevronRight className="h-4 w-4 ml-auto" />
+            <Button variant="outline" className="h-12 px-4 text-sm gap-2 rounded-xl shadow-sm border-border/50" onClick={() => navigate("/ai-tutor")}>
+              <Sparkles className="h-4 w-4 text-primary" />
+              Ask AI Tutor
+              <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </motion.div>
         </div>
 
         {/* AI Tutor Card */}
-        <Card className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-xl" onClick={() => navigate("/ai-tutor")}>
+        <Card className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold">AI Tutor</p>
-              <p className="text-xs text-muted-foreground">Get instant help with any topic. Your personal AI study companion is ready!</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">Get instant help with any topic. Your personal AI study companion is ready!</p>
             </div>
-            <span className="text-[10px] text-[hsl(var(--success))] font-medium">● Online</span>
+            <span className="text-[10px] text-[hsl(var(--success))] font-semibold whitespace-nowrap">● Online</span>
           </CardContent>
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-4 gap-3">
-          {statCards.map((stat) => (
-            <Card key={stat.label} className="border-border/50 shadow-sm rounded-xl">
-              <CardContent className="p-3 text-center">
-                <stat.icon className={`h-5 w-5 mx-auto mb-1.5 ${stat.color}`} />
-                <p className="text-lg font-bold">{stat.value}</p>
-                <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card className="border-border/50 shadow-sm rounded-2xl">
+          <CardContent className="p-3">
+            <div className="grid grid-cols-4 divide-x divide-border">
+              {statCards.map((stat) => (
+                <div key={stat.label} className="text-center px-2">
+                  <stat.icon className={`h-5 w-5 mx-auto mb-1 ${stat.color}`} />
+                  <p className="text-lg font-bold leading-tight">{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Upgrade Banner */}
         {!isPro && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-xl" onClick={() => setShowSubscription(true)}>
+            <Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => setShowSubscription(true)}>
               <CardContent className="p-3 flex items-center gap-3">
                 <Crown className="h-5 w-5 text-primary shrink-0" />
                 <div className="flex-1">
@@ -203,15 +188,15 @@ const Dashboard = () => {
 
         {/* Exam Modes */}
         <div>
-          <h2 className="text-sm font-bold mb-3">Choose Exam Mode</h2>
+          <h2 className="text-sm font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Choose Exam Mode</h2>
           <div className="grid grid-cols-2 gap-3">
             {EXAM_MODES.map((mode) => {
               const Icon = EXAM_MODE_ICONS[mode.id] || Brain;
               const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision";
               return (
-                <motion.div key={mode.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                <motion.div key={mode.id} whileTap={{ scale: 0.98 }}>
                   <Card
-                    className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl"
+                    className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-2xl"
                     onClick={() => {
                       if (locked) { setShowSubscription(true); return; }
                       navigate(`/select-subjects?mode=${mode.id}`);
@@ -223,7 +208,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm">{mode.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{mode.description}</p>
+                        <p className="text-[10px] text-muted-foreground">{mode.description}</p>
                       </div>
                       {locked ? <Lock className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                     </CardContent>
@@ -236,13 +221,15 @@ const Dashboard = () => {
 
         {/* Subjects */}
         <div>
-          <h2 className="text-sm font-bold mb-3">Subjects</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          <h2 className="text-sm font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Subjects</h2>
+          <div className="grid grid-cols-3 gap-2">
             {SUBJECTS.map((subject) => (
-              <motion.div key={subject.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
+              <motion.div key={subject.id} whileTap={{ scale: 0.96 }}>
+                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-2xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
                   <CardContent className="p-3 text-center">
-                    <subject.icon className="h-5 w-5 mx-auto mb-1.5 text-primary" />
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
+                      <subject.icon className="h-5 w-5 text-primary" />
+                    </div>
                     <p className="text-[10px] font-medium leading-tight">{subject.name}</p>
                   </CardContent>
                 </Card>
