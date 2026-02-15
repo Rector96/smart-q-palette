@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 import PageLoader from "@/components/PageLoader";
+import AppLayout from "@/components/AppLayout";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -17,6 +18,7 @@ const SelectSubjects = lazy(() => import("./pages/SelectSubjects"));
 const Exam = lazy(() => import("./pages/Exam"));
 const Results = lazy(() => import("./pages/Results"));
 const AITutor = lazy(() => import("./pages/AITutor"));
+const Profile = lazy(() => import("./pages/Profile"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -43,6 +45,7 @@ const App = () => (
           <ScrollToTop />
           <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Public pages - no bottom nav */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/faq" element={<FAQ />} />
@@ -50,11 +53,17 @@ const App = () => (
               <Route path="/terms" element={<Terms />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/select-subjects" element={<ProtectedRoute><SelectSubjects /></ProtectedRoute>} />
+
+              {/* Private pages with bottom nav */}
+              <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+              <Route path="/ai-tutor" element={<ProtectedRoute><AppLayout><AITutor /></AppLayout></ProtectedRoute>} />
+              <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
+              <Route path="/select-subjects" element={<ProtectedRoute><AppLayout><SelectSubjects /></AppLayout></ProtectedRoute>} />
+              <Route path="/results/:sessionId" element={<ProtectedRoute><AppLayout><Results /></AppLayout></ProtectedRoute>} />
+
+              {/* Focus mode - no nav at all */}
               <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
-              <Route path="/results/:sessionId" element={<ProtectedRoute><Results /></ProtectedRoute>} />
-              <Route path="/ai-tutor" element={<ProtectedRoute><AITutor /></ProtectedRoute>} />
+
               {/* Admin routes */}
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
               <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />

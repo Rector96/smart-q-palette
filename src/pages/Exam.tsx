@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import Logo from "@/components/Logo";
+import ExamSubmitOverlay from "@/components/ExamSubmitOverlay";
 
 const Exam = () => {
   const [searchParams] = useSearchParams();
@@ -192,6 +193,8 @@ const Exam = () => {
     const duration = Math.round((Date.now() - startTimeRef[0]) / 1000);
     const scorePercentage = questions.length > 0 ? (correct / questions.length) * 100 : 0;
     await supabase.from("exam_sessions").update({ correct_answers: correct, score_percentage: scorePercentage, duration_seconds: duration, completed: true, completed_at: new Date().toISOString() }).eq("id", sessionId);
+    // Show overlay for at least 2s
+    await new Promise(r => setTimeout(r, 2000));
     navigate(`/results/${sessionId}`);
   };
 
@@ -240,6 +243,8 @@ const Exam = () => {
   }
 
   return (
+    <>
+      {submitting && <ExamSubmitOverlay />}
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
@@ -390,6 +395,7 @@ const Exam = () => {
         </div>
       </footer>
     </div>
+    </>
   );
 };
 
