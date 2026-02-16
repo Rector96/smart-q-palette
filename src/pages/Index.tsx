@@ -87,15 +87,15 @@ const Index = () => {
         <div className="flex gap-2">
           {isLoggedIn ? (
             <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>
-              Continue to Dashboard <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              Dashboard <ArrowRight className="h-3.5 w-3.5 ml-1" />
             </Button>
           ) : (
             <>
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
-                Sign In
+                Login
               </Button>
               <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
-                Get Started <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                Sign Up <ArrowRight className="h-3.5 w-3.5 ml-1" />
               </Button>
             </>
           )}

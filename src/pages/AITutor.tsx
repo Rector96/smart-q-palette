@@ -8,6 +8,7 @@ import { ArrowLeft, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import Logo from "@/components/Logo";
+import ReactMarkdown from "react-markdown";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -121,14 +122,14 @@ const AITutor = () => {
             </div>
             <div>
               <span className="font-bold text-sm">AI Tutor</span>
-              <span className="text-[10px] text-success ml-2">● Online</span>
+              <span className="text-[10px] text-[hsl(var(--success))] ml-2">● Online</span>
             </div>
           </div>
         </div>
       </header>
 
       <ScrollArea className="flex-1 max-w-3xl mx-auto w-full" ref={scrollRef}>
-        <div className="px-4 py-4 space-y-4">
+        <div className="px-4 py-4 space-y-4 pb-4">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -138,7 +139,13 @@ const AITutor = () => {
                   </div>
                 )}
                 <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-secondary-foreground rounded-bl-md"}`}>
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  {msg.role === "assistant" ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm [&>p]:text-sm [&>li]:text-sm">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
                 </div>
                 {msg.role === "user" && (
                   <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
@@ -172,7 +179,8 @@ const AITutor = () => {
         </div>
       </ScrollArea>
 
-      <footer className="border-t border-border bg-card/80 backdrop-blur-sm">
+      {/* Input footer - mb-20 ensures it sits above bottom nav */}
+      <footer className="border-t border-border bg-card/80 backdrop-blur-sm mb-20">
         <div className="max-w-3xl mx-auto px-4 py-3">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
             <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about JAMB..." className="h-10 text-sm flex-1" disabled={isLoading} />
