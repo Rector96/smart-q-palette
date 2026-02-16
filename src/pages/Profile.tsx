@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Trophy, Target, Clock, Flame, ChevronRight, LogOut,
   User, Bell, HelpCircle, Pencil, Award
@@ -11,6 +13,7 @@ import {
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from "recharts";
 import Logo from "@/components/Logo";
+import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -20,6 +23,10 @@ const Profile = () => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [bestSubject, setBestSubject] = useState<string | null>(null);
   const [weakSubject, setWeakSubject] = useState<string | null>(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) return;
@@ -107,10 +114,20 @@ const Profile = () => {
     { icon: Flame, value: `${stats.streak}`, label: "days", color: "text-warning" },
   ];
 
+  const handleSaveProfile = async () => {
+    if (!user || !editName.trim()) return;
+    setSaving(true);
+    await supabase.from("profiles").update({ full_name: editName.trim() } as any).eq("user_id", user.id);
+    setProfile(prev => prev ? { ...prev, full_name: editName.trim() } : prev);
+    setShowEditProfile(false);
+    setSaving(false);
+    toast({ title: "Profile updated!" });
+  };
+
   const settingsItems = [
-    { icon: User, label: "Account Settings", action: () => {} },
-    { icon: Bell, label: "Notification Preferences", action: () => {} },
-    { icon: Clock, label: "Study Reminders", action: () => {} },
+    { icon: User, label: "Account Settings", action: () => { setEditName(profile?.full_name || ""); setShowEditProfile(true); } },
+    { icon: Bell, label: "Notification Preferences", action: () => toast({ title: "Coming soon", description: "Notification settings will be available soon." }) },
+    { icon: Clock, label: "Study Reminders", action: () => toast({ title: "Coming soon", description: "Study reminders will be available soon." }) },
     { icon: HelpCircle, label: "Help & Support", action: () => navigate("/contact") },
   ];
 
@@ -132,13 +149,17 @@ const Profile = () => {
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* Profile Info */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <User className="h-8 w-8 text-primary" />
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+            <img
+              src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile?.full_name || user.email || "S")}&backgroundColor=3b82f6&textColor=ffffff`}
+              alt="Avatar"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-base truncate">{profile?.full_name || "Student"}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] mt-1.5 gap-1 rounded-full px-3">
+            <Button variant="outline" size="sm" className="h-7 text-[10px] mt-1.5 gap-1 rounded-full px-3" onClick={() => { setEditName(profile?.full_name || ""); setShowEditProfile(true); }}>
               <Pencil className="h-3 w-3" /> Edit Profile
             </Button>
           </div>
@@ -269,6 +290,38 @@ const Profile = () => {
           <LogOut className="h-4 w-4 mr-2" /> Sign Out
         </Button>
       </main>
+
+      {/* Edit Profile Dialog */}
+      {showEditProfile && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-border">
+            <h3 className="text-base font-bold mb-4">Edit Profile</h3>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Full Name</Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="h-10 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email</Label>
+                <Input value={user.email || ""} disabled className="h-10 text-sm bg-secondary" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" className="flex-1 h-10 text-sm rounded-xl" onClick={() => setShowEditProfile(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1 h-10 text-sm rounded-xl" onClick={handleSaveProfile} disabled={saving || !editName.trim()}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

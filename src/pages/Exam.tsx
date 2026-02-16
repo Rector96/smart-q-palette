@@ -46,6 +46,7 @@ const Exam = () => {
   const [showSubscription, setShowSubscription] = useState(false);
   const [trialBlocked, setTrialBlocked] = useState(false);
   const [activeSubject, setActiveSubject] = useState(subjects[0] || "");
+  const [profileName, setProfileName] = useState("");
   const timerRef = useState<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useState<number>(Date.now());
   const questionStartRef = useState<number>(Date.now());
@@ -77,9 +78,10 @@ const Exam = () => {
     const checkTrial = async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("trial_count, is_subscribed")
+        .select("trial_count, is_subscribed, full_name")
         .eq("user_id", user.id)
         .single();
+      if (profile?.full_name) setProfileName(profile.full_name);
       if (profile && !profile.is_subscribed && profile.trial_count >= 3) {
         setTrialBlocked(true);
         setShowSubscription(true);
@@ -178,8 +180,21 @@ const Exam = () => {
     toast({ title: "Link copied!", description: "Share this link with your friends to take the same exam." });
   };
 
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+
+  const confirmAndSubmit = () => {
+    // Check if user has answered at least one question
+    const answeredCount = Object.keys(answers).length;
+    if (answeredCount === 0) {
+      toast({ title: "No answers selected", description: "Please answer at least one question before submitting.", variant: "destructive" });
+      return;
+    }
+    setShowConfirmSubmit(true);
+  };
+
   const handleSubmit = async () => {
     if (!user || !sessionId || submitting) return;
+    setShowConfirmSubmit(false);
     setSubmitting(true);
     if (timerRef[0]) clearInterval(timerRef[0]);
     let correct = 0;
@@ -272,8 +287,10 @@ const Exam = () => {
               <span className="text-[10px] font-mono font-bold">{formatTime(timeLeft)}</span>
             </div>
           )}
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full ml-auto cursor-pointer" onClick={() => setShowNav(!showNav)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={handleShare} title="Share exam">
             <Share2 className="h-3.5 w-3.5" />
+          </Button>
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full cursor-pointer" onClick={() => setShowNav(!showNav)}>
             <span className="text-[10px] font-semibold">{currentIndex + 1}/{totalQuestions}</span>
           </div>
         </div>
@@ -384,7 +401,7 @@ const Exam = () => {
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Prev
           </Button>
           {currentIndex === totalQuestions - 1 ? (
-            <Button size="sm" className="h-8 text-xs" onClick={handleSubmit} disabled={submitting}>
+            <Button size="sm" className="h-8 text-xs" onClick={confirmAndSubmit} disabled={submitting}>
               {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Submit
             </Button>
           ) : (
@@ -395,6 +412,30 @@ const Exam = () => {
         </div>
       </footer>
     </div>
+      {/* Submit Confirmation Dialog */}
+      {showConfirmSubmit && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-border">
+            <div className="text-center space-y-3">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <Send className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base font-bold">Submit Exam?</h3>
+              <p className="text-xs text-muted-foreground">
+                {profileName || "Student"}, are you sure you want to submit? You've answered {Object.keys(answers).length} of {questions.length} questions.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1 h-10 text-sm rounded-xl" onClick={() => setShowConfirmSubmit(false)}>
+                  No, Go Back
+                </Button>
+                <Button className="flex-1 h-10 text-sm rounded-xl" onClick={handleSubmit}>
+                  Yes, Submit
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 };
