@@ -1,7 +1,7 @@
 {
-  "name": "PassSmartly",
-  "short_name": "PassSmartly",
-  "description": "AI-Powered JAMB CBT Preparation Platform",
+  "name": "Weblines CBT",
+  "short_name": "Weblines",
+  "description": "Practice JAMB, WAEC, NECO CBT exams online with instant results",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8f9fc",

@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   session: Session | null;
@@ -21,11 +20,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const welcomeEmailSent = useRef(false);
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Send welcome email on first sign up
+      if (_event === "SIGNED_IN" && session?.user && !welcomeEmailSent.current) {
+        welcomeEmailSent.current = true;
+        const meta = session.user.user_metadata;
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: { type: "welcome", email: session.user.email, name: meta?.full_name || "Student" },
+          });
+        } catch {}
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {

@@ -9,9 +9,10 @@ import {
   CheckCircle2, Star, Users, BookOpenCheck, Clock, Crown, CreditCard
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import SubscriptionModal from "@/components/SubscriptionModal";
+import MotivationalModal from "@/components/MotivationalModal";
 import Logo from "@/components/Logo";
 
 const fadeUp = {
@@ -25,8 +26,6 @@ const Index = () => {
   const navigate = useNavigate();
   const [showSubscription, setShowSubscription] = useState(false);
   const isLoggedIn = !loading && !!user;
-
-  // No auto-redirect — homepage detects auth state and adapts UI
 
   const features = [
     { icon: Bot, title: "AI Tutor", desc: "Get instant explanations and personalized guidance from our intelligent AI tutor, available 24/7." },
@@ -58,10 +57,10 @@ const Index = () => {
   ];
 
   const quickFaqs = [
-    { q: "How much does PassSmartly cost?", a: "You get 3 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
+    { q: "How much does Weblines CBT cost?", a: "You get 3 free exam sessions. After that, subscribe for just ₦1,500 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
     { q: "Can I share exams with friends?", a: "Yes! Generate a share link after taking an exam. Your friends can take the same exam and compare scores." },
     { q: "How does the AI Tutor work?", a: "Our AI tutor provides 24/7 personalized explanations for any topic, helping you understand complex concepts easily." },
-    { q: "What exams does PassSmartly cover?", a: "PassSmartly covers JAMB, WAEC, NECO, POST-UTME, and other Nigerian examinations across all subjects." },
+    { q: "What exams does Weblines CBT cover?", a: "Weblines CBT covers JAMB, WAEC, NECO, POST-UTME, and other Nigerian examinations across all subjects." },
   ];
 
   const pricingBenefits = [
@@ -75,6 +74,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <MotivationalModal />
+
       {/* Nav */}
       <header className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-20">
         <Link to="/"><Logo size="sm" /></Link>
@@ -110,7 +111,7 @@ const Index = () => {
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
             Ace Your Exams with{" "}
-            <span className="text-primary">Pass</span><span className="text-[hsl(var(--success))]">Smartly</span>
+            <span className="text-primary">Web</span><span className="text-[hsl(var(--success))]">lines</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
             Practice with real CBT questions for JAMB, WAEC, NECO & more. Get instant AI explanations and track your progress. Join 50,000+ students preparing smarter.
@@ -167,7 +168,7 @@ const Index = () => {
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
           <img
             src={heroImage}
-            alt="Nigerian students preparing for exams using PassSmartly CBT platform"
+            alt="Students preparing for exams using Weblines CBT platform"
             className="w-full rounded-2xl shadow-2xl border border-border/30"
             loading="lazy"
           />
@@ -326,7 +327,7 @@ const Index = () => {
               <Card className="border-border/50 overflow-hidden shadow-md">
                 <div className="bg-primary/5 px-4 py-2 border-b border-border/50 flex items-center gap-2">
                   <Bot className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold">PassSmartly AI Tutor</span>
+                  <span className="text-xs font-semibold">Weblines AI Tutor</span>
                   <span className="text-[10px] text-success ml-auto">● Online</span>
                 </div>
                 <CardContent className="p-4 space-y-3">
@@ -431,7 +432,7 @@ const Index = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to Start Preparing?</h2>
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Join thousands of students already using PassSmartly to prepare smarter and score higher.
+            Join thousands of students already using Weblines CBT to prepare smarter and score higher.
           </p>
           {isLoggedIn ? (
             <Button className="h-10 px-6 text-sm max-w-xs" onClick={() => navigate("/dashboard")}>
@@ -453,7 +454,7 @@ const Index = () => {
             <div>
               <Link to="/"><Logo size="sm" className="mb-3" /></Link>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI-powered exam preparation platform helping Nigerian students achieve their academic dreams.
+                AI-powered exam preparation platform helping students achieve their academic dreams.
               </p>
             </div>
             <div>
@@ -480,7 +481,7 @@ const Index = () => {
             </div>
           </div>
           <div className="border-t border-border pt-4 text-center">
-            <p className="text-[10px] text-muted-foreground">© 2026 PassSmartly. All rights reserved.</p>
+            <p className="text-[10px] text-muted-foreground">© 2026 Weblines CBT. All rights reserved.</p>
           </div>
         </div>
       </footer>

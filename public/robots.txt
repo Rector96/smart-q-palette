@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://surepass.ng/sitemap.xml
+Sitemap: https://www.weblines.org/sitemap.xml

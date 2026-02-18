@@ -6,15 +6,15 @@ import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
 
 const values = [
-  { icon: Target, title: "Excellence", desc: "We strive to provide the highest quality JAMB preparation materials and AI-powered learning tools." },
+  { icon: Target, title: "Excellence", desc: "We strive to provide the highest quality exam preparation materials and AI-powered learning tools." },
   { icon: Users, title: "Accessibility", desc: "Quality education should be affordable. That's why we keep our pricing student-friendly at just ₦1,500." },
   { icon: Brain, title: "Innovation", desc: "We leverage cutting-edge AI technology to personalize learning and make exam preparation smarter." },
   { icon: Shield, title: "Trust", desc: "Your data privacy and security are our top priorities. We never compromise on protecting our students." },
 ];
 
 const team = [
-  { name: "Our Mission", icon: GraduationCap, desc: "To democratize quality exam preparation for every Nigerian student, regardless of their location or economic background." },
-  { name: "Our Vision", icon: Lightbulb, desc: "A Nigeria where every student has access to world-class exam prep tools, powered by AI and driven by passion." },
+  { name: "Our Mission", icon: GraduationCap, desc: "To democratize quality exam preparation for every student, regardless of their location or economic background." },
+  { name: "Our Vision", icon: Lightbulb, desc: "A world where every student has access to world-class exam prep tools, powered by AI and driven by passion." },
   { name: "Our Promise", icon: Heart, desc: "We promise to continuously improve our platform, listen to student feedback, and keep our pricing affordable." },
 ];
 
@@ -32,15 +32,13 @@ const About = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-12">
-        {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-16">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">About <span className="text-primary">Pass</span><span className="text-[hsl(var(--success))]">Smartly</span></h1>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4">About <span className="text-primary">Web</span><span className="text-[hsl(var(--success))]">lines</span> CBT</h1>
           <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            Nigeria's leading AI-powered JAMB CBT preparation platform. We're on a mission to help every Nigerian student achieve their dream university score through smart, personalized, and affordable exam preparation.
+            A leading AI-powered CBT preparation platform. We're on a mission to help every student achieve their dream exam score through smart, personalized, and affordable exam preparation.
           </p>
         </motion.div>
         
-        {/* Mission/Vision/Promise */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
           {team.map((t, i) => (
             <motion.div key={t.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
@@ -57,20 +55,18 @@ const About = () => {
           ))}
         </div>
 
-        {/* Our Story */}
         <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-16">
           <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-8">
             <h2 className="text-xl font-bold mb-3">Our Story</h2>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              Founded by a team of educators and technologists who understand the challenges Nigerian students face, PassSmartly was built to bridge the gap between traditional coaching and modern AI technology.
+              Founded by a team of educators and technologists who understand the challenges students face, Weblines CBT was built to bridge the gap between traditional coaching and modern AI technology.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              We believe that with the right tools, every student can excel in JAMB and secure admission into their dream university. Our platform combines 25,000+ carefully curated questions with a powerful AI tutor that adapts to each student's unique learning needs.
+              We believe that with the right tools, every student can excel in their exams. Our platform combines 25,000+ carefully curated questions with a powerful AI tutor that adapts to each student's unique learning needs.
             </p>
           </div>
         </motion.section>
 
-        {/* Values */}
         <section className="mb-16">
           <h2 className="text-xl font-bold mb-6 text-center">Our Values</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -90,13 +86,12 @@ const About = () => {
           </div>
         </section>
 
-        {/* What Makes Us Different */}
         <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h2 className="text-xl font-bold mb-4 text-center">What Makes Us Different</h2>
           <div className="bg-secondary/50 rounded-2xl p-6">
             <ul className="space-y-3 text-sm text-muted-foreground">
               {[
-                "25,000+ past JAMB questions across all 14 subjects",
+                "25,000+ past exam questions across all 14 subjects",
                 "AI Tutor available 24/7 for personalized explanations",
                 "Smart question engine that adapts to your level",
                 "Real CBT exam simulation environment",
