@@ -37,29 +37,27 @@ export async function fetchSmartQuestions(
 
   const answeredIds = (history || []).map((h) => h.question_id);
 
-  // Fetch questions for the subject, excluding answered ones
-  let query = supabase
+  // Fetch ALL questions for the subject (no server-side filter for answered)
+  const { data: questions, error } = await supabase
     .from("questions")
     .select("*")
-    .eq("subject", subject);
+    .eq("subject", subject)
+    .limit(1000);
 
-  if (answeredIds.length > 0 && mode !== "revision") {
-    // Supabase doesn't support NOT IN directly with large arrays well,
-    // so we'll filter client-side
-  }
-
-  const { data: questions, error } = await query;
-  if (error || !questions) return [];
+  if (error || !questions || questions.length === 0) return [];
 
   // Filter out answered questions (except revision mode)
   let filtered = mode === "revision"
     ? questions
     : questions.filter((q) => !answeredIds.includes(q.id));
 
-  // If not enough unanswered questions, include some answered ones
-  if (filtered.length < count) {
+  // If not enough unanswered, use all available questions
+  if (filtered.length < Math.min(count, questions.length)) {
     filtered = questions;
   }
+
+  // Adjust count to available questions
+  const actualCount = Math.min(count, filtered.length);
 
   // Shuffle and pick
   const shuffled = shuffleArray(filtered);
@@ -69,9 +67,9 @@ export async function fetchSmartQuestions(
   const medium = shuffled.filter((q) => q.difficulty === "medium");
   const hard = shuffled.filter((q) => q.difficulty === "hard");
 
-  const easyCount = Math.round(count * 0.3);
-  const hardCount = Math.round(count * 0.2);
-  const mediumCount = count - easyCount - hardCount;
+  const easyCount = Math.round(actualCount * 0.3);
+  const hardCount = Math.round(actualCount * 0.2);
+  const mediumCount = actualCount - easyCount - hardCount;
 
   const selected = [
     ...easy.slice(0, easyCount),
@@ -80,14 +78,14 @@ export async function fetchSmartQuestions(
   ];
 
   // If we don't have enough by difficulty, fill from shuffled
-  while (selected.length < count && shuffled.length > selected.length) {
+  while (selected.length < actualCount && shuffled.length > selected.length) {
     const remaining = shuffled.filter((q) => !selected.includes(q));
     if (remaining.length === 0) break;
     selected.push(remaining[0]);
   }
 
   // Shuffle final selection and options
-  return shuffleArray(selected.slice(0, count)).map((q) => {
+  return shuffleArray(selected.slice(0, actualCount)).map((q) => {
     const options = shuffleArray([
       { label: "A", text: q.option_a, originalLabel: "A" },
       { label: "B", text: q.option_b, originalLabel: "B" },

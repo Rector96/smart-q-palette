@@ -63,7 +63,7 @@ const Results = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -74,7 +74,7 @@ const Results = () => {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         {/* Congratulations / Score Card */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
           <Card className="border-border/50 overflow-hidden">
@@ -196,10 +196,10 @@ const Results = () => {
               mode: session.mode,
               subjects: session.subjects,
             } as any);
-            const url = `${window.location.origin}/exam?mode=${session.mode}&subjects=${session.subjects.join(",")}&share=${code}`;
+            const url = `${window.location.origin}/s/${code}`;
             try {
               await navigator.clipboard.writeText(url);
-              toast({ title: "Link copied! 🔗", description: `Share code: ${code}` });
+              toast({ title: "Link copied! 🔗", description: `Short link: ${url}` });
             } catch {
               toast({ title: "Share link", description: url });
             }

@@ -93,7 +93,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-5">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between">
@@ -222,7 +222,7 @@ const Dashboard = () => {
         {/* Subjects */}
         <div>
           <h2 className="text-sm font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Subjects</h2>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2">
             {SUBJECTS.map((subject) => (
               <motion.div key={subject.id} whileTap={{ scale: 0.96 }}>
                 <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-2xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
