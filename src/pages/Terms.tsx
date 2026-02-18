@@ -19,13 +19,13 @@ const Terms = () => {
         <h1 className="text-2xl font-bold mb-6">Terms of Service</h1>
         <p className="text-xs text-muted-foreground mb-4">Last updated: February 2026</p>
         <section className="space-y-4 text-xs text-muted-foreground leading-relaxed">
-          <div><h2 className="text-sm font-semibold text-foreground mb-1">1. Acceptance</h2><p>By using PassSmartly, you agree to these terms. If you don't agree, please don't use the platform.</p></div>
-          <div><h2 className="text-sm font-semibold text-foreground mb-1">2. Service Description</h2><p>PassSmartly provides AI-powered JAMB CBT practice, tutoring, and performance tracking for Nigerian students.</p></div>
+          <div><h2 className="text-sm font-semibold text-foreground mb-1">1. Acceptance</h2><p>By using Weblines CBT, you agree to these terms. If you don't agree, please don't use the platform.</p></div>
+          <div><h2 className="text-sm font-semibold text-foreground mb-1">2. Service Description</h2><p>Weblines CBT provides AI-powered CBT practice, tutoring, and performance tracking for students preparing for JAMB, WAEC, NECO and other exams.</p></div>
           <div><h2 className="text-sm font-semibold text-foreground mb-1">3. Accounts</h2><p>You must provide accurate information when creating an account. You are responsible for maintaining the security of your account credentials.</p></div>
-          <div><h2 className="text-sm font-semibold text-foreground mb-1">4. Free Trial & Subscription</h2><p>Users receive 2 free exam sessions. Continued access requires a one-time payment of ₦1,500. Subscriptions are non-refundable once activated.</p></div>
+          <div><h2 className="text-sm font-semibold text-foreground mb-1">4. Free Trial & Subscription</h2><p>Users receive 3 free exam sessions. Continued access requires a one-time payment of ₦1,500. Subscriptions are non-refundable once activated.</p></div>
           <div><h2 className="text-sm font-semibold text-foreground mb-1">5. Acceptable Use</h2><p>You may not share your account, attempt to exploit vulnerabilities, or use automated tools to scrape content from the platform.</p></div>
-          <div><h2 className="text-sm font-semibold text-foreground mb-1">6. Intellectual Property</h2><p>All questions, content, and software on PassSmartly are our intellectual property. You may not reproduce or distribute them without permission.</p></div>
-          <div><h2 className="text-sm font-semibold text-foreground mb-1">7. Limitation of Liability</h2><p>PassSmartly is provided "as is." We are not liable for any exam outcomes or damages arising from platform use.</p></div>
+          <div><h2 className="text-sm font-semibold text-foreground mb-1">6. Intellectual Property</h2><p>All questions, content, and software on Weblines CBT are our intellectual property. You may not reproduce or distribute them without permission.</p></div>
+          <div><h2 className="text-sm font-semibold text-foreground mb-1">7. Limitation of Liability</h2><p>Weblines CBT is provided "as is." We are not liable for any exam outcomes or damages arising from platform use.</p></div>
           <div><h2 className="text-sm font-semibold text-foreground mb-1">8. Changes</h2><p>We may update these terms. Continued use constitutes acceptance of any changes.</p></div>
         </section>
       </main>

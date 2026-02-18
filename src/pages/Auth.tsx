@@ -76,7 +76,7 @@ const Auth = () => {
             <AnimatePresence mode="wait">
               <motion.div key={mode} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
                 <CardTitle className="text-xl">
-                  {mode === "login" ? "Welcome back! 👋" : mode === "signup" ? "Join PassSmartly 🎓" : "Reset Password"}
+                  {mode === "login" ? "Welcome back! 👋" : mode === "signup" ? "Join Weblines CBT 🎓" : "Reset Password"}
                 </CardTitle>
                 <CardDescription className="text-xs mt-1">
                   {mode === "login"
@@ -145,7 +145,7 @@ const Auth = () => {
                 </button>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  {mode === "login" ? "New to PassSmartly?" : "Already have an account?"}{" "}
+                  {mode === "login" ? "New to Weblines CBT?" : "Already have an account?"}{" "}
                   <button
                     onClick={() => setMode(mode === "login" ? "signup" : "login")}
                     className="text-primary hover:underline font-semibold"

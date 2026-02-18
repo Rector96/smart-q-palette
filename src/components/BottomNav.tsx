@@ -16,20 +16,51 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
+  const isAITutor = location.pathname === "/ai-tutor";
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY;
-      if (currentY > lastScrollY.current && currentY > 60) {
-        setVisible(false);
-      } else {
-        setVisible(true);
-      }
-      lastScrollY.current = currentY;
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    if (isAITutor) {
+      // On AI tutor page, hide on any touch/focus on input
+      const hideNav = () => setVisible(false);
+      const showNav = () => setVisible(true);
+
+      const handleFocusIn = (e: FocusEvent) => {
+        if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") {
+          hideNav();
+        }
+      };
+      const handleFocusOut = () => {
+        setTimeout(showNav, 200);
+      };
+      const handleTouchStart = () => hideNav();
+
+      document.addEventListener("focusin", handleFocusIn);
+      document.addEventListener("focusout", handleFocusOut);
+      // Hide on scroll too
+      const handleScroll = () => {
+        const currentY = window.scrollY;
+        if (currentY > lastScrollY.current && currentY > 60) setVisible(false);
+        else setVisible(true);
+        lastScrollY.current = currentY;
+      };
+      window.addEventListener("scroll", handleScroll, { passive: true });
+
+      return () => {
+        document.removeEventListener("focusin", handleFocusIn);
+        document.removeEventListener("focusout", handleFocusOut);
+        window.removeEventListener("scroll", handleScroll);
+      };
+    } else {
+      const handleScroll = () => {
+        const currentY = window.scrollY;
+        if (currentY > lastScrollY.current && currentY > 60) setVisible(false);
+        else setVisible(true);
+        lastScrollY.current = currentY;
+      };
+      window.addEventListener("scroll", handleScroll, { passive: true });
+      return () => window.removeEventListener("scroll", handleScroll);
+    }
+  }, [isAITutor]);
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -67,7 +98,6 @@ const BottomNav = () => {
               );
             })}
           </div>
-          {/* Safe area for phones */}
           <div className="h-[env(safe-area-inset-bottom,0px)]" />
         </motion.nav>
       )}
