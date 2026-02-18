@@ -8,7 +8,7 @@ const corsHeaders = {
 const BRAND = {
   name: "Weblines CBT",
   url: "https://www.weblines.org",
-  email: "PassSmartly@gmail.com",
+  email: "weblinescbt@gmail.com",
   color: "#3b82f6",
 };
 
