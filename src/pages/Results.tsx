@@ -188,7 +188,7 @@ const Results = () => {
           </Button>
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={async () => {
             if (!session) return;
-            const code = Math.random().toString(36).substring(2, 10);
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             await supabase.from("shared_exams").insert({
               share_code: code,
               creator_id: user!.id,
@@ -197,8 +197,12 @@ const Results = () => {
               subjects: session.subjects,
             } as any);
             const url = `${window.location.origin}/exam?mode=${session.mode}&subjects=${session.subjects.join(",")}&share=${code}`;
-            await navigator.clipboard.writeText(url);
-            toast({ title: "Link copied!", description: "Share with friends so they can take the same exam." });
+            try {
+              await navigator.clipboard.writeText(url);
+              toast({ title: "Link copied! 🔗", description: `Share code: ${code}` });
+            } catch {
+              toast({ title: "Share link", description: url });
+            }
           }}>
             <Share2 className="h-3.5 w-3.5 mr-1" /> Share
           </Button>

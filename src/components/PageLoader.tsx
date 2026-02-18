@@ -12,15 +12,15 @@ const PageLoader = () => {
       >
         <motion.img
           src={logoImg}
-          alt="PassSmartly"
+          alt="Weblines CBT"
           className="h-20 sm:h-24 md:h-28 w-auto"
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
         />
         <div className="flex flex-col items-center gap-2">
-          <span className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            <span className="text-primary">Pass</span>
-            <span className="text-[hsl(var(--success))]">Smartly</span>
+        <span className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <span className="text-primary">Web</span>
+            <span className="text-[hsl(var(--success))]">lines</span>
           </span>
           <div className="flex gap-1.5">
             {[0, 1, 2].map((i) => (

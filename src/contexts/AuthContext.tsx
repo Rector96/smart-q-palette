@@ -28,15 +28,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Send welcome email on first sign up
+      // Send welcome email only on actual signup (not login)
       if (_event === "SIGNED_IN" && session?.user && !welcomeEmailSent.current) {
-        welcomeEmailSent.current = true;
-        const meta = session.user.user_metadata;
-        try {
-          await supabase.functions.invoke("send-email", {
-            body: { type: "welcome", email: session.user.email, name: meta?.full_name || "Student" },
-          });
-        } catch {}
+        const createdAt = new Date(session.user.created_at).getTime();
+        const now = Date.now();
+        // Only send if account was created in the last 30 seconds (fresh signup)
+        if (now - createdAt < 30000) {
+          welcomeEmailSent.current = true;
+          const meta = session.user.user_metadata;
+          try {
+            await supabase.functions.invoke("send-email", {
+              body: { type: "welcome", email: session.user.email, name: meta?.full_name || "Student" },
+            });
+          } catch {}
+        }
       }
     });
 

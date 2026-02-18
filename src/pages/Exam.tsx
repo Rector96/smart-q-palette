@@ -86,6 +86,12 @@ const Exam = () => {
         setTrialBlocked(true);
         setShowSubscription(true);
         setLoading(false);
+        // Send trial expired email
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: { type: "trial_expired", email: user.email, name: profile.full_name || "Student" },
+          });
+        } catch {}
         return;
       }
       loadQuestions();
@@ -166,7 +172,7 @@ const Exam = () => {
 
   const handleShare = async () => {
     if (!sessionId || !user) return;
-    const code = Math.random().toString(36).substring(2, 10);
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     await supabase.from("shared_exams").insert({
       share_code: code,
       creator_id: user.id,
@@ -175,9 +181,13 @@ const Exam = () => {
       subjects,
       timer_minutes: timerParam ? Number(timerParam) : null,
     });
-    const url = `${window.location.origin}/exam?mode=${mode}&subjects=${subjects.join(",")}&share=${code}${timerParam ? `&timer=${timerParam}` : ""}`;
-    await navigator.clipboard.writeText(url);
-    toast({ title: "Link copied!", description: "Share this link with your friends to take the same exam." });
+    const url = `${window.location.origin}/exam?mode=${mode}&subjects=${subjects.join(",")}&share=${code}${timerParam ? `&timer=${timerParam}` : ""}&count=${requestedCount}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied! 🔗", description: `Share code: ${code}. Friends can take the same exam.` });
+    } catch {
+      toast({ title: "Share link", description: url });
+    }
   };
 
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
@@ -208,7 +218,18 @@ const Exam = () => {
     const duration = Math.round((Date.now() - startTimeRef[0]) / 1000);
     const scorePercentage = questions.length > 0 ? (correct / questions.length) * 100 : 0;
     await supabase.from("exam_sessions").update({ correct_answers: correct, score_percentage: scorePercentage, duration_seconds: duration, completed: true, completed_at: new Date().toISOString() }).eq("id", sessionId);
-    // Show overlay for at least 2s
+    
+    // Check if this is user's first completed CBT and send email
+    const { count } = await supabase.from("exam_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true);
+    if (count === 1) {
+      try {
+        const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
+        await supabase.functions.invoke("send-email", {
+          body: { type: "first_cbt", email: user.email, name: prof?.full_name || "Student" },
+        });
+      } catch {}
+    }
+    
     await new Promise(r => setTimeout(r, 2000));
     navigate(`/results/${sessionId}`);
   };
@@ -226,9 +247,38 @@ const Exam = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-          <p className="text-xs text-muted-foreground">Loading questions...</p>
+        <div className="text-center space-y-4 max-w-xs mx-auto px-4">
+          <motion.div
+            className="relative mx-auto w-20 h-20"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          >
+            <div className="absolute inset-0 rounded-full border-4 border-secondary" />
+            <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          </motion.div>
+          <div className="space-y-2">
+            <motion.p
+              className="text-sm font-semibold"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              Preparing your questions...
+            </motion.p>
+            <div className="flex justify-center gap-1">
+              {["📚", "✏️", "🧠", "🎯"].map((emoji, i) => (
+                <motion.span
+                  key={i}
+                  className="text-lg"
+                  initial={{ y: 0 }}
+                  animate={{ y: [-4, 4, -4] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                >
+                  {emoji}
+                </motion.span>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Shuffling & balancing difficulty levels</p>
+          </div>
         </div>
       </div>
     );
