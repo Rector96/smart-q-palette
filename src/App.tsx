@@ -24,6 +24,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
+const SharedExamRedirect = lazy(() => import("./pages/SharedExamRedirect"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Admin pages
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/terms" element={<Terms />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/s/:code" element={<SharedExamRedirect />} />
 
               {/* Private pages with bottom nav */}
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />

@@ -142,8 +142,8 @@ const Exam = () => {
 
   const selectAnswer = (questionId: string, label: string) => {
     if (showResult && isPractice) return;
-    // Allow deselection
-    if (answers[questionId] === label && !isPractice) {
+    // Allow deselection by clicking same option
+    if (answers[questionId] === label) {
       setAnswers((prev) => {
         const next = { ...prev };
         delete next[questionId];
@@ -151,6 +151,7 @@ const Exam = () => {
       });
       return;
     }
+    // Allow changing answer freely
     setAnswers((prev) => ({ ...prev, [questionId]: label }));
     if (isPractice) setShowResult(true);
   };
@@ -181,10 +182,10 @@ const Exam = () => {
       subjects,
       timer_minutes: timerParam ? Number(timerParam) : null,
     });
-    const url = `${window.location.origin}/exam?mode=${mode}&subjects=${subjects.join(",")}&share=${code}${timerParam ? `&timer=${timerParam}` : ""}&count=${requestedCount}`;
+    const url = `${window.location.origin}/s/${code}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast({ title: "Link copied! 🔗", description: `Share code: ${code}. Friends can take the same exam.` });
+      toast({ title: "Link copied! 🔗", description: `Short link: ${url}` });
     } catch {
       toast({ title: "Share link", description: url });
     }
@@ -419,17 +420,24 @@ const Exam = () => {
                   const isCorrect = option.label === currentQuestion.correct_answer;
                   const showFeedback = isPractice && showResult;
                   return (
-                    <motion.button key={option.label} whileTap={{ scale: 0.99 }} onClick={() => selectAnswer(currentQuestion.id, option.label)} disabled={showFeedback}
-                      className={cn("w-full text-left p-3 rounded-xl border-2 transition-all text-xs flex items-center gap-3",
-                        showFeedback && isCorrect ? "border-[hsl(var(--success))] bg-[hsl(var(--success))]/10" : showFeedback && isSelected && !isCorrect ? "border-destructive bg-destructive/10" : isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")}>
-                      <span className={cn("shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
-                      <span className="flex-1">{option.text}</span>
-                      {!isPractice && isSelected && (
-                        <X className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <div key={option.label}>
+                      <motion.button whileTap={{ scale: 0.99 }} onClick={() => selectAnswer(currentQuestion.id, option.label)}
+                        className={cn("w-full text-left p-3 rounded-xl border-2 transition-all text-xs flex items-center gap-3",
+                          showFeedback && isCorrect ? "border-[hsl(var(--success))] bg-[hsl(var(--success))]/10" : showFeedback && isSelected && !isCorrect ? "border-destructive bg-destructive/10" : isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")}>
+                        <span className={cn("shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
+                        <span className="flex-1">{option.text}</span>
+                        {isSelected && !showFeedback && (
+                          <X className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        {showFeedback && isCorrect && <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))] shrink-0" />}
+                        {showFeedback && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-destructive shrink-0" />}
+                      </motion.button>
+                      {showFeedback && (
+                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className={cn("text-[10px] mt-1 ml-9 leading-relaxed", isCorrect ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
+                          {isCorrect ? "✅ Correct answer" : `This is not the right answer.`}
+                        </motion.p>
                       )}
-                      {showFeedback && isCorrect && <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))] shrink-0" />}
-                      {showFeedback && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-destructive shrink-0" />}
-                    </motion.button>
+                    </div>
                   );
                 })}
               </div>

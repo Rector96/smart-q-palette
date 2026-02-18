@@ -12,9 +12,9 @@ const Contact = () => {
     {
       icon: MessageCircle,
       title: "WhatsApp",
-      value: "09125513766",
+      value: "09125513765",
       sub: "Chat with us instantly",
-      action: () => window.open("https://wa.me/2349125513766", "_blank"),
+      action: () => window.open("https://wa.me/2349125513765", "_blank"),
       color: "bg-[hsl(142,70%,45%)]/10 text-[hsl(142,70%,45%)]",
     },
     {
