@@ -10,6 +10,7 @@ const BRAND = {
   url: "https://www.weblines.org",
   email: "weblinescbt@gmail.com",
   color: "#3b82f6",
+  logo: "https://www.weblines.org/logo.png",
 };
 
 function emailTemplate(title: string, body: string, buttonText: string, buttonUrl: string): string {
@@ -21,9 +22,10 @@ function emailTemplate(title: string, body: string, buttonText: string, buttonUr
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;">
 <tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-<!-- Header -->
-<tr><td style="background:linear-gradient(135deg,${BRAND.color},#6366f1);padding:32px 24px;text-align:center;">
-<h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0;">${BRAND.name}</h1>
+<!-- Header with Logo -->
+<tr><td style="background:linear-gradient(135deg,${BRAND.color},#6366f1);padding:28px 24px;text-align:center;">
+<img src="${BRAND.logo}" alt="${BRAND.name}" width="60" height="60" style="display:block;margin:0 auto 10px;border-radius:12px;" />
+<h1 style="color:#ffffff;font-size:20px;font-weight:700;margin:0;">${BRAND.name}</h1>
 </td></tr>
 <!-- Body -->
 <tr><td style="padding:32px 24px;">
@@ -37,8 +39,7 @@ ${body}
 </td></tr>
 <!-- Footer -->
 <tr><td style="padding:20px 24px;border-top:1px solid #eee;text-align:center;">
-<p style="color:#888;font-size:11px;margin:0 0 4px;">${BRAND.name}</p>
-<p style="color:#888;font-size:11px;margin:0 0 4px;"><a href="${BRAND.url}" style="color:${BRAND.color};text-decoration:none;">${BRAND.url}</a></p>
+<p style="color:#888;font-size:11px;margin:0 0 4px;">${BRAND.name} · <a href="${BRAND.url}" style="color:${BRAND.color};text-decoration:none;">${BRAND.url}</a></p>
 <p style="color:#888;font-size:11px;margin:0;">Support: ${BRAND.email}</p>
 </td></tr>
 </table></td></tr></table></body></html>`;
@@ -46,42 +47,49 @@ ${body}
 
 const TEMPLATES: Record<string, (name: string) => { subject: string; html: string }> = {
   welcome: (name: string) => ({
-    subject: "Welcome to Weblines CBT – Let's Start Winning 🎓",
+    subject: "Welcome to Weblines CBT! 🎓 Your Exam Success Starts Here",
     html: emailTemplate(
-      `Welcome, ${name}!`,
-      `<p style="color:#555;font-size:14px;line-height:1.7;">We're excited to have you on board! With Weblines CBT, you can practice for JAMB, WAEC, NECO and other exams with real CBT simulations.</p>
-<p style="color:#555;font-size:14px;line-height:1.7;">Start your first practice test today and take a step closer to your dream score.</p>`,
-      "Start Practicing",
+      `Welcome, ${name}! 🎉`,
+      `<p style="color:#555;font-size:14px;line-height:1.7;">We're thrilled to have you join the Weblines CBT family! You've taken the first step towards exam success.</p>
+<p style="color:#555;font-size:14px;font-weight:600;margin:16px 0 8px;">Here's what you can do:</p>
+<ul style="color:#555;font-size:14px;line-height:2;">
+<li>📝 Practice JAMB, WAEC & NECO with real CBT simulations</li>
+<li>📊 Track your performance with detailed analytics</li>
+<li>🤖 Get help from our AI Tutor anytime</li>
+<li>🔗 Share exams with friends and compete</li>
+</ul>
+<p style="color:#555;font-size:14px;line-height:1.7;">We believe in you — start practicing today and watch your scores soar! 💪</p>`,
+      "Start Practicing Now",
       `${BRAND.url}/dashboard`
     ),
   }),
   first_cbt: (name: string) => ({
-    subject: "Great Job on Your First CBT Test!",
+    subject: "Great Job on Your First CBT Test! 🏆",
     html: emailTemplate(
       `Well done, ${name}!`,
-      `<p style="color:#555;font-size:14px;line-height:1.7;">You've just completed your first CBT practice exam. That's a great start!</p>
-<p style="color:#555;font-size:14px;line-height:1.7;">Consistency is key to success. Keep practicing daily, review your weak areas, and watch your scores improve.</p>`,
+      `<p style="color:#555;font-size:14px;line-height:1.7;">You've just completed your first CBT practice exam — that's a huge step! 🎯</p>
+<p style="color:#555;font-size:14px;line-height:1.7;">Consistency is the key to success. Keep practicing daily, review your weak areas, and watch your scores improve.</p>`,
       "Take Another Test",
       `${BRAND.url}/dashboard`
     ),
   }),
   trial_expired: (name: string) => ({
-    subject: "Your Free Trial Has Ended – Unlock Full Access",
+    subject: "Your Free Trial Has Ended – Unlock Full Access 🔓",
     html: emailTemplate(
       `${name}, your free trial has ended`,
       `<p style="color:#555;font-size:14px;line-height:1.7;">You've used all your free practice sessions. Upgrade to Premium to unlock:</p>
 <ul style="color:#555;font-size:14px;line-height:1.9;">
-<li>Unlimited CBT simulations</li>
-<li>All subjects and 25,000+ questions</li>
-<li>Full performance tracking and analytics</li>
-<li>24/7 AI Tutor access</li>
+<li>✅ Unlimited CBT simulations</li>
+<li>✅ All subjects and 25,000+ questions</li>
+<li>✅ Full performance tracking</li>
+<li>✅ 24/7 AI Tutor access</li>
 </ul>`,
       "Subscribe Now",
       `${BRAND.url}/dashboard`
     ),
   }),
   subscription_success: (name: string) => ({
-    subject: "Subscription Successful – Welcome to Premium 🎉",
+    subject: "Subscription Successful – Welcome to Premium! 🎉",
     html: emailTemplate(
       `Congratulations, ${name}!`,
       `<p style="color:#555;font-size:14px;line-height:1.7;">Your premium subscription has been activated. Thank you for choosing Weblines CBT!</p>
@@ -114,7 +122,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: `Weblines CBT <onboarding@resend.dev>`,
+        from: `Weblines CBT <no-reply@weblines.org>`,
         to: [email],
         subject,
         html,
