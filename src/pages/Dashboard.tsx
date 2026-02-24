@@ -202,16 +202,35 @@ const Dashboard = () => {
                       navigate(`/select-subjects?mode=${mode.id}`);
                     }}
                   >
-                    <CardContent className="p-3 flex items-center gap-2">
-                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm">{mode.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{mode.description}</p>
-                      </div>
-                      {locked ? <Lock className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-                    </CardContent>
+                   <Card className="rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 bg-white">
+                      <CardContent className="p-4 flex items-center gap-4">
+                        
+                        {/* Icon Container */}
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+
+                        {/* Text Content */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-base leading-tight">
+                            {mode.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {mode.description}
+                          </p>
+                        </div>
+
+                        {/* Right Arrow / Lock */}
+                        <div className="shrink-0">
+                          {locked ? (
+                            <Lock className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+
+                      </CardContent>
+                    </Card>
                   </Card>
                 </motion.div>
               );
