@@ -202,9 +202,9 @@ const Dashboard = () => {
                       navigate(`/select-subjects?mode=${mode.id}`);
                     }}
                   >
-                    <CardContent className="p-3 flex items-center gap-2">
+                    <CardContent className="p-4 flex items-center gap-3">
                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-primary" />
+                        <Icon className="h-3 w-3 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm">{mode.name}</p>
