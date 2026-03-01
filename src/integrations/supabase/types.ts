@@ -14,6 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
+      custom_exam_results: {
+        Row: {
+          answers: Json | null
+          completed_at: string | null
+          exam_id: string | null
+          id: string
+          score: number | null
+          student_name: string
+          total_questions: number | null
+        }
+        Insert: {
+          answers?: Json | null
+          completed_at?: string | null
+          exam_id?: string | null
+          id?: string
+          score?: number | null
+          student_name: string
+          total_questions?: number | null
+        }
+        Update: {
+          answers?: Json | null
+          completed_at?: string | null
+          exam_id?: string | null
+          id?: string
+          score?: number | null
+          student_name?: string
+          total_questions?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_exam_results_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "custom_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_exams: {
+        Row: {
+          created_at: string | null
+          creator_id: string
+          duration_minutes: number | null
+          expires_at: string | null
+          id: string
+          instructions: string | null
+          is_permanent: boolean | null
+          questions: Json
+          share_code: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id: string
+          duration_minutes?: number | null
+          expires_at?: string | null
+          id?: string
+          instructions?: string | null
+          is_permanent?: boolean | null
+          questions?: Json
+          share_code: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string
+          duration_minutes?: number | null
+          expires_at?: string | null
+          id?: string
+          instructions?: string | null
+          is_permanent?: boolean | null
+          questions?: Json
+          share_code?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      digital_library: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string | null
+          description: string | null
+          full_file_url: string | null
+          id: string
+          is_free: boolean | null
+          preview_file_url: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          full_file_url?: string | null
+          id?: string
+          is_free?: boolean | null
+          preview_file_url?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          full_file_url?: string | null
+          id?: string
+          is_free?: boolean | null
+          preview_file_url?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       exam_sessions: {
         Row: {
           completed: boolean
@@ -100,6 +213,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_builder_usage: number | null
+          ai_tutor_usage: number | null
           created_at: string
           full_name: string | null
           id: string
@@ -110,6 +225,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_builder_usage?: number | null
+          ai_tutor_usage?: number | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -120,6 +237,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_builder_usage?: number | null
+          ai_tutor_usage?: number | null
           created_at?: string
           full_name?: string | null
           id?: string
