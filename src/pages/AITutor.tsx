@@ -4,10 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
-import Logo from "@/components/Logo";
 import ReactMarkdown from "react-markdown";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -110,29 +109,27 @@ const AITutor = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+    <div className="flex flex-col h-[calc(100vh-5rem)] lg:h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center">
-              <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="font-bold text-sm">AI Tutor</span>
-              <span className="text-[10px] text-[hsl(var(--success))] ml-2">● Online</span>
-            </div>
+          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
+          <div className="flex-1">
+            <p className="font-bold text-sm">AI Tutor</p>
+            <p className="text-[10px] text-muted-foreground">Your personal JAMB study companion</p>
+          </div>
+          <span className="text-[10px] text-[hsl(var(--success))] font-semibold">● Online</span>
         </div>
       </header>
 
+      {/* Messages */}
       <ScrollArea className="flex-1 max-w-3xl mx-auto w-full" ref={scrollRef}>
-        <div className="px-4 py-4 space-y-4 pb-4">
+        <div className="px-4 py-4 space-y-4">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 {msg.role === "assistant" && (
                   <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="h-3.5 w-3.5 text-primary" />
@@ -157,7 +154,7 @@ const AITutor = () => {
           </AnimatePresence>
 
           {isLoading && messages[messages.length - 1]?.role === "user" && (
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Bot className="h-3.5 w-3.5 text-primary" />
               </div>
@@ -179,8 +176,8 @@ const AITutor = () => {
         </div>
       </ScrollArea>
 
-      {/* Input footer - mb-20 ensures it sits above bottom nav */}
-      <footer className="border-t border-border bg-card/80 backdrop-blur-sm mb-20">
+      {/* Input */}
+      <footer className="border-t border-border bg-card/80 backdrop-blur-sm shrink-0">
         <div className="max-w-3xl mx-auto px-4 py-3">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
             <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about JAMB..." className="h-10 text-sm flex-1" disabled={isLoading} />

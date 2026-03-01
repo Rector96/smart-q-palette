@@ -1,0 +1,106 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Lock } from "lucide-react";
+import SubscriptionModal from "@/components/SubscriptionModal";
+
+const Reader = () => {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get("preview") === "true";
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [blocked, setBlocked] = useState(false);
+  const [showSub, setShowSub] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+      const { data: book } = await supabase.from("digital_library").select("*").eq("id", id).single();
+      if (!book) { navigate("/library"); return; }
+      setTitle(book.title);
+
+      if (isPreview) {
+        setFileUrl(book.preview_file_url);
+        setLoading(false);
+        return;
+      }
+
+      // Check subscription for full content
+      if (!book.is_free && user) {
+        const { data: prof } = await supabase.from("profiles").select("is_subscribed").eq("user_id", user.id).single();
+        if (!prof?.is_subscribed) {
+          setBlocked(true);
+          setShowSub(true);
+          setLoading(false);
+          return;
+        }
+      }
+      setFileUrl(book.full_file_url || book.preview_file_url);
+      setLoading(false);
+    };
+    load();
+  }, [id, user, isPreview]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (blocked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
+          <h2 className="text-lg font-bold">Premium Content</h2>
+          <p className="text-sm text-muted-foreground">Subscribe to access the full book.</p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => navigate("/library")}>Back</Button>
+            <Button onClick={() => setShowSub(true)}>Upgrade</Button>
+          </div>
+        </div>
+        <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-background flex flex-col">
+      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/library")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="font-bold text-sm truncate flex-1">{title}</h1>
+          {isPreview && <span className="text-[10px] bg-warning/20 text-warning px-2 py-0.5 rounded-full font-medium">Preview</span>}
+        </div>
+      </header>
+
+      <div className="flex-1 max-w-4xl mx-auto w-full">
+        {fileUrl ? (
+          <iframe
+            src={fileUrl}
+            className="w-full h-[calc(100vh-60px)]"
+            title={title}
+            sandbox="allow-same-origin allow-scripts"
+            style={{ border: "none" }}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-sm text-muted-foreground">No file available</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Reader;

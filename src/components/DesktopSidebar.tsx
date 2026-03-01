@@ -1,13 +1,15 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, Sparkles, User, BookOpen, Shield } from "lucide-react";
+import { Home, BarChart3, Sparkles, User, BookOpen, Shield, FileEdit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Home", icon: Home },
-  { path: "/select-subjects", label: "Dashboard", icon: BarChart3 },
+  { path: "/select-subjects", label: "Exams", icon: BarChart3 },
   { path: "/ai-tutor", label: "AI Tutor", icon: Sparkles },
+  { path: "/library", label: "Library", icon: BookOpen },
+  { path: "/create-exam", label: "Set Exam", icon: FileEdit },
   { path: "/profile", label: "Profile", icon: User },
 ];
 

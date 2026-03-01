@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, FileEdit
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -92,15 +92,22 @@ const Dashboard = () => {
     { icon: Flame, label: "Streak", value: `${streak} days`, color: "text-warning" },
   ];
 
+  // Extended exam modes with Library & Set Exam
+  const allModeCards = [
+    ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
+    { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
+    { id: "set-exam", name: "Set Exam", description: "Create and schedule exams", icon: FileEdit, action: () => navigate("/create-exam") },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
-      <main className="max-w-5xl mx-auto px-4 lg:px-6 py-5 lg:py-6 space-y-4 lg:space-y-5">
+      <main className="max-w-4xl mx-auto px-4 lg:px-6 py-5 lg:py-6 space-y-5">
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl lg:text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <h1 className="text-xl lg:text-2xl font-bold">
                 Welcome back{profile.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""} 👋
               </h1>
               <p className="text-xs lg:text-sm text-muted-foreground mt-0.5">
@@ -126,23 +133,16 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* Primary Actions */}
-        <div className="flex gap-3">
-          <motion.div whileTap={{ scale: 0.98 }} className="flex-1">
-            <Button className="w-full h-12 text-sm gap-2 rounded-xl shadow-md bg-primary hover:bg-primary/90" onClick={handleStartTest}>
-              <Rocket className="h-4 w-4" />
-              Start Practice Test
-              <ChevronRight className="h-4 w-4 ml-auto" />
-            </Button>
-          </motion.div>
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button variant="outline" className="h-12 px-4 text-sm gap-2 rounded-xl shadow-sm border-border/50" onClick={() => navigate("/ai-tutor")}>
-              <Sparkles className="h-4 w-4 text-primary" />
-              Ask AI Tutor
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </motion.div>
-        </div>
+        {/* Start Practice Test CTA */}
+        <motion.div whileTap={{ scale: 0.98 }}>
+          <Button className="w-full h-12 lg:h-14 text-sm lg:text-base gap-2 rounded-xl shadow-md bg-primary hover:bg-primary/90 justify-between px-5" onClick={handleStartTest}>
+            <div className="flex items-center gap-2">
+              <Rocket className="h-5 w-5" />
+              <span className="font-semibold">Start Practice Test</span>
+            </div>
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+        </motion.div>
 
         {/* AI Tutor Card */}
         <Card className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}>
@@ -150,7 +150,7 @@ const Dashboard = () => {
             <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-bold">AI Tutor</p>
               <p className="text-[11px] lg:text-xs text-muted-foreground leading-relaxed">Get instant help with any topic. Your personal AI study companion is ready!</p>
             </div>
@@ -189,29 +189,29 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        {/* Exam Modes */}
+        {/* Exam Modes - 2 columns with Library & Set Exam included */}
         <div>
-          <h2 className="text-sm lg:text-base font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Choose Exam Mode</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 lg:gap-3">
-            {EXAM_MODES.map((mode) => {
-              const Icon = EXAM_MODE_ICONS[mode.id] || Brain;
-              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision";
+          <h2 className="text-base lg:text-lg font-bold mb-3">Exam Modes</h2>
+          <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
+            {allModeCards.map((mode) => {
+              const Icon = mode.icon;
+              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "set-exam";
               return (
                 <motion.div key={mode.id} whileTap={{ scale: 0.98 }}>
                   <Card
-                    className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl lg:rounded-2xl h-full"
+                    className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl h-full"
                     onClick={() => {
                       if (locked) { setShowSubscription(true); return; }
-                      navigate(`/select-subjects?mode=${mode.id}`);
+                      mode.action();
                     }}
                   >
                     <CardContent className="p-3 lg:p-4 flex items-center gap-3">
                       <div className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-primary" />
+                        <Icon className="h-4 w-4 lg:h-5 lg:w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-xs lg:text-sm">{mode.name}</p>
-                        <p className="text-[10px] lg:text-[11px] text-muted-foreground">{mode.description}</p>
+                        <p className="text-[10px] lg:text-[11px] text-muted-foreground truncate">{mode.description}</p>
                       </div>
                       {locked ? <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                     </CardContent>
@@ -224,16 +224,21 @@ const Dashboard = () => {
 
         {/* Subjects */}
         <div>
-          <h2 className="text-sm lg:text-base font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Subjects</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base lg:text-lg font-bold">Subjects</h2>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
             {SUBJECTS.map((subject) => (
               <motion.div key={subject.id} whileTap={{ scale: 0.96 }}>
-                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl lg:rounded-2xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
-                  <CardContent className="p-2.5 lg:p-3 text-center">
-                    <div className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
-                      <subject.icon className="h-4 w-4 lg:h-5 lg:w-5 text-primary" />
+                <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
+                  <CardContent className="p-2.5 lg:p-3 flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <subject.icon className="h-4 w-4 text-primary" />
                     </div>
-                    <p className="text-[10px] lg:text-xs font-medium leading-tight">{subject.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-[11px] lg:text-xs font-semibold truncate">{subject.name}</p>
+                      <p className="text-[9px] text-muted-foreground truncate">{subject.name} ›</p>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
