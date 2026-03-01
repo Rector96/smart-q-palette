@@ -26,6 +26,10 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const SharedExamRedirect = lazy(() => import("./pages/SharedExamRedirect"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Library = lazy(() => import("./pages/Library"));
+const Reader = lazy(() => import("./pages/Reader"));
+const CreateExam = lazy(() => import("./pages/CreateExam"));
+const TakeExam = lazy(() => import("./pages/TakeExam"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -55,6 +59,7 @@ const App = () => (
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/s/:code" element={<SharedExamRedirect />} />
+              <Route path="/exam/:code" element={<TakeExam />} />
 
               {/* Private pages with bottom nav */}
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
@@ -62,6 +67,9 @@ const App = () => (
               <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
               <Route path="/select-subjects" element={<ProtectedRoute><AppLayout><SelectSubjects /></AppLayout></ProtectedRoute>} />
               <Route path="/results/:sessionId" element={<ProtectedRoute><AppLayout><Results /></AppLayout></ProtectedRoute>} />
+              <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
+              <Route path="/reader/:id" element={<ProtectedRoute><Reader /></ProtectedRoute>} />
+              <Route path="/create-exam" element={<ProtectedRoute><AppLayout><CreateExam /></AppLayout></ProtectedRoute>} />
 
               {/* Focus mode - no nav at all */}
               <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
