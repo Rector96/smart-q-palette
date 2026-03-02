@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield } from "lucide-react";
+import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail } from "lucide-react";
 import Logo from "@/components/Logo";
 
 const AdminDashboard = () => {
@@ -38,6 +38,8 @@ const AdminDashboard = () => {
     { icon: Users, label: "User Management", path: "/admin/users" },
     { icon: CreditCard, label: "Payments", path: "/admin/payments" },
     { icon: BookOpen, label: "Content", path: "/admin/content" },
+    { icon: Library, label: "Library", path: "/admin/library" },
+    { icon: Mail, label: "Send Email", path: "/admin/email" },
     { icon: Settings, label: "Settings", path: "/admin/settings" },
   ];
 

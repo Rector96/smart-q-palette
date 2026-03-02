@@ -20,35 +20,28 @@ const BottomNav = () => {
 
   useEffect(() => {
     if (isAITutor) {
-      // On AI tutor page, hide on any touch/focus on input
-      const hideNav = () => setVisible(false);
-      const showNav = () => setVisible(true);
+      // Start hidden on AI tutor page, show only when scrolling up
+      setVisible(false);
+
+      const handleScroll = () => {
+        const currentY = window.scrollY;
+        if (currentY < lastScrollY.current && currentY > 60) setVisible(true);
+        else if (currentY > lastScrollY.current) setVisible(false);
+        lastScrollY.current = currentY;
+      };
 
       const handleFocusIn = (e: FocusEvent) => {
         if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") {
-          hideNav();
+          setVisible(false);
         }
       };
-      const handleFocusOut = () => {
-        setTimeout(showNav, 200);
-      };
-      const handleTouchStart = () => hideNav();
 
-      document.addEventListener("focusin", handleFocusIn);
-      document.addEventListener("focusout", handleFocusOut);
-      // Hide on scroll too
-      const handleScroll = () => {
-        const currentY = window.scrollY;
-        if (currentY > lastScrollY.current && currentY > 60) setVisible(false);
-        else setVisible(true);
-        lastScrollY.current = currentY;
-      };
       window.addEventListener("scroll", handleScroll, { passive: true });
+      document.addEventListener("focusin", handleFocusIn);
 
       return () => {
-        document.removeEventListener("focusin", handleFocusIn);
-        document.removeEventListener("focusout", handleFocusOut);
         window.removeEventListener("scroll", handleScroll);
+        document.removeEventListener("focusin", handleFocusIn);
       };
     } else {
       const handleScroll = () => {

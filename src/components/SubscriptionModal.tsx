@@ -73,7 +73,7 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
         {/* Content */}
         <div className="p-8">
           <p className="text-muted-foreground text-center text-sm leading-relaxed mb-6">
-            You've completed <span className="font-bold text-foreground">3 free practice exams</span>. Unlock unlimited exams and advanced features to ace your tests.
+            You've reached your free limit. Unlock unlimited exams, AI Tutor, and advanced features for just <span className="font-bold text-foreground">₦1,500</span> — lifetime access!
           </p>
 
           {/* Benefits */}

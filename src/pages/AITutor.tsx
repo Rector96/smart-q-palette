@@ -1,17 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Loader2, Sparkles } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import SubscriptionModal from "@/components/SubscriptionModal";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-tutor`;
+const MAX_FREE_USES = 2;
 
 const AITutor = () => {
   const { user } = useAuth();
@@ -22,8 +25,27 @@ const AITutor = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showSub, setShowSub] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  const [usageCount, setUsageCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const checkUsage = async () => {
+      const { data } = await supabase.from("profiles").select("ai_tutor_usage, is_subscribed").eq("user_id", user.id).single();
+      if (data) {
+        setIsPro(data.is_subscribed);
+        setUsageCount(data.ai_tutor_usage || 0);
+        if (!data.is_subscribed && (data.ai_tutor_usage || 0) >= MAX_FREE_USES) {
+          setBlocked(true);
+        }
+      }
+    };
+    checkUsage();
+  }, [user]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -31,6 +53,12 @@ const AITutor = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+    // Check usage limit
+    if (!isPro && usageCount >= MAX_FREE_USES) {
+      setBlocked(true);
+      setShowSub(true);
+      return;
+    }
     const userMsg: Message = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -98,6 +126,15 @@ const AITutor = () => {
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
+      // Increment usage
+      if (user && !isPro) {
+        const newCount = usageCount + 1;
+        setUsageCount(newCount);
+        await supabase.from("profiles").update({ ai_tutor_usage: newCount } as any).eq("user_id", user.id);
+        if (newCount >= MAX_FREE_USES) {
+          setBlocked(true);
+        }
+      }
     }
   };
 
@@ -107,6 +144,23 @@ const AITutor = () => {
     "What are Newton's laws of motion?",
     "Quiz me on Biology",
   ];
+
+  if (blocked) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] lg:h-screen bg-background px-4">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="max-w-sm w-full text-center space-y-4">
+          <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <Lock className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-lg font-bold">AI Tutor Limit Reached</h2>
+          <p className="text-sm text-muted-foreground">You've used your {MAX_FREE_USES} free AI Tutor sessions. Subscribe for just <span className="font-bold text-foreground">₦1,500</span> to get unlimited access!</p>
+          <Button className="w-full h-11" onClick={() => setShowSub(true)}>Subscribe Now — ₦1,500</Button>
+          <Button variant="ghost" className="w-full" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+        </motion.div>
+        <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] lg:h-screen bg-background">
@@ -187,6 +241,7 @@ const AITutor = () => {
           </form>
         </div>
       </footer>
+      <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
     </div>
   );
 };
