@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, Trash2, Sparkles, Loader2, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import SubscriptionModal from "@/components/SubscriptionModal";
 
 interface Question {
   question_text: string;
@@ -50,6 +51,23 @@ const CreateExam = () => {
   const [saving, setSaving] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showSub, setShowSub] = useState(false);
+  const [aiUsage, setAiUsage] = useState(0);
+  const [isPro, setIsPro] = useState(false);
+
+  const MAX_FREE_AI = 2;
+
+  useEffect(() => {
+    if (!user) return;
+    const checkUsage = async () => {
+      const { data } = await supabase.from("profiles").select("ai_builder_usage, is_subscribed").eq("user_id", user.id).single();
+      if (data) {
+        setAiUsage(data.ai_builder_usage || 0);
+        setIsPro(data.is_subscribed);
+      }
+    };
+    checkUsage();
+  }, [user]);
 
   const addEmptyQuestion = () => {
     setQuestions([...questions, { question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }]);
@@ -65,6 +83,7 @@ const CreateExam = () => {
 
   const generateAI = async () => {
     if (!aiTopic.trim()) { toast({ title: "Enter a topic", variant: "destructive" }); return; }
+    if (!isPro && aiUsage >= MAX_FREE_AI) { setShowSub(true); return; }
     setGenerating(true);
     try {
       const resp = await supabase.functions.invoke("ai-tutor", {
@@ -91,6 +110,12 @@ const CreateExam = () => {
           correct_answer: q.correct_answer || "A",
         })));
         toast({ title: `${parsed.length} questions generated!` });
+        // Increment AI usage
+        if (user && !isPro) {
+          const newUsage = aiUsage + 1;
+          setAiUsage(newUsage);
+          await supabase.from("profiles").update({ ai_builder_usage: newUsage } as any).eq("user_id", user.id);
+        }
       } else {
         throw new Error("Could not parse AI response");
       }
@@ -295,6 +320,7 @@ const CreateExam = () => {
           </motion.div>
         )}
       </main>
+      <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
     </div>
   );
 };

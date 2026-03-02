@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,22 +23,18 @@ function emailTemplate(title: string, body: string, buttonText: string, buttonUr
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;">
 <tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-<!-- Header with Logo -->
 <tr><td style="background:linear-gradient(135deg,${BRAND.color},#6366f1);padding:28px 24px;text-align:center;">
 <img src="${BRAND.logo}" alt="${BRAND.name}" width="60" height="60" style="display:block;margin:0 auto 10px;border-radius:12px;" />
 <h1 style="color:#ffffff;font-size:20px;font-weight:700;margin:0;">${BRAND.name}</h1>
 </td></tr>
-<!-- Body -->
 <tr><td style="padding:32px 24px;">
 <h2 style="color:#1a1a2e;font-size:18px;font-weight:700;margin:0 0 16px;">${title}</h2>
 ${body}
-<!-- CTA Button -->
 <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
 <tr><td align="center">
 <a href="${buttonUrl}" style="display:inline-block;background:${BRAND.color};color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:600;font-size:14px;">${buttonText}</a>
 </td></tr></table>
 </td></tr>
-<!-- Footer -->
 <tr><td style="padding:20px 24px;border-top:1px solid #eee;text-align:center;">
 <p style="color:#888;font-size:11px;margin:0 0 4px;">${BRAND.name} · <a href="${BRAND.url}" style="color:${BRAND.color};text-decoration:none;">${BRAND.url}</a></p>
 <p style="color:#888;font-size:11px;margin:0;">Support: ${BRAND.email}</p>
@@ -107,7 +104,68 @@ serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
-    const { type, email, name } = await req.json();
+    const payload = await req.json();
+    const { type } = payload;
+
+    // Handle broadcast emails from admin
+    if (type === "broadcast") {
+      const { subject, body: messageBody } = payload;
+      if (!subject || !messageBody) throw new Error("Missing subject or body");
+
+      // Verify admin using auth header
+      const authHeader = req.headers.get("Authorization");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Get all user emails from auth.users
+      const { data: users, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+      if (usersError) throw new Error("Failed to fetch users");
+
+      const validEmails = users.users.filter(u => u.email).map(u => u.email!);
+      
+      // Format body with line breaks to HTML
+      const htmlBody = messageBody.split('\n').map((line: string) => 
+        line.trim() ? `<p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 8px;">${line}</p>` : '<br/>'
+      ).join('');
+
+      const html = emailTemplate(
+        subject,
+        htmlBody,
+        "Visit Weblines CBT",
+        BRAND.url + "/dashboard"
+      );
+
+      // Send in batches of 50
+      let sentCount = 0;
+      const batchSize = 50;
+      for (let i = 0; i < validEmails.length; i += batchSize) {
+        const batch = validEmails.slice(i, i + batchSize);
+        const promises = batch.map(email =>
+          fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: `Weblines CBT <no-reply@weblines.org>`,
+              to: [email],
+              subject,
+              html,
+            }),
+          }).then(r => { if (r.ok) sentCount++; return r; }).catch(() => {})
+        );
+        await Promise.all(promises);
+      }
+
+      return new Response(JSON.stringify({ success: true, sent: sentCount, total: validEmails.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Standard template emails
+    const { email, name } = payload;
     if (!type || !email) throw new Error("Missing type or email");
 
     const templateFn = TEMPLATES[type];

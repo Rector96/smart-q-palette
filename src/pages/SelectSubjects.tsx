@@ -114,13 +114,11 @@ const SelectSubjects = () => {
                 <div className="flex items-center gap-3">
                   <Input
                     type="number"
-                    min={5}
-                    max={200}
                     value={questionCount}
-                    onChange={(e) => setQuestionCount(Math.max(5, Math.min(200, Number(e.target.value))))}
+                    onChange={(e) => setQuestionCount(Math.max(1, Number(e.target.value) || 1))}
                     className="h-9 w-24 text-sm"
                   />
-                  <span className="text-xs text-muted-foreground">custom (5–200)</span>
+                  <span className="text-xs text-muted-foreground">any number</span>
                 </div>
               </CardContent>
             </Card>
@@ -133,8 +131,8 @@ const SelectSubjects = () => {
                     <Label className="text-sm font-semibold">Set Exam Duration</Label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Input type="number" min={5} max={180} value={customMinutes} onChange={(e) => setCustomMinutes(Math.max(5, Math.min(180, Number(e.target.value))))} className="h-9 w-24 text-sm" />
-                    <span className="text-xs text-muted-foreground">minutes (5–180)</span>
+                    <Input type="number" value={customMinutes} onChange={(e) => setCustomMinutes(Math.max(1, Number(e.target.value) || 1))} className="h-9 w-24 text-sm" />
+                    <span className="text-xs text-muted-foreground">minutes</span>
                   </div>
                 </CardContent>
               </Card>
