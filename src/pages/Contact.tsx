@@ -28,9 +28,9 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email",
-      value: "PassSmartly@gmail.com",
+      value: "weblinescbt@gmail.com",
       sub: "We reply within 24 hours",
-      action: () => window.open("mailto:PassSmartly@gmail.com"),
+      action: () => window.open("mailto:weblinescbt@gmail.com"),
       color: "bg-destructive/10 text-destructive",
     },
     {

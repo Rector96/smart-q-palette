@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { BookOpen, Trophy, Target, Clock, ArrowLeft, RotateCcw, Share2, CheckCircle2, XCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import ShareResultHighlight from "@/components/ShareResultHighlight";
 
 const Results = () => {
   const { toast } = useToast();
@@ -21,7 +22,6 @@ const Results = () => {
 
   useEffect(() => {
     if (!user || !sessionId) return;
-
     const fetchResults = async () => {
       const [{ data: sess }, { data: prof }, { data: hist }] = await Promise.all([
         supabase.from("exam_sessions").select("*").eq("id", sessionId).single(),
@@ -30,7 +30,6 @@ const Results = () => {
       ]);
       if (sess) setSession(sess);
       if (prof?.full_name) setProfileName(prof.full_name);
-
       if (hist) {
         setHistory(hist);
         const breakdown: Record<string, { correct: number; total: number }> = {};
@@ -45,6 +44,35 @@ const Results = () => {
     };
     fetchResults();
   }, [user, sessionId]);
+
+  const handleShare = async () => {
+    if (!session || !user) return;
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await supabase.from("shared_exams").insert({
+      share_code: code,
+      creator_id: user.id,
+      session_id: sessionId!,
+      mode: session.mode,
+      subjects: session.subjects,
+    } as any);
+
+    const score = Math.round(Number(session.score_percentage) || 0);
+    const shareText = `I just scored ${score}% on Weblines CBT 🚀 Can you beat me?\n${session.correct_answers}/${session.total_questions} correct · ${session.mode.toUpperCase()} mode`;
+    const url = `${window.location.origin}/s/${code}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "My Weblines CBT Score", text: shareText, url });
+        return;
+      } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${url}`);
+      toast({ title: "Link copied! 🔗", description: `Share link: ${url}` });
+    } catch {
+      toast({ title: "Share link", description: url });
+    }
+  };
 
   if (!session) {
     return (
@@ -75,7 +103,7 @@ const Results = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* Congratulations / Score Card */}
+        {/* Score Card */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
           <Card className="border-border/50 overflow-hidden">
             <div className={`h-20 ${passed ? "bg-gradient-to-r from-[hsl(var(--success))] to-primary" : "bg-gradient-to-r from-destructive to-primary"} relative overflow-hidden`}>
@@ -90,54 +118,27 @@ const Results = () => {
               <div className="relative inline-flex items-center justify-center w-24 h-24 mb-4 -mt-12">
                 <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
-                  <circle
-                    cx="50" cy="50" r="42" fill="none"
-                    stroke="hsl(var(--primary))" strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${score * 2.64} 264`}
-                  />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${score * 2.64} 264`} />
                 </svg>
                 <span className="absolute text-xl font-bold bg-card rounded-full h-16 w-16 flex items-center justify-center shadow-md">{Math.round(score)}%</span>
               </div>
               <p className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Grade: {grade}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {session.correct_answers}/{session.total_questions} correct · {mins} min
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{session.correct_answers}/{session.total_questions} correct · {mins} min</p>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <Card className="border-border/50">
-            <CardContent className="p-3 text-center">
-              <Trophy className="h-4 w-4 mx-auto mb-1 text-[hsl(var(--success))]" />
-              <p className="text-sm font-bold">{session.correct_answers}</p>
-              <p className="text-[10px] text-muted-foreground">Correct</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-3 text-center">
-              <Target className="h-4 w-4 mx-auto mb-1 text-destructive" />
-              <p className="text-sm font-bold">{session.total_questions - session.correct_answers}</p>
-              <p className="text-[10px] text-muted-foreground">Wrong</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-3 text-center">
-              <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-sm font-bold">{mins}m</p>
-              <p className="text-[10px] text-muted-foreground">Duration</p>
-            </CardContent>
-          </Card>
+          <Card className="border-border/50"><CardContent className="p-3 text-center"><Trophy className="h-4 w-4 mx-auto mb-1 text-[hsl(var(--success))]" /><p className="text-sm font-bold">{session.correct_answers}</p><p className="text-[10px] text-muted-foreground">Correct</p></CardContent></Card>
+          <Card className="border-border/50"><CardContent className="p-3 text-center"><Target className="h-4 w-4 mx-auto mb-1 text-destructive" /><p className="text-sm font-bold">{session.total_questions - session.correct_answers}</p><p className="text-[10px] text-muted-foreground">Wrong</p></CardContent></Card>
+          <Card className="border-border/50"><CardContent className="p-3 text-center"><Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><p className="text-sm font-bold">{mins}m</p><p className="text-[10px] text-muted-foreground">Duration</p></CardContent></Card>
         </div>
 
         {/* Topic Breakdown */}
         {Object.keys(topicBreakdown).length > 0 && (
           <Card className="border-border/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Topic Breakdown</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Topic Breakdown</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {Object.entries(topicBreakdown).map(([topic, data]) => {
                 const pct = data.total > 0 ? (data.correct / data.total) * 100 : 0;
@@ -158,9 +159,7 @@ const Results = () => {
         {/* Answer Review */}
         {history.length > 0 && (
           <Card className="border-border/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Your Answers</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Your Answers</CardTitle></CardHeader>
             <CardContent className="space-y-2 max-h-64 overflow-y-auto">
               {history.map((h: any, idx: number) => (
                 <div key={h.id} className={`p-2.5 rounded-lg border text-xs ${h.is_correct ? "bg-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20" : "bg-destructive/5 border-destructive/20"}`}>
@@ -186,24 +185,7 @@ const Results = () => {
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Dashboard
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={async () => {
-            if (!session) return;
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            await supabase.from("shared_exams").insert({
-              share_code: code,
-              creator_id: user!.id,
-              session_id: sessionId!,
-              mode: session.mode,
-              subjects: session.subjects,
-            } as any);
-            const url = `${window.location.origin}/s/${code}`;
-            try {
-              await navigator.clipboard.writeText(url);
-              toast({ title: "Link copied! 🔗", description: `Short link: ${url}` });
-            } catch {
-              toast({ title: "Share link", description: url });
-            }
-          }}>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleShare}>
             <Share2 className="h-3.5 w-3.5 mr-1" /> Share
           </Button>
           <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/select-subjects?mode=practice")}>
@@ -211,6 +193,8 @@ const Results = () => {
           </Button>
         </div>
       </main>
+
+      <ShareResultHighlight onShare={handleShare} />
     </div>
   );
 };

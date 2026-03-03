@@ -453,35 +453,35 @@ const Index = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8">
             <div>
               <Link to="/"><Logo size="sm" className="mb-3" /></Link>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 AI-powered exam preparation platform helping students achieve their academic dreams.
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Product</p>
-              <ul className="space-y-1 text-[10px] text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2">Product</p>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground">Features</a></li>
                 <li><a href="#pricing" className="hover:text-foreground">Pricing</a></li>
                 <li><Link to="/faq" className="hover:text-foreground">FAQ</Link></li>
               </ul>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Company</p>
-              <ul className="space-y-1 text-[10px] text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2">Company</p>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
                 <li><Link to="/about" className="hover:text-foreground">About Us</Link></li>
                 <li><Link to="/contact" className="hover:text-foreground">Contact Us</Link></li>
               </ul>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2">Legal</p>
-              <ul className="space-y-1 text-[10px] text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2">Legal</p>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
                 <li><Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="hover:text-foreground">Terms of Service</Link></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border pt-4 text-center">
-            <p className="text-[10px] text-muted-foreground">© 2026 Weblines CBT. All rights reserved.</p>
+            <p className="text-xs text-muted-foreground">© 2026 Weblines CBT. All rights reserved.</p>
           </div>
         </div>
       </footer>
