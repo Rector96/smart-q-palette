@@ -91,13 +91,13 @@ const Library = () => {
                   <CardContent className="p-3 flex-1 flex flex-col">
                     <h3 className="font-bold text-sm mb-1 line-clamp-2">{book.title}</h3>
                     {book.description && <p className="text-[11px] text-muted-foreground mb-3 line-clamp-2 flex-1">{book.description}</p>}
-                    <div className="flex gap-2 mt-auto">
+                    <div className="grid grid-cols-2 gap-2 mt-auto">
                       {book.preview_file_url && (
-                        <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1" onClick={() => handlePreview(book)}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handlePreview(book)}>
                           <Eye className="h-3 w-3" /> Preview
                         </Button>
                       )}
-                      <Button size="sm" className="flex-1 h-8 text-xs gap-1" onClick={() => handleRead(book)}>
+                      <Button size="sm" className={`h-8 text-xs gap-1 ${!book.preview_file_url ? "col-span-2" : ""}`} onClick={() => handleRead(book)}>
                         {book.is_free || isPro ? (
                           <><BookOpen className="h-3 w-3" /> Read</>
                         ) : (

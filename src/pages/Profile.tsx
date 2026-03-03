@@ -127,7 +127,7 @@ const Profile = () => {
   const settingsItems = [
     { icon: User, label: "Account Settings", action: () => { setEditName(profile?.full_name || ""); setShowEditProfile(true); } },
     { icon: Bell, label: "Notification Preferences", action: () => toast({ title: "Coming soon", description: "Notification settings will be available soon." }) },
-    { icon: Clock, label: "Study Reminders", action: () => toast({ title: "Coming soon", description: "Study reminders will be available soon." }) },
+    { icon: Clock, label: "Replay Dashboard Tour", action: () => { localStorage.removeItem("weblines_tour_completed"); navigate("/dashboard"); toast({ title: "Tour reset!", description: "The onboarding tour will play on your next dashboard visit." }); } },
     { icon: HelpCircle, label: "Help & Support", action: () => navigate("/contact") },
   ];
 

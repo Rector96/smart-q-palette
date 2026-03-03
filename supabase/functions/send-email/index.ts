@@ -47,15 +47,13 @@ const TEMPLATES: Record<string, (name: string) => { subject: string; html: strin
     subject: "Welcome to Weblines CBT! 🎓 Your Exam Success Starts Here",
     html: emailTemplate(
       `Welcome, ${name}! 🎉`,
-      `<p style="color:#555;font-size:14px;line-height:1.7;">We're thrilled to have you join the Weblines CBT family! You've taken the first step towards exam success.</p>
-<p style="color:#555;font-size:14px;font-weight:600;margin:16px 0 8px;">Here's what you can do:</p>
+      `<p style="color:#555;font-size:14px;line-height:1.7;">We're thrilled to have you join the Weblines CBT family!</p>
 <ul style="color:#555;font-size:14px;line-height:2;">
 <li>📝 Practice JAMB, WAEC & NECO with real CBT simulations</li>
 <li>📊 Track your performance with detailed analytics</li>
 <li>🤖 Get help from our AI Tutor anytime</li>
 <li>🔗 Share exams with friends and compete</li>
-</ul>
-<p style="color:#555;font-size:14px;line-height:1.7;">We believe in you — start practicing today and watch your scores soar! 💪</p>`,
+</ul>`,
       "Start Practicing Now",
       `${BRAND.url}/dashboard`
     ),
@@ -65,7 +63,7 @@ const TEMPLATES: Record<string, (name: string) => { subject: string; html: strin
     html: emailTemplate(
       `Well done, ${name}!`,
       `<p style="color:#555;font-size:14px;line-height:1.7;">You've just completed your first CBT practice exam — that's a huge step! 🎯</p>
-<p style="color:#555;font-size:14px;line-height:1.7;">Consistency is the key to success. Keep practicing daily, review your weak areas, and watch your scores improve.</p>`,
+<p style="color:#555;font-size:14px;line-height:1.7;">Keep practicing daily and watch your scores improve.</p>`,
       "Take Another Test",
       `${BRAND.url}/dashboard`
     ),
@@ -74,7 +72,7 @@ const TEMPLATES: Record<string, (name: string) => { subject: string; html: strin
     subject: "Your Free Trial Has Ended – Unlock Full Access 🔓",
     html: emailTemplate(
       `${name}, your free trial has ended`,
-      `<p style="color:#555;font-size:14px;line-height:1.7;">You've used all your free practice sessions. Upgrade to Premium to unlock:</p>
+      `<p style="color:#555;font-size:14px;line-height:1.7;">Upgrade to Premium to unlock:</p>
 <ul style="color:#555;font-size:14px;line-height:1.9;">
 <li>✅ Unlimited CBT simulations</li>
 <li>✅ All subjects and 25,000+ questions</li>
@@ -89,13 +87,28 @@ const TEMPLATES: Record<string, (name: string) => { subject: string; html: strin
     subject: "Subscription Successful – Welcome to Premium! 🎉",
     html: emailTemplate(
       `Congratulations, ${name}!`,
-      `<p style="color:#555;font-size:14px;line-height:1.7;">Your premium subscription has been activated. Thank you for choosing Weblines CBT!</p>
-<p style="color:#555;font-size:14px;line-height:1.7;">You now have full access to unlimited exams, all subjects, performance analytics, and our AI Tutor.</p>`,
+      `<p style="color:#555;font-size:14px;line-height:1.7;">Your premium subscription has been activated. You now have full access to everything!</p>`,
       "Start Practicing",
       `${BRAND.url}/dashboard`
     ),
   }),
 };
+
+// Fetch ALL users with pagination (listUsers defaults to 50 per page)
+async function getAllUsers(supabase: any) {
+  const allUsers: any[] = [];
+  let page = 1;
+  const perPage = 1000;
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error("Failed to fetch users: " + error.message);
+    if (!data.users || data.users.length === 0) break;
+    allUsers.push(...data.users);
+    if (data.users.length < perPage) break;
+    page++;
+  }
+  return allUsers;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -107,36 +120,25 @@ serve(async (req) => {
     const payload = await req.json();
     const { type } = payload;
 
-    // Handle broadcast emails from admin
     if (type === "broadcast") {
       const { subject, body: messageBody } = payload;
       if (!subject || !messageBody) throw new Error("Missing subject or body");
 
-      // Verify admin using auth header
-      const authHeader = req.headers.get("Authorization");
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      // Get all user emails from auth.users
-      const { data: users, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-      if (usersError) throw new Error("Failed to fetch users");
+      const users = await getAllUsers(supabase);
+      const validEmails = users.filter(u => u.email).map(u => u.email!);
 
-      const validEmails = users.users.filter(u => u.email).map(u => u.email!);
-      
-      // Format body with line breaks to HTML
-      const htmlBody = messageBody.split('\n').map((line: string) => 
+      console.log(`Broadcasting to ${validEmails.length} users`);
+
+      const htmlBody = messageBody.split('\n').map((line: string) =>
         line.trim() ? `<p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 8px;">${line}</p>` : '<br/>'
       ).join('');
 
-      const html = emailTemplate(
-        subject,
-        htmlBody,
-        "Visit Weblines CBT",
-        BRAND.url + "/dashboard"
-      );
+      const html = emailTemplate(subject, htmlBody, "Visit Weblines CBT", BRAND.url + "/dashboard");
 
-      // Send in batches of 50
       let sentCount = 0;
       const batchSize = 50;
       for (let i = 0; i < validEmails.length; i += batchSize) {
@@ -144,16 +146,8 @@ serve(async (req) => {
         const promises = batch.map(email =>
           fetch("https://api.resend.com/emails", {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              from: `Weblines CBT <no-reply@weblines.org>`,
-              to: [email],
-              subject,
-              html,
-            }),
+            headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ from: `Weblines CBT <no-reply@weblines.org>`, to: [email], subject, html }),
           }).then(r => { if (r.ok) sentCount++; return r; }).catch(() => {})
         );
         await Promise.all(promises);
@@ -175,16 +169,8 @@ serve(async (req) => {
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: `Weblines CBT <no-reply@weblines.org>`,
-        to: [email],
-        subject,
-        html,
-      }),
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: `Weblines CBT <no-reply@weblines.org>`, to: [email], subject, html }),
     });
 
     const data = await res.json();

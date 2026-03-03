@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import { Badge } from "@/components/ui/badge";
 import DesktopHeader from "@/components/DesktopHeader";
+import OnboardingTour, { useOnboardingTour } from "@/components/OnboardingTour";
 
 const EXAM_MODE_ICONS: Record<string, any> = {
   practice: Brain,
@@ -33,6 +34,7 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<{ full_name: string | null; trial_count: number; is_subscribed: boolean }>({ full_name: null, trial_count: 0, is_subscribed: false });
   const [streak, setStreak] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
+  const tour = useOnboardingTour();
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -92,7 +94,6 @@ const Dashboard = () => {
     { icon: Flame, label: "Streak", value: `${streak} days`, color: "text-warning" },
   ];
 
-  // Extended exam modes with Library & Set Exam
   const allModeCards = [
     ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
     { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
@@ -134,7 +135,7 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Start Practice Test CTA */}
-        <motion.div whileTap={{ scale: 0.98 }}>
+        <motion.div whileTap={{ scale: 0.98 }} data-tour="start-test">
           <Button className="w-full h-12 lg:h-14 text-sm lg:text-base gap-2 rounded-xl shadow-md bg-primary hover:bg-primary/90 justify-between px-5" onClick={handleStartTest}>
             <div className="flex items-center gap-2">
               <Rocket className="h-5 w-5" />
@@ -145,7 +146,7 @@ const Dashboard = () => {
         </motion.div>
 
         {/* AI Tutor Card */}
-        <Card className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}>
+        <Card data-tour="ai-tutor" className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}>
           <CardContent className="p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
             <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
@@ -189,15 +190,15 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        {/* Exam Modes - 2 columns with Library & Set Exam included */}
-        <div>
+        {/* Exam Modes */}
+        <div data-tour="exam-modes">
           <h2 className="text-base lg:text-lg font-bold mb-3">Exam Modes</h2>
           <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
             {allModeCards.map((mode) => {
               const Icon = mode.icon;
               const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "set-exam";
               return (
-                <motion.div key={mode.id} whileTap={{ scale: 0.98 }}>
+                <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-exam" ? "set-exam" : undefined}>
                   <Card
                     className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl h-full"
                     onClick={() => {
@@ -223,7 +224,7 @@ const Dashboard = () => {
         </div>
 
         {/* Subjects */}
-        <div>
+        <div data-tour="subjects">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base lg:text-lg font-bold">Subjects</h2>
           </div>
@@ -248,6 +249,7 @@ const Dashboard = () => {
       </main>
 
       <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} />
+      <OnboardingTour active={tour.active} onDismiss={tour.dismiss} />
     </div>
   );
 };
