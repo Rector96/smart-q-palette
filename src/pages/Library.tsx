@@ -75,29 +75,29 @@ const Library = () => {
             <p className="text-xs text-muted-foreground">Books and study materials will appear here.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {books.map((book) => (
               <motion.div key={book.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow rounded-xl overflow-hidden h-full flex flex-col">
                   {book.cover_image_url ? (
-                    <div className="aspect-[3/4] bg-secondary overflow-hidden">
+                    <div className="aspect-[4/5] bg-secondary overflow-hidden">
                       <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                   ) : (
-                    <div className="aspect-[3/4] bg-primary/5 flex items-center justify-center">
-                      <BookOpen className="h-12 w-12 text-primary/30" />
+                    <div className="aspect-[4/5] bg-primary/5 flex items-center justify-center">
+                      <BookOpen className="h-10 w-10 text-primary/30" />
                     </div>
                   )}
-                  <CardContent className="p-3 flex-1 flex flex-col">
-                    <h3 className="font-bold text-sm mb-1 line-clamp-2">{book.title}</h3>
-                    {book.description && <p className="text-[11px] text-muted-foreground mb-3 line-clamp-2 flex-1">{book.description}</p>}
-                    <div className="grid grid-cols-2 gap-2 mt-auto">
+                  <CardContent className="p-2.5 flex-1 flex flex-col">
+                    <h3 className="font-bold text-xs mb-0.5 line-clamp-2">{book.title}</h3>
+                    {book.description && <p className="text-[10px] text-muted-foreground mb-2 line-clamp-2 flex-1">{book.description}</p>}
+                    <div className="grid grid-cols-2 gap-1.5 mt-auto">
                       {book.preview_file_url && (
-                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handlePreview(book)}>
+                        <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 px-2" onClick={() => handlePreview(book)}>
                           <Eye className="h-3 w-3" /> Preview
                         </Button>
                       )}
-                      <Button size="sm" className={`h-8 text-xs gap-1 ${!book.preview_file_url ? "col-span-2" : ""}`} onClick={() => handleRead(book)}>
+                      <Button size="sm" className={`h-7 text-[10px] gap-1 px-2 ${!book.preview_file_url ? "col-span-2" : ""}`} onClick={() => handleRead(book)}>
                         {book.is_free || isPro ? (
                           <><BookOpen className="h-3 w-3" /> Read</>
                         ) : (

@@ -94,7 +94,7 @@ const TEMPLATES: Record<string, (name: string) => { subject: string; html: strin
   }),
 };
 
-// Fetch ALL users with pagination (listUsers defaults to 50 per page)
+// Fetch ALL users with pagination
 async function getAllUsers(supabase: any) {
   const allUsers: any[] = [];
   let page = 1;
@@ -129,9 +129,15 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       const users = await getAllUsers(supabase);
-      const validEmails = users.filter(u => u.email).map(u => u.email!);
+      
+      // Deduplicate emails
+      const emailSet = new Set<string>();
+      for (const u of users) {
+        if (u.email) emailSet.add(u.email.toLowerCase().trim());
+      }
+      const validEmails = Array.from(emailSet);
 
-      console.log(`Broadcasting to ${validEmails.length} users`);
+      console.log(`Broadcasting to ${validEmails.length} unique users (fetched ${users.length} total)`);
 
       const htmlBody = messageBody.split('\n').map((line: string) =>
         line.trim() ? `<p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 8px;">${line}</p>` : '<br/>'
@@ -140,20 +146,54 @@ serve(async (req) => {
       const html = emailTemplate(subject, htmlBody, "Visit Weblines CBT", BRAND.url + "/dashboard");
 
       let sentCount = 0;
+      let failedCount = 0;
+      const failedEmails: string[] = [];
       const batchSize = 50;
+
       for (let i = 0; i < validEmails.length; i += batchSize) {
         const batch = validEmails.slice(i, i + batchSize);
-        const promises = batch.map(email =>
-          fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ from: `Weblines CBT <no-reply@weblines.org>`, to: [email], subject, html }),
-          }).then(r => { if (r.ok) sentCount++; return r; }).catch(() => {})
-        );
+        const promises = batch.map(async (email) => {
+          try {
+            const res = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: `Weblines CBT <no-reply@weblines.org>`,
+                to: [email],
+                subject,
+                html,
+              }),
+            });
+            if (res.ok) {
+              sentCount++;
+            } else {
+              const errData = await res.text();
+              console.error(`Failed to send to ${email}: ${res.status} ${errData}`);
+              failedCount++;
+              failedEmails.push(email);
+            }
+          } catch (err) {
+            console.error(`Exception sending to ${email}:`, err);
+            failedCount++;
+            failedEmails.push(email);
+          }
+        });
         await Promise.all(promises);
+        // Small delay between batches to respect rate limits
+        if (i + batchSize < validEmails.length) {
+          await new Promise(r => setTimeout(r, 500));
+        }
       }
 
-      return new Response(JSON.stringify({ success: true, sent: sentCount, total: validEmails.length }), {
+      console.log(`Broadcast complete: ${sentCount} sent, ${failedCount} failed out of ${validEmails.length}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        sent: sentCount,
+        failed: failedCount,
+        total: validEmails.length,
+        failedEmails: failedEmails.slice(0, 20), // Return first 20 for debugging
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

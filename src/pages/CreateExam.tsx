@@ -88,6 +88,7 @@ const CreateExam = () => {
     try {
       const resp = await supabase.functions.invoke("ai-tutor", {
         body: {
+          stream: false,
           messages: [{
             role: "user",
             content: `Generate exactly ${aiCount} multiple choice questions about "${aiTopic}" for a JAMB-style exam. Return ONLY a valid JSON array (no markdown, no code blocks) where each object has: question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D). Ensure questions are diverse and well-structured.`
@@ -95,9 +96,8 @@ const CreateExam = () => {
         }
       });
 
-      // Parse the streaming response
-      const text = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
-      // Try to extract JSON array from the response
+      if (resp.error) throw new Error(resp.error.message);
+      const text = resp.data?.content || (typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data));
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]) as Question[];

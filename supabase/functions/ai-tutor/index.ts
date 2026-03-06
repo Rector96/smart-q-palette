@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, subject } = await req.json();
+    const { messages, subject, stream: shouldStream = true } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -34,12 +34,12 @@ Remember: You are helping Nigerian students succeed in their JAMB exams. Be warm
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
         ],
-        stream: true,
+        stream: shouldStream,
       }),
     });
 
@@ -64,8 +64,17 @@ Remember: You are helping Nigerian students succeed in their JAMB exams. Be warm
       });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    if (shouldStream) {
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+    // Non-streaming: return the full JSON response
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    return new Response(JSON.stringify({ content }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ai-tutor error:", e);
