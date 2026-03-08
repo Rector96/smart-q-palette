@@ -97,21 +97,24 @@ const Library = () => {
                     <h3 className="font-bold text-xs mb-0.5 line-clamp-2">{book.title}</h3>
                     {book.description && <p className="text-[10px] text-muted-foreground mb-2 line-clamp-2 flex-1">{book.description}</p>}
                     <div className="grid grid-cols-2 gap-1.5 mt-auto">
-                      {book.preview_file_url && (
-                        <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 px-2" onClick={() => handlePreview(book)}>
-                          <Eye className="h-3 w-3" /> Preview
-                        </Button>
-                      )}
-                      <Button size="sm" className={`h-7 text-[10px] gap-1 px-2 ${!book.preview_file_url ? "col-span-2" : ""}`} onClick={() => handleRead(book)}>
-                        {book.is_free || isPro ? (
-                          <><BookOpen className="h-3 w-3" /> Read</>
-                        ) : (
-                          <><Lock className="h-3 w-3" /> Read Full</>
-                        )}
-                      </Button>
                       {book.summary && (
                         <Button variant="secondary" size="sm" className="h-7 text-[10px] gap-1 px-2 col-span-2" onClick={() => handleSummary(book)}>
                           <FileText className="h-3 w-3" /> Summary
+                        </Button>
+                      )}
+                      {book.preview_file_url && (
+                        <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 px-2 col-span-2" onClick={() => handlePreview(book)}>
+                          <Eye className="h-3 w-3" /> Preview
+                        </Button>
+                      )}
+                      {(book.is_free || isPro) ? (
+                        <Button size="sm" className="h-7 text-[10px] gap-1 px-2 col-span-2" onClick={() => handleRead(book)}>
+                          <BookOpen className="h-3 w-3" /> Read Full
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="h-7 text-[10px] gap-1 px-2 col-span-2 opacity-80" onClick={() => handleRead(book)}>
+                          <Lock className="h-3 w-3" /> Read Full
+                          <span className="text-[8px] ml-1 bg-primary-foreground/20 px-1 rounded">PRO</span>
                         </Button>
                       )}
                     </div>
