@@ -2,7 +2,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import heroImage from "@/assets/hero-students.jpg";
 import dashboardPreview from "@/assets/dashboard-preview.png";
 import paystackBanner from "@/assets/paystack-banner.png";
 import {
