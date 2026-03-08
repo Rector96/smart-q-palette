@@ -10,10 +10,12 @@ const Reader = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get("preview") === "true";
+  const viewMode = searchParams.get("view"); // "summary" or null
   const { user } = useAuth();
   const navigate = useNavigate();
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [blocked, setBlocked] = useState(false);
   const [showSub, setShowSub] = useState(false);
@@ -24,6 +26,12 @@ const Reader = () => {
       const { data: book } = await supabase.from("digital_library").select("*").eq("id", id).single();
       if (!book) { navigate("/library"); return; }
       setTitle(book.title);
+      setSummary((book as any).summary || null);
+
+      if (viewMode === "summary") {
+        setLoading(false);
+        return;
+      }
 
       if (isPreview) {
         setFileUrl(book.preview_file_url);
@@ -45,7 +53,7 @@ const Reader = () => {
       setLoading(false);
     };
     load();
-  }, [id, user, isPreview]);
+  }, [id, user, isPreview, viewMode]);
 
   if (loading) {
     return (
@@ -68,6 +76,40 @@ const Reader = () => {
           </div>
         </div>
         <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
+      </div>
+    );
+  }
+
+  // Summary view
+  if (viewMode === "summary" && summary) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/library")}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="font-bold text-sm truncate flex-1">{title}</h1>
+            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Summary</span>
+          </div>
+        </header>
+
+        <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            {summary.split('\n').map((paragraph, idx) => {
+              const trimmed = paragraph.trim();
+              if (!trimmed) return <br key={idx} />;
+              // Check if it looks like a heading (ALL CAPS or starts with number + period)
+              if (trimmed === trimmed.toUpperCase() && trimmed.length > 3 && !trimmed.startsWith('•') && !trimmed.startsWith('-')) {
+                return <h3 key={idx} className="text-base font-bold text-foreground mt-6 mb-2">{trimmed}</h3>;
+              }
+              if (/^\d+\./.test(trimmed) && trimmed.length < 80) {
+                return <h4 key={idx} className="text-sm font-semibold text-foreground mt-4 mb-1">{trimmed}</h4>;
+              }
+              return <p key={idx} className="text-sm text-muted-foreground leading-relaxed mb-3">{trimmed}</p>;
+            })}
+          </div>
+        </div>
       </div>
     );
   }
