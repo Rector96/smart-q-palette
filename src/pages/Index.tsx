@@ -2,7 +2,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import heroImage from "@/assets/hero-students.jpg";
 import dashboardPreview from "@/assets/dashboard-preview.png";
 import paystackBanner from "@/assets/paystack-banner.png";
 import {
@@ -106,94 +105,77 @@ const Index = () => {
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 py-12 sm:py-20">
-        <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-medium mb-6">
-            <Zap className="h-3 w-3" /> AI-Powered Exam Preparation
-          </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
-            Ace Your Exams with{" "}
-            <span className="text-primary">Web</span><span className="text-[hsl(var(--success))]">lines</span>
-          </h1>
-          <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            Practice with real CBT questions for JAMB, WAEC, NECO & more. Get instant AI explanations and track your progress. Join 50,000+ students preparing smarter.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-3">
-            {isLoggedIn ? (
-              <>
-                <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/dashboard")}>
-                  Dashboard <ArrowRight className="h-4 w-4 ml-1" />
-                </Button>
-                <Button variant="outline" className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/select-subjects?mode=practice")}>
-                  Continue
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/auth")}>
-                  Get Started <ArrowRight className="h-4 w-4 ml-1" />
-                </Button>
-                <motion.div
-                  animate={{ rotate: [0, -2, 2, -2, 0] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                >
-                  <Button
-                    variant="outline"
-                    className="h-11 px-5 text-sm gap-2 shadow-md hover:shadow-lg transition-shadow border-border/50 rounded-xl"
-                    onClick={() => window.open("https://play.google.com/store", "_blank")}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                      <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
-                    </svg>
-                    Google Play
+        <div className="grid lg:grid-cols-2 gap-10 items-center">
+          <motion.div {...fadeUp} className="text-center lg:text-left">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-medium mb-6">
+              <Zap className="h-3 w-3" /> AI-Powered Exam Preparation
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
+              Ace Your Exams with{" "}
+              <span className="text-primary">Web</span><span className="text-[hsl(var(--success))]">lines</span>
+            </h1>
+            <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed">
+              Practice with real CBT questions for JAMB, WAEC, NECO & more. Get instant AI explanations and track your progress. Join 50,000+ students preparing smarter.
+            </p>
+            <div className="mt-6 flex items-center justify-center lg:justify-start gap-3">
+              {isLoggedIn ? (
+                <>
+                  <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/dashboard")}>
+                    Dashboard <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
-                </motion.div>
-              </>
+                  <Button variant="outline" className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/select-subjects?mode=practice")}>
+                    Continue
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/auth")}>
+                    Get Started <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                  <motion.div
+                    animate={{ rotate: [0, -2, 2, -2, 0] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                  >
+                    <Button
+                      variant="outline"
+                      className="h-11 px-5 text-sm gap-2 shadow-md hover:shadow-lg transition-shadow border-border/50 rounded-xl"
+                      onClick={() => window.open("https://play.google.com/store", "_blank")}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                        <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
+                      </svg>
+                      Google Play
+                    </Button>
+                  </motion.div>
+                </>
+              )}
+            </div>
+            {!isLoggedIn && (
+              <div className="mt-3 text-xs text-muted-foreground">
+                ✨ 3 free exam sessions · No credit card required
+              </div>
             )}
-          </div>
-          {!isLoggedIn && (
-            <div className="mt-3 text-xs text-muted-foreground">
-              ✨ 3 free exam sessions · No credit card required
+            <div className="mt-3 flex items-center justify-center lg:justify-start gap-1">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="h-3.5 w-3.5 text-warning fill-warning" />
+              ))}
+              <span className="text-xs text-muted-foreground ml-1.5">Rated 4.9/5 by 50,000+ students</span>
             </div>
-          )}
-          <div className="mt-3 flex items-center justify-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-3.5 w-3.5 text-warning fill-warning" />
-            ))}
-            <span className="text-xs text-muted-foreground ml-1.5">Rated 4.9/5 by 50,000+ students</span>
-          </div>
-        </motion.div>
-      </section>
+          </motion.div>
 
-      {/* Dashboard Preview */}
-      <section className="max-w-5xl mx-auto px-4 -mt-2 mb-8">
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/30">
-            <img
-              src={dashboardPreview}
-              alt="Weblines CBT Dashboard showing exam stats, subjects, and AI tutor"
-              className="w-full rounded-2xl"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent pointer-events-none" />
-            <div className="absolute bottom-4 left-4 right-4 text-center">
-              <p className="text-[11px] sm:text-xs font-medium text-foreground/80 bg-background/70 backdrop-blur-sm inline-block px-3 py-1 rounded-full">
-                ✨ Your personalized dashboard awaits
-              </p>
+          {/* Dashboard Preview */}
+          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/30">
+              <img
+                src={dashboardPreview}
+                alt="Weblines CBT Dashboard showing exam stats, subjects, and AI tutor"
+                className="w-full rounded-2xl"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-transparent pointer-events-none" />
             </div>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Hero Image */}
-      <section className="max-w-5xl mx-auto px-4 mb-8">
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.6 }}>
-          <img
-            src={heroImage}
-            alt="Students preparing for exams using Weblines CBT platform"
-            className="w-full rounded-2xl shadow-2xl border border-border/30"
-            loading="lazy"
-          />
-        </motion.div>
+          </motion.div>
+        </div>
       </section>
 
       <section className="bg-primary text-primary-foreground py-10">
