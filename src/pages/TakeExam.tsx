@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Clock, ArrowLeft, ArrowRight, Send, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Clock, ArrowLeft, ArrowRight, Send, CheckCircle2, XCircle, Loader2, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
