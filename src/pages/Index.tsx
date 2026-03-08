@@ -164,9 +164,29 @@ const Index = () => {
         </motion.div>
       </section>
 
-      {/* Hero Image */}
+      {/* Dashboard Preview */}
       <section className="max-w-5xl mx-auto px-4 -mt-2 mb-8">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/30">
+            <img
+              src={dashboardPreview}
+              alt="Weblines CBT Dashboard showing exam stats, subjects, and AI tutor"
+              className="w-full rounded-2xl"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute bottom-4 left-4 right-4 text-center">
+              <p className="text-[11px] sm:text-xs font-medium text-foreground/80 bg-background/70 backdrop-blur-sm inline-block px-3 py-1 rounded-full">
+                ✨ Your personalized dashboard awaits
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Hero Image */}
+      <section className="max-w-5xl mx-auto px-4 mb-8">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.6 }}>
           <img
             src={heroImage}
             alt="Students preparing for exams using Weblines CBT platform"
