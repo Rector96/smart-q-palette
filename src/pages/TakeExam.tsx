@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Clock, ArrowLeft, ArrowRight, Send, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Clock, ArrowLeft, ArrowRight, Send, CheckCircle2, XCircle, Loader2, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -166,7 +166,31 @@ const TakeExam = () => {
               );
             })}
           </div>
-          <Button onClick={() => navigate("/")}>Done</Button>
+
+          {/* Signup CTA for guests */}
+          <Card className="border-primary/30 bg-primary/5 text-left">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Zap className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Enjoy more with Weblines CBT!</p>
+                  <p className="text-[11px] text-muted-foreground">Create a free account to unlock powerful features</p>
+                </div>
+              </div>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-primary shrink-0" /> Practice 25,000+ real JAMB, WAEC & NECO questions</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-primary shrink-0" /> Get instant AI Tutor explanations 24/7</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-primary shrink-0" /> Track your progress & compete with friends</li>
+              </ul>
+              <Button className="w-full h-10 text-sm gap-1.5" onClick={() => navigate("/auth")}>
+                Create Free Account <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Button variant="outline" size="sm" onClick={() => navigate("/")}>Back to Home</Button>
         </motion.div>
       </div>
     );
