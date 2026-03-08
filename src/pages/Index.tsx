@@ -6,7 +6,7 @@ import heroImage from "@/assets/hero-students.jpg";
 import paystackBanner from "@/assets/paystack-banner.png";
 import {
   ArrowRight, Zap, BarChart3, Bot, Target,
-  CheckCircle2, Star, Users, BookOpenCheck, Clock, Crown, CreditCard
+  CheckCircle2, Star, Users, BookOpenCheck, Clock, Crown, CreditCard, Bell
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
