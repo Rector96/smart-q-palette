@@ -1,0 +1,1 @@
+ALTER TABLE public.digital_library ADD COLUMN IF NOT EXISTS summary text;

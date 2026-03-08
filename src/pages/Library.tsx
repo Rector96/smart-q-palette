@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, Lock, ArrowLeft } from "lucide-react";
+import { BookOpen, Eye, Lock, ArrowLeft, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import SubscriptionModal from "@/components/SubscriptionModal";
 
@@ -16,6 +16,7 @@ interface LibraryItem {
   preview_file_url: string | null;
   full_file_url: string | null;
   is_free: boolean | null;
+  summary: string | null;
 }
 
 const Library = () => {
@@ -29,7 +30,7 @@ const Library = () => {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("digital_library").select("*").order("created_at", { ascending: false });
-      if (data) setBooks(data);
+      if (data) setBooks(data as any);
       if (user) {
         const { data: prof } = await supabase.from("profiles").select("is_subscribed").eq("user_id", user.id).single();
         if (prof) setIsPro(prof.is_subscribed);
@@ -51,6 +52,10 @@ const Library = () => {
     if (book.preview_file_url) {
       navigate(`/reader/${book.id}?preview=true`);
     }
+  };
+
+  const handleSummary = (book: LibraryItem) => {
+    navigate(`/reader/${book.id}?view=summary`);
   };
 
   return (
@@ -104,6 +109,11 @@ const Library = () => {
                           <><Lock className="h-3 w-3" /> Read Full</>
                         )}
                       </Button>
+                      {book.summary && (
+                        <Button variant="secondary" size="sm" className="h-7 text-[10px] gap-1 px-2 col-span-2" onClick={() => handleSummary(book)}>
+                          <FileText className="h-3 w-3" /> Summary
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
