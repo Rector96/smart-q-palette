@@ -97,15 +97,17 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
 
   if (!active && !showConfetti) return null;
 
-  // Calculate tooltip position
+  // Calculate tooltip position — always fit within viewport
   let tooltipStyle: React.CSSProperties = {};
+  const tooltipWidth = Math.min(300, window.innerWidth - 32);
   if (highlight && !isCenter) {
     const padding = 12;
     const spaceBelow = window.innerHeight - highlight.bottom;
-    if (spaceBelow > 200) {
-      tooltipStyle = { top: highlight.bottom + padding, left: Math.max(16, Math.min(highlight.left, window.innerWidth - 320)) };
+    const safeLeft = Math.max(16, Math.min(highlight.left, window.innerWidth - tooltipWidth - 16));
+    if (spaceBelow > 220) {
+      tooltipStyle = { top: highlight.bottom + padding, left: safeLeft, maxWidth: tooltipWidth };
     } else {
-      tooltipStyle = { top: Math.max(16, highlight.top - padding - 200), left: Math.max(16, Math.min(highlight.left, window.innerWidth - 320)) };
+      tooltipStyle = { bottom: Math.max(16, window.innerHeight - highlight.top + padding), left: safeLeft, maxWidth: tooltipWidth };
     }
   }
 
@@ -167,8 +169,8 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className={`absolute bg-card border border-border rounded-2xl shadow-2xl p-5 z-[101] ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-[90vw]" : "max-w-[300px] w-[85vw]"}`}
-              style={isCenter ? {} : tooltipStyle}
+              className={`absolute bg-card border border-border rounded-2xl shadow-2xl p-4 z-[101] overflow-y-auto ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[90vw] w-[340px]" : "w-[calc(100vw-32px)] max-w-[300px]"}`}
+              style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100vh - 32px)" }}
             >
               {/* Close btn */}
               <button onClick={skip} className="absolute top-3 right-3 h-6 w-6 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
