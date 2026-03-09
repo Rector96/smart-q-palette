@@ -97,15 +97,17 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
 
   if (!active && !showConfetti) return null;
 
-  // Calculate tooltip position
+  // Calculate tooltip position — always fit within viewport
   let tooltipStyle: React.CSSProperties = {};
+  const tooltipWidth = Math.min(300, window.innerWidth - 32);
   if (highlight && !isCenter) {
     const padding = 12;
     const spaceBelow = window.innerHeight - highlight.bottom;
-    if (spaceBelow > 200) {
-      tooltipStyle = { top: highlight.bottom + padding, left: Math.max(16, Math.min(highlight.left, window.innerWidth - 320)) };
+    const safeLeft = Math.max(16, Math.min(highlight.left, window.innerWidth - tooltipWidth - 16));
+    if (spaceBelow > 220) {
+      tooltipStyle = { top: highlight.bottom + padding, left: safeLeft, maxWidth: tooltipWidth };
     } else {
-      tooltipStyle = { top: Math.max(16, highlight.top - padding - 200), left: Math.max(16, Math.min(highlight.left, window.innerWidth - 320)) };
+      tooltipStyle = { bottom: Math.max(16, window.innerHeight - highlight.top + padding), left: safeLeft, maxWidth: tooltipWidth };
     }
   }
 
