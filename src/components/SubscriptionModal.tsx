@@ -98,7 +98,7 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
           <div className="bg-gradient-to-br from-primary/5 to-[hsl(262,83%,58%)]/5 rounded-2xl p-4 mb-8 border border-primary/10">
             <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase mb-2">LIMITED TIME OFFER</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold">₦2,000</span>
+              <span className="text-4xl font-bold">₦1,500</span>
               <span className="text-muted-foreground text-sm font-medium">/lifetime</span>
             </div>
             <p className="text-muted-foreground text-xs mt-2">Cancel anytime. No hidden charges.</p>
