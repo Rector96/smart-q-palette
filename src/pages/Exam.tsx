@@ -82,7 +82,7 @@ const Exam = () => {
         .eq("user_id", user.id)
         .single();
       if (profile?.full_name) setProfileName(profile.full_name);
-      if (profile && !profile.is_subscribed && profile.trial_count >= 3) {
+      if (profile && !profile.is_subscribed && profile.trial_count >= 4) {
         setTrialBlocked(true);
         setShowSubscription(true);
         setLoading(false);
