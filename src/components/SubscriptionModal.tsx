@@ -23,7 +23,7 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
     try {
       const res = await supabase.functions.invoke("paystack-initialize", {
         body: {
-          amount: 150000,
+          amount: 200000,
           callback_url: `${window.location.origin}/dashboard?payment=verify`,
         },
       });
