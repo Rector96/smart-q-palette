@@ -219,6 +219,7 @@ export type Database = {
           ai_builder_usage: number | null
           ai_tutor_usage: number | null
           created_at: string
+          free_live_quiz_used: number
           full_name: string | null
           id: string
           is_subscribed: boolean
@@ -231,6 +232,7 @@ export type Database = {
           ai_builder_usage?: number | null
           ai_tutor_usage?: number | null
           created_at?: string
+          free_live_quiz_used?: number
           full_name?: string | null
           id?: string
           is_subscribed?: boolean
@@ -243,6 +245,7 @@ export type Database = {
           ai_builder_usage?: number | null
           ai_tutor_usage?: number | null
           created_at?: string
+          free_live_quiz_used?: number
           full_name?: string | null
           id?: string
           is_subscribed?: boolean
@@ -258,6 +261,7 @@ export type Database = {
           correct_answer: string
           created_at: string
           difficulty: string
+          exam_hint: string | null
           explanation: string | null
           id: string
           option_a: string
@@ -275,6 +279,7 @@ export type Database = {
           correct_answer: string
           created_at?: string
           difficulty?: string
+          exam_hint?: string | null
           explanation?: string | null
           id?: string
           option_a: string
@@ -292,6 +297,7 @@ export type Database = {
           correct_answer?: string
           created_at?: string
           difficulty?: string
+          exam_hint?: string | null
           explanation?: string | null
           id?: string
           option_a?: string
@@ -304,6 +310,127 @@ export type Database = {
           subject?: string
           topic?: string
           year?: number | null
+        }
+        Relationships: []
+      }
+      quiz_answers: {
+        Row: {
+          answered_at: string
+          id: string
+          is_correct: boolean
+          question_index: number
+          room_id: string
+          selected_option: string | null
+          time_taken: number
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string
+          id?: string
+          is_correct?: boolean
+          question_index: number
+          room_id: string
+          selected_option?: string | null
+          time_taken?: number
+          user_id: string
+        }
+        Update: {
+          answered_at?: string
+          id?: string
+          is_correct?: boolean
+          question_index?: number
+          room_id?: string
+          selected_option?: string | null
+          time_taken?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_answers_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_participants: {
+        Row: {
+          display_name: string
+          id: string
+          is_connected: boolean
+          joined_at: string
+          room_id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          display_name?: string
+          id?: string
+          is_connected?: boolean
+          joined_at?: string
+          room_id: string
+          score?: number
+          user_id: string
+        }
+        Update: {
+          display_name?: string
+          id?: string
+          is_connected?: boolean
+          joined_at?: string
+          room_id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_rooms: {
+        Row: {
+          created_at: string
+          current_question_index: number
+          expires_at: string | null
+          host_id: string
+          id: string
+          num_questions: number
+          questions: Json
+          room_code: string
+          status: string
+          subject: string
+          time_per_question: number
+        }
+        Insert: {
+          created_at?: string
+          current_question_index?: number
+          expires_at?: string | null
+          host_id: string
+          id?: string
+          num_questions?: number
+          questions?: Json
+          room_code: string
+          status?: string
+          subject: string
+          time_per_question?: number
+        }
+        Update: {
+          created_at?: string
+          current_question_index?: number
+          expires_at?: string | null
+          host_id?: string
+          id?: string
+          num_questions?: number
+          questions?: Json
+          room_code?: string
+          status?: string
+          subject?: string
+          time_per_question?: number
         }
         Relationships: []
       }

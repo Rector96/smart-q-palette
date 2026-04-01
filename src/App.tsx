@@ -30,6 +30,9 @@ const Library = lazy(() => import("./pages/Library"));
 const Reader = lazy(() => import("./pages/Reader"));
 const CreateExam = lazy(() => import("./pages/CreateExam"));
 const TakeExam = lazy(() => import("./pages/TakeExam"));
+const LiveQuiz = lazy(() => import("./pages/LiveQuiz"));
+const QuizRoom = lazy(() => import("./pages/QuizRoom"));
+const QuizRedirect = lazy(() => import("./pages/QuizRedirect"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -62,6 +65,7 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/s/:code" element={<SharedExamRedirect />} />
               <Route path="/exam/:code" element={<TakeExam />} />
+              <Route path="/q/:roomCode" element={<QuizRedirect />} />
 
               {/* Private pages with bottom nav */}
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
@@ -72,6 +76,8 @@ const App = () => (
               <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
               <Route path="/reader/:id" element={<ProtectedRoute><Reader /></ProtectedRoute>} />
               <Route path="/create-exam" element={<ProtectedRoute><AppLayout><CreateExam /></AppLayout></ProtectedRoute>} />
+              <Route path="/live-quiz" element={<ProtectedRoute><AppLayout><LiveQuiz /></AppLayout></ProtectedRoute>} />
+              <Route path="/quiz-room/:roomCode" element={<ProtectedRoute><QuizRoom /></ProtectedRoute>} />
 
               {/* Focus mode - no nav at all */}
               <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />

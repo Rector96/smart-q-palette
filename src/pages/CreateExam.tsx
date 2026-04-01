@@ -177,7 +177,7 @@ const CreateExam = () => {
           <div className="h-16 w-16 bg-[hsl(var(--success))]/10 rounded-full flex items-center justify-center mx-auto">
             <Check className="h-8 w-8 text-[hsl(var(--success))]" />
           </div>
-          <h2 className="text-xl font-bold">Exam Created!</h2>
+           <h2 className="text-xl font-bold">Quiz Created!</h2>
           <p className="text-sm text-muted-foreground">Share this link with your students:</p>
           <Card className="border-border/50">
             <CardContent className="p-3 flex items-center gap-2">
@@ -203,7 +203,7 @@ const CreateExam = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => step === 1 ? navigate("/dashboard") : setStep(1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="font-bold text-sm">Create Exam</h1>
+          <h1 className="font-bold text-sm">Create Quiz</h1>
           <span className="ml-auto text-xs text-muted-foreground">Step {step}/2</span>
         </div>
       </header>
@@ -212,7 +212,7 @@ const CreateExam = () => {
         {step === 1 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Exam Title</Label>
+              <Label className="text-sm font-semibold">Quiz Title</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Biology Mid-Term Test" className="h-10" />
             </div>
             <div className="space-y-2">
@@ -315,7 +315,7 @@ const CreateExam = () => {
             </div>
 
             <Button className="w-full h-11" onClick={handleSubmit} disabled={saving || questions.length === 0}>
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Create Exam — ${questions.length} Questions`}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Create Quiz — ${questions.length} Questions`}
             </Button>
           </motion.div>
         )}

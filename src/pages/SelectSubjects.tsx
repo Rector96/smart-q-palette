@@ -133,7 +133,7 @@ const SelectSubjects = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Clock className="h-4 w-4 text-primary" />
-                    <Label className="text-sm font-semibold">Set Exam Duration</Label>
+                    <Label className="text-sm font-semibold">Set Duration</Label>
                   </div>
                   <div className="flex items-center gap-3">
                     <Input type="number" value={customMinutes} onChange={(e) => {

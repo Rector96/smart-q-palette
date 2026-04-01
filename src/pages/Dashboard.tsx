@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, FileEdit
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, FileEdit, Users
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -97,7 +97,8 @@ const Dashboard = () => {
   const allModeCards = [
     ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
     { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
-    { id: "set-exam", name: "Set Exam", description: "Create and schedule exams", icon: FileEdit, action: () => navigate("/create-exam") },
+    { id: "set-quiz", name: "Set Quiz", description: "Create and schedule quizzes", icon: FileEdit, action: () => navigate("/create-exam") },
+    { id: "live-quiz", name: "Live Quiz", description: "Real-time quiz battles", icon: Users, action: () => navigate("/live-quiz") },
   ];
 
   return (
@@ -196,9 +197,9 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
             {allModeCards.map((mode) => {
               const Icon = mode.icon;
-              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "set-exam";
+              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "set-quiz" && mode.id !== "live-quiz";
               return (
-                <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-exam" ? "set-exam" : undefined}>
+                <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-quiz" ? "set-quiz" : mode.id === "live-quiz" ? "live-quiz" : undefined}>
                   <Card
                     className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl h-full"
                     onClick={() => {

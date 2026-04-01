@@ -17,7 +17,7 @@ const DASHBOARD_STEPS: TourStep[] = [
   { selector: '[data-tour="ai-tutor"]', title: "AI Tutor", message: "Stuck on a question? Your AI Tutor is always online to guide you instantly.", icon: Brain },
   { selector: '[data-tour="exam-modes"]', title: "Exam Modes", message: "Choose how you want to practice — CBT, Mock Exam, Revision, or Practice Mode.", icon: Clock },
   { selector: '[data-tour="library"]', title: "Library", message: "Access all your recommended literature texts and reading materials in one place.", icon: BookOpen },
-  { selector: '[data-tour="set-exam"]', title: "Set Exam", message: "Create custom exams and simulate real test conditions to track your readiness.", icon: FileEdit },
+  { selector: '[data-tour="set-quiz"]', title: "Set Quiz", message: "Create custom quizzes and simulate real test conditions to track your readiness.", icon: FileEdit },
   { selector: '[data-tour="subjects"]', title: "Subjects", message: "Select a subject and focus your preparation.", icon: BookOpenCheck },
 ];
 
