@@ -65,6 +65,7 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/s/:code" element={<SharedExamRedirect />} />
               <Route path="/exam/:code" element={<TakeExam />} />
+              <Route path="/q/:roomCode" element={<QuizRedirect />} />
 
               {/* Private pages with bottom nav */}
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
