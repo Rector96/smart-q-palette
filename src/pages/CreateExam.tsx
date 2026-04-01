@@ -212,7 +212,7 @@ const CreateExam = () => {
         {step === 1 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Exam Title</Label>
+              <Label className="text-sm font-semibold">Quiz Title</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Biology Mid-Term Test" className="h-10" />
             </div>
             <div className="space-y-2">
