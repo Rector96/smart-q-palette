@@ -76,6 +76,8 @@ const App = () => (
               <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
               <Route path="/reader/:id" element={<ProtectedRoute><Reader /></ProtectedRoute>} />
               <Route path="/create-exam" element={<ProtectedRoute><AppLayout><CreateExam /></AppLayout></ProtectedRoute>} />
+              <Route path="/live-quiz" element={<ProtectedRoute><AppLayout><LiveQuiz /></AppLayout></ProtectedRoute>} />
+              <Route path="/quiz-room/:roomCode" element={<ProtectedRoute><QuizRoom /></ProtectedRoute>} />
 
               {/* Focus mode - no nav at all */}
               <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
