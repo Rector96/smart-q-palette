@@ -30,6 +30,9 @@ const Library = lazy(() => import("./pages/Library"));
 const Reader = lazy(() => import("./pages/Reader"));
 const CreateExam = lazy(() => import("./pages/CreateExam"));
 const TakeExam = lazy(() => import("./pages/TakeExam"));
+const LiveQuiz = lazy(() => import("./pages/LiveQuiz"));
+const QuizRoom = lazy(() => import("./pages/QuizRoom"));
+const QuizRedirect = lazy(() => import("./pages/QuizRedirect"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
