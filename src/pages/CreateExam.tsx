@@ -177,7 +177,7 @@ const CreateExam = () => {
           <div className="h-16 w-16 bg-[hsl(var(--success))]/10 rounded-full flex items-center justify-center mx-auto">
             <Check className="h-8 w-8 text-[hsl(var(--success))]" />
           </div>
-          <h2 className="text-xl font-bold">Exam Created!</h2>
+           <h2 className="text-xl font-bold">Quiz Created!</h2>
           <p className="text-sm text-muted-foreground">Share this link with your students:</p>
           <Card className="border-border/50">
             <CardContent className="p-3 flex items-center gap-2">
