@@ -203,7 +203,7 @@ const CreateExam = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => step === 1 ? navigate("/dashboard") : setStep(1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="font-bold text-sm">Create Exam</h1>
+          <h1 className="font-bold text-sm">Create Quiz</h1>
           <span className="ml-auto text-xs text-muted-foreground">Step {step}/2</span>
         </div>
       </header>
