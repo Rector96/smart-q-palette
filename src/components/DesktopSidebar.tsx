@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, Sparkles, User, BookOpen, Shield, FileEdit } from "lucide-react";
+import { Home, BarChart3, Sparkles, User, BookOpen, Shield, FileEdit, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
