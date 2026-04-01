@@ -315,7 +315,7 @@ const CreateExam = () => {
             </div>
 
             <Button className="w-full h-11" onClick={handleSubmit} disabled={saving || questions.length === 0}>
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Create Exam — ${questions.length} Questions`}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : `Create Quiz — ${questions.length} Questions`}
             </Button>
           </motion.div>
         )}
