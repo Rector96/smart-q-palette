@@ -97,7 +97,6 @@ const Dashboard = () => {
   const allModeCards = [
     ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
     { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
-    { id: "set-quiz", name: "Set Quiz", description: "Create and schedule quizzes", icon: FileEdit, action: () => navigate("/create-exam") },
     { id: "live-quiz", name: "Live Quiz", description: "Real-time quiz battles", icon: Users, action: () => navigate("/live-quiz") },
   ];
 
