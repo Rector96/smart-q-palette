@@ -7,7 +7,7 @@ import Logo from "@/components/Logo";
 
 const values = [
   { icon: Target, title: "Excellence", desc: "We strive to provide the highest quality exam preparation materials and AI-powered learning tools." },
-  { icon: Users, title: "Accessibility", desc: "Quality education should be affordable. That's why we keep our pricing student-friendly at just ₦1,500." },
+  { icon: Users, title: "Accessibility", desc: "Quality education should be affordable. That's why we keep our pricing student-friendly at just ₦2,000." },
   { icon: Brain, title: "Innovation", desc: "We leverage cutting-edge AI technology to personalize learning and make exam preparation smarter." },
   { icon: Shield, title: "Trust", desc: "Your data privacy and security are our top priorities. We never compromise on protecting our students." },
 ];

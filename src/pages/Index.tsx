@@ -286,7 +286,7 @@ const Index = () => {
                     <h3 className="text-sm font-semibold">Pro — Lifetime</h3>
                   </div>
                   <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-2xl font-bold">₦1,500</span>
+                    <span className="text-2xl font-bold">₦2,000</span>
                     <span className="text-xs text-muted-foreground">/ one-time</span>
                   </div>
                   <ul className="space-y-2 mb-6">

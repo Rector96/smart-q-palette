@@ -12,7 +12,7 @@ const faqs = [
   { q: "Can I share exams with friends?", a: "Yes! After completing an exam, you can generate a share link. Your friends can take the same exam and compare results." },
   { q: "Is my data safe?", a: "Absolutely. We use industry-standard encryption, secure authentication, and never share your personal information with third parties." },
   { q: "What exam modes are available?", a: "We offer Practice (untimed with instant feedback), CBT Exam (timed like real JAMB), Mock Exam (full 4-subject simulation), and Revision (focuses on your weak areas)." },
-  { q: "How do I subscribe?", a: "After your 3 free trials, you'll be prompted to subscribe. Pay ₦1,500 via Paystack (card, bank transfer, or USSD). Access is activated instantly!" },
+  { q: "How do I subscribe?", a: "After your 3 free trials, you'll be prompted to subscribe. Pay ₦2,000 via Paystack (card, bank transfer, or USSD). Access is activated instantly!" },
 ];
 
 const FAQ = () => {
