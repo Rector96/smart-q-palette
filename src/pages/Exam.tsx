@@ -434,7 +434,9 @@ const Exam = () => {
                       </motion.button>
                       {showFeedback && (
                         <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className={cn("text-[10px] mt-1 ml-9 leading-relaxed", isCorrect ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
-                          {isCorrect ? "✅ Correct answer" : `This is not the right answer.`}
+                          {isCorrect
+                            ? `✅ Correct! ${currentQuestion.exam_hint || "Well done!"}`
+                            : `❌ Not quite. ${currentQuestion.exam_hint || "Review this concept."}`}
                         </motion.p>
                       )}
                     </div>
