@@ -182,7 +182,7 @@ const Dashboard = () => {
               <CardContent className="p-3 flex items-center gap-3">
                 <Crown className="h-5 w-5 text-primary shrink-0" />
                 <div className="flex-1">
-                  <p className="text-xs font-semibold">Upgrade to Pro — ₦1,500</p>
+                  <p className="text-xs font-semibold">Upgrade to Pro — ₦2,000</p>
                   <p className="text-[10px] text-muted-foreground">Unlock unlimited exams, AI tutor & more</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
