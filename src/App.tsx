@@ -28,7 +28,6 @@ const SharedExamRedirect = lazy(() => import("./pages/SharedExamRedirect"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Library = lazy(() => import("./pages/Library"));
 const Reader = lazy(() => import("./pages/Reader"));
-const CreateExam = lazy(() => import("./pages/CreateExam"));
 const TakeExam = lazy(() => import("./pages/TakeExam"));
 const LiveQuiz = lazy(() => import("./pages/LiveQuiz"));
 const QuizRoom = lazy(() => import("./pages/QuizRoom"));
