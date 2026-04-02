@@ -25,7 +25,7 @@ serve(async (req) => {
 
     const userId = claims.claims.sub as string;
     const userEmail = claims.claims.email as string;
-    const { amount = 150000, callback_url } = await req.json();
+    const { amount = 200000, callback_url } = await req.json();
 
     const reference = `SP_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 

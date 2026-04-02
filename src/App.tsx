@@ -28,7 +28,6 @@ const SharedExamRedirect = lazy(() => import("./pages/SharedExamRedirect"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Library = lazy(() => import("./pages/Library"));
 const Reader = lazy(() => import("./pages/Reader"));
-const CreateExam = lazy(() => import("./pages/CreateExam"));
 const TakeExam = lazy(() => import("./pages/TakeExam"));
 const LiveQuiz = lazy(() => import("./pages/LiveQuiz"));
 const QuizRoom = lazy(() => import("./pages/QuizRoom"));
@@ -75,7 +74,7 @@ const App = () => (
               <Route path="/results/:sessionId" element={<ProtectedRoute><AppLayout><Results /></AppLayout></ProtectedRoute>} />
               <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
               <Route path="/reader/:id" element={<ProtectedRoute><Reader /></ProtectedRoute>} />
-              <Route path="/create-exam" element={<ProtectedRoute><AppLayout><CreateExam /></AppLayout></ProtectedRoute>} />
+              
               <Route path="/live-quiz" element={<ProtectedRoute><AppLayout><LiveQuiz /></AppLayout></ProtectedRoute>} />
               <Route path="/quiz-room/:roomCode" element={<ProtectedRoute><QuizRoom /></ProtectedRoute>} />
 

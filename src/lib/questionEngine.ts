@@ -12,6 +12,7 @@ export interface QuestionWithShuffledOptions {
   explanation: string | null;
   passage: string | null;
   question_type: string | null;
+  exam_hint: string | null;
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -21,6 +22,34 @@ function shuffleArray<T>(array: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+const MOTIVATIONAL_MESSAGES = [
+  "🔥 You're improving!",
+  "🎯 Keep going, you're close!",
+  "💪 Great effort! Stay focused!",
+  "🌟 You're doing amazing!",
+  "🚀 Keep pushing forward!",
+];
+
+const LEARNING_TIPS = [
+  "💡 Even if the question is reworded, the answer method stays the same",
+  "📌 JAMB often changes numbers but keeps the same logic",
+  "💡 Focus on understanding concepts, not memorizing answers",
+  "📌 Always eliminate obviously wrong options first",
+  "💡 Time management is key — don't spend too long on one question",
+];
+
+export function getMotivationalMessage(): string {
+  return MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)];
+}
+
+export function getLearningTip(): string {
+  return LEARNING_TIPS[Math.floor(Math.random() * LEARNING_TIPS.length)];
+}
+
+export function shouldShowTip(): boolean {
+  return Math.random() < 0.2; // 20% chance
 }
 
 export async function fetchSmartQuestions(
@@ -37,7 +66,7 @@ export async function fetchSmartQuestions(
 
   const answeredIds = (history || []).map((h) => h.question_id);
 
-  // Fetch ALL questions for the subject (no server-side filter for answered)
+  // Fetch ALL questions for the subject randomly
   const { data: questions, error } = await supabase
     .from("questions")
     .select("*")
@@ -46,26 +75,26 @@ export async function fetchSmartQuestions(
 
   if (error || !questions || questions.length === 0) return [];
 
+  // Randomize server results further
+  const randomized = shuffleArray(questions);
+
   // Filter out answered questions (except revision mode)
   let filtered = mode === "revision"
-    ? questions
-    : questions.filter((q) => !answeredIds.includes(q.id));
+    ? randomized
+    : randomized.filter((q) => !answeredIds.includes(q.id));
 
   // If not enough unanswered, use all available questions
-  if (filtered.length < Math.min(count, questions.length)) {
-    filtered = questions;
+  if (filtered.length < Math.min(count, randomized.length)) {
+    filtered = randomized;
   }
 
   // Adjust count to available questions
   const actualCount = Math.min(count, filtered.length);
 
-  // Shuffle and pick
-  const shuffled = shuffleArray(filtered);
-
-  // Balance difficulty: try to get ~30% easy, ~50% medium, ~20% hard
-  const easy = shuffled.filter((q) => q.difficulty === "easy");
-  const medium = shuffled.filter((q) => q.difficulty === "medium");
-  const hard = shuffled.filter((q) => q.difficulty === "hard");
+  // Balance difficulty: ~30% easy, ~50% medium, ~20% hard
+  const easy = filtered.filter((q) => q.difficulty === "easy");
+  const medium = filtered.filter((q) => q.difficulty === "medium");
+  const hard = filtered.filter((q) => q.difficulty === "hard");
 
   const easyCount = Math.round(actualCount * 0.3);
   const hardCount = Math.round(actualCount * 0.2);
@@ -77,9 +106,9 @@ export async function fetchSmartQuestions(
     ...hard.slice(0, hardCount),
   ];
 
-  // If we don't have enough by difficulty, fill from shuffled
-  while (selected.length < actualCount && shuffled.length > selected.length) {
-    const remaining = shuffled.filter((q) => !selected.includes(q));
+  // Fill from shuffled if not enough by difficulty
+  while (selected.length < actualCount && filtered.length > selected.length) {
+    const remaining = filtered.filter((q) => !selected.includes(q));
     if (remaining.length === 0) break;
     selected.push(remaining[0]);
   }
@@ -110,6 +139,7 @@ export async function fetchSmartQuestions(
       explanation: q.explanation,
       passage: q.passage,
       question_type: q.question_type,
+      exam_hint: q.exam_hint,
     };
   });
 }

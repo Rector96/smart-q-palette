@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, FileEdit, Users
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, Users
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -97,7 +97,6 @@ const Dashboard = () => {
   const allModeCards = [
     ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
     { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
-    { id: "set-quiz", name: "Set Quiz", description: "Create and schedule quizzes", icon: FileEdit, action: () => navigate("/create-exam") },
     { id: "live-quiz", name: "Live Quiz", description: "Real-time quiz battles", icon: Users, action: () => navigate("/live-quiz") },
   ];
 
@@ -182,7 +181,7 @@ const Dashboard = () => {
               <CardContent className="p-3 flex items-center gap-3">
                 <Crown className="h-5 w-5 text-primary shrink-0" />
                 <div className="flex-1">
-                  <p className="text-xs font-semibold">Upgrade to Pro — ₦1,500</p>
+                  <p className="text-xs font-semibold">Upgrade to Pro — ₦2,000</p>
                   <p className="text-[10px] text-muted-foreground">Unlock unlimited exams, AI tutor & more</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -197,7 +196,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
             {allModeCards.map((mode) => {
               const Icon = mode.icon;
-              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "set-quiz" && mode.id !== "live-quiz";
+              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz";
               return (
                 <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-quiz" ? "set-quiz" : mode.id === "live-quiz" ? "live-quiz" : undefined}>
                   <Card

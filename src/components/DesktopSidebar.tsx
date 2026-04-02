@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, Sparkles, User, BookOpen, Shield, FileEdit, Users } from "lucide-react";
+import { Home, BarChart3, Sparkles, User, BookOpen, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { path: "/select-subjects", label: "Exams", icon: BarChart3 },
   { path: "/ai-tutor", label: "AI Tutor", icon: Sparkles },
   { path: "/library", label: "Library", icon: BookOpen },
-  { path: "/create-exam", label: "Set Quiz", icon: FileEdit },
   { path: "/live-quiz", label: "Live Quiz", icon: Users },
   { path: "/profile", label: "Profile", icon: User },
 ];

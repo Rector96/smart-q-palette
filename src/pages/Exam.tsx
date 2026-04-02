@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSmartQuestions, type QuestionWithShuffledOptions } from "@/lib/questionEngine";
+import { fetchSmartQuestions, type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
 import { SUBJECTS } from "@/lib/subjects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -434,7 +434,9 @@ const Exam = () => {
                       </motion.button>
                       {showFeedback && (
                         <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className={cn("text-[10px] mt-1 ml-9 leading-relaxed", isCorrect ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
-                          {isCorrect ? "✅ Correct answer" : `This is not the right answer.`}
+                          {isCorrect
+                            ? `✅ Correct! ${currentQuestion.exam_hint || "Well done!"}`
+                            : `❌ Not quite. ${currentQuestion.exam_hint || "Review this concept."}`}
                         </motion.p>
                       )}
                     </div>
@@ -445,6 +447,14 @@ const Exam = () => {
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 bg-secondary/50 rounded-lg">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Explanation</p>
                   <p className="text-xs leading-relaxed">{currentQuestion.explanation}</p>
+                </motion.div>
+              )}
+              {isPractice && showResult && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-2">
+                  <p className="text-[11px] font-medium text-primary">{getMotivationalMessage()}</p>
+                  {shouldShowTip() && (
+                    <p className="text-[10px] text-muted-foreground mt-1 italic">{getLearningTip()}</p>
+                  )}
                 </motion.div>
               )}
             </motion.div>
