@@ -74,7 +74,7 @@ const App = () => (
               <Route path="/results/:sessionId" element={<ProtectedRoute><AppLayout><Results /></AppLayout></ProtectedRoute>} />
               <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
               <Route path="/reader/:id" element={<ProtectedRoute><Reader /></ProtectedRoute>} />
-              <Route path="/create-exam" element={<ProtectedRoute><AppLayout><CreateExam /></AppLayout></ProtectedRoute>} />
+              
               <Route path="/live-quiz" element={<ProtectedRoute><AppLayout><LiveQuiz /></AppLayout></ProtectedRoute>} />
               <Route path="/quiz-room/:roomCode" element={<ProtectedRoute><QuizRoom /></ProtectedRoute>} />
 

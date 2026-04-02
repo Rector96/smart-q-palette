@@ -196,7 +196,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
             {allModeCards.map((mode) => {
               const Icon = mode.icon;
-              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "set-quiz" && mode.id !== "live-quiz";
+              const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz";
               return (
                 <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-quiz" ? "set-quiz" : mode.id === "live-quiz" ? "live-quiz" : undefined}>
                   <Card

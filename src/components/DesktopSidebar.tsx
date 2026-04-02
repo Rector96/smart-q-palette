@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { path: "/select-subjects", label: "Exams", icon: BarChart3 },
   { path: "/ai-tutor", label: "AI Tutor", icon: Sparkles },
   { path: "/library", label: "Library", icon: BookOpen },
-  { path: "/create-exam", label: "Set Quiz", icon: FileEdit },
+  { path: "/live-quiz", label: "Live Quiz", icon: Users },
   { path: "/live-quiz", label: "Live Quiz", icon: Users },
   { path: "/profile", label: "Profile", icon: User },
 ];
