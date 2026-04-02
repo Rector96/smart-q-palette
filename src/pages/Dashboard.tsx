@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
   Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, FileEdit, Users
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, Users
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
