@@ -449,6 +449,14 @@ const Exam = () => {
                   <p className="text-xs leading-relaxed">{currentQuestion.explanation}</p>
                 </motion.div>
               )}
+              {isPractice && showResult && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-2">
+                  <p className="text-[11px] font-medium text-primary">{getMotivationalMessage()}</p>
+                  {shouldShowTip() && (
+                    <p className="text-[10px] text-muted-foreground mt-1 italic">{getLearningTip()}</p>
+                  )}
+                </motion.div>
+              )}
             </motion.div>
           </AnimatePresence>
         )}
