@@ -95,7 +95,7 @@ const About = () => {
                 "AI Tutor available 24/7 for personalized explanations",
                 "Smart question engine that adapts to your level",
                 "Real CBT exam simulation environment",
-                "Affordable one-time payment of just ₦1,500",
+                "Affordable one-time payment of just ₦2,000",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-3">
                   <div className="h-5 w-5 rounded-full bg-success/20 flex items-center justify-center shrink-0">
