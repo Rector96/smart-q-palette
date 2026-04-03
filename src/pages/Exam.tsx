@@ -55,6 +55,7 @@ const Exam = () => {
   const isTimed = mode === "cbt" || mode === "mock";
   const isPractice = mode === "practice";
   const hasMultipleSubjects = subjects.length > 1;
+  useOnlinePresence("exam", subjects.join(", "));
 
   // Group questions by subject
   const questionsBySubject = useMemo(() => {
