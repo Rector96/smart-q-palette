@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
+import SEOHead from "@/components/SEOHead";
 
 const Contact = () => {
   const navigate = useNavigate();

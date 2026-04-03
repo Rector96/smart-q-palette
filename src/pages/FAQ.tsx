@@ -20,6 +20,7 @@ const FAQ = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="FAQ – Weblines CBT" description="Frequently asked questions about Weblines CBT. Learn about pricing, subjects, AI tutor, and more." path="/faq" />
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
