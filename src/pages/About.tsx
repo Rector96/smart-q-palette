@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
+import SEOHead from "@/components/SEOHead";
 
 const values = [
   { icon: Target, title: "Excellence", desc: "We strive to provide the highest quality exam preparation materials and AI-powered learning tools." },
