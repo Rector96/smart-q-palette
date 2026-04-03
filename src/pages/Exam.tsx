@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import Logo from "@/components/Logo";
 import ExamSubmitOverlay from "@/components/ExamSubmitOverlay";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 
 const Exam = () => {
   const [searchParams] = useSearchParams();
@@ -54,6 +55,7 @@ const Exam = () => {
   const isTimed = mode === "cbt" || mode === "mock";
   const isPractice = mode === "practice";
   const hasMultipleSubjects = subjects.length > 1;
+  useOnlinePresence("exam", subjects.join(", "));
 
   // Group questions by subject
   const questionsBySubject = useMemo(() => {

@@ -16,6 +16,8 @@ import SubscriptionModal from "@/components/SubscriptionModal";
 import { Badge } from "@/components/ui/badge";
 import DesktopHeader from "@/components/DesktopHeader";
 import OnboardingTour, { useOnboardingTour } from "@/components/OnboardingTour";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import SEOHead from "@/components/SEOHead";
 
 const EXAM_MODE_ICONS: Record<string, any> = {
   practice: Brain,
@@ -35,6 +37,7 @@ const Dashboard = () => {
   const [streak, setStreak] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
   const tour = useOnboardingTour();
+  useOnlinePresence("dashboard");
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -102,6 +105,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Dashboard – Weblines CBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
       <main className="max-w-4xl mx-auto px-4 lg:px-6 py-5 lg:py-6 space-y-5">
         {/* Welcome */}

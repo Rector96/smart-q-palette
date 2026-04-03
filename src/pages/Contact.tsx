@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
+import SEOHead from "@/components/SEOHead";
 
 const Contact = () => {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Contact Us – Weblines CBT" description="Get in touch with Weblines CBT. Reach us via WhatsApp, email, or Instagram for support." path="/contact" />
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>

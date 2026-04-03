@@ -4,13 +4,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi } from "lucide-react";
 import Logo from "@/components/Logo";
+
+interface OnlineUser {
+  user_id: string;
+  display_name: string;
+  current_page: string;
+  current_subject: string | null;
+  last_seen: string;
+}
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ totalUsers: 0, paidUsers: 0, revenue: 0, totalSessions: 0, totalQuestions: 0 });
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -27,10 +37,31 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
+  // Real-time online users
+  useEffect(() => {
+    const loadOnline = async () => {
+      const cutoff = new Date(Date.now() - 90000).toISOString(); // 90s ago
+      const { data } = await supabase
+        .from("online_presence")
+        .select("user_id, display_name, current_page, current_subject, last_seen")
+        .gte("last_seen", cutoff);
+      setOnlineUsers((data as OnlineUser[]) || []);
+    };
+    loadOnline();
+
+    const channel = supabase
+      .channel("online-presence-admin")
+      .on("postgres_changes", { event: "*", schema: "public", table: "online_presence" }, () => loadOnline())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const cards = [
+    { icon: Wifi, label: "Online Now", value: onlineUsers.length, link: "#online", color: "text-[hsl(142,70%,45%)]" },
     { icon: Users, label: "Total Users", value: stats.totalUsers, link: "/admin/users", color: "text-primary" },
-    { icon: CreditCard, label: "Paid Users", value: stats.paidUsers, link: "/admin/users", color: "text-success" },
-    { icon: BarChart3, label: "Revenue", value: `₦${stats.revenue.toLocaleString()}`, link: "/admin/payments", color: "text-warning" },
+    { icon: CreditCard, label: "Paid Users", value: stats.paidUsers, link: "/admin/users", color: "text-[hsl(142,70%,45%)]" },
+    { icon: BarChart3, label: "Revenue", value: `₦${stats.revenue.toLocaleString()}`, link: "/admin/payments", color: "text-[hsl(38,92%,50%)]" },
     { icon: BookOpen, label: "Questions", value: stats.totalQuestions, link: "/admin/content", color: "text-primary" },
   ];
 
@@ -42,6 +73,11 @@ const AdminDashboard = () => {
     { icon: Mail, label: "Send Email", path: "/admin/email" },
     { icon: Settings, label: "Settings", path: "/admin/settings" },
   ];
+
+  const getPageLabel = (page: string) => {
+    const map: Record<string, string> = { exam: "Taking Exam", dashboard: "Dashboard", browsing: "Browsing", "ai-tutor": "AI Tutor", library: "Library", "live-quiz": "Live Quiz" };
+    return map[page] || page;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,7 +99,7 @@ const AdminDashboard = () => {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <h1 className="text-lg font-bold">Admin Overview</h1>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {cards.map((c) => (
             <Link key={c.label} to={c.link}>
               <Card className="border-border/50 hover:border-primary/30 transition-colors">
@@ -76,6 +112,35 @@ const AdminDashboard = () => {
             </Link>
           ))}
         </div>
+
+        {/* Live Online Users */}
+        <div id="online">
+          <div className="flex items-center gap-2 mb-3">
+            <Wifi className="h-4 w-4 text-[hsl(142,70%,45%)]" />
+            <h2 className="text-sm font-bold">Online Users ({onlineUsers.length})</h2>
+            <span className="h-2 w-2 rounded-full bg-[hsl(142,70%,45%)] animate-pulse" />
+          </div>
+          {onlineUsers.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No users currently online</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {onlineUsers.map((u) => (
+                <Card key={u.user_id} className="border-border/50">
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium">{u.display_name}</p>
+                      <p className="text-[10px] text-muted-foreground">{getPageLabel(u.current_page)}</p>
+                    </div>
+                    {u.current_subject && (
+                      <Badge variant="secondary" className="text-[10px]">{u.current_subject}</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {navItems.map((item) => (
             <Link key={item.path} to={item.path}>

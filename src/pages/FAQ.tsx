@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import Logo from "@/components/Logo";
+import SEOHead from "@/components/SEOHead";
 
 const faqs = [
   { q: "What is Weblines CBT?", a: "Weblines CBT is an AI-powered CBT preparation platform that helps students practice with real exam-style questions for JAMB, WAEC, NECO and more, get instant AI explanations, and track their progress." },
@@ -19,6 +20,7 @@ const FAQ = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="FAQ – Weblines CBT" description="Frequently asked questions about Weblines CBT. Learn about pricing, subjects, AI tutor, and more." path="/faq" />
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>

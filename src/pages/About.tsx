@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
+import SEOHead from "@/components/SEOHead";
 
 const values = [
   { icon: Target, title: "Excellence", desc: "We strive to provide the highest quality exam preparation materials and AI-powered learning tools." },
@@ -22,6 +23,7 @@ const About = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="About Us – Weblines CBT" description="Learn about Weblines CBT, Nigeria's AI-powered exam preparation platform for JAMB, WAEC, and NECO." path="/about" />
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
