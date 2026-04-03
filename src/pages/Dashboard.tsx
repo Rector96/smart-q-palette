@@ -105,6 +105,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Dashboard – Weblines CBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
       <main className="max-w-4xl mx-auto px-4 lg:px-6 py-5 lg:py-6 space-y-5">
         {/* Welcome */}
