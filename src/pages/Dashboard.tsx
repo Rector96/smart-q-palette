@@ -16,6 +16,8 @@ import SubscriptionModal from "@/components/SubscriptionModal";
 import { Badge } from "@/components/ui/badge";
 import DesktopHeader from "@/components/DesktopHeader";
 import OnboardingTour, { useOnboardingTour } from "@/components/OnboardingTour";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import SEOHead from "@/components/SEOHead";
 
 const EXAM_MODE_ICONS: Record<string, any> = {
   practice: Brain,
