@@ -172,6 +172,36 @@ export type Database = {
         }
         Relationships: []
       }
+      online_presence: {
+        Row: {
+          created_at: string
+          current_page: string | null
+          current_subject: string | null
+          display_name: string
+          id: string
+          last_seen: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_page?: string | null
+          current_subject?: string | null
+          display_name?: string
+          id?: string
+          last_seen?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_page?: string | null
+          current_subject?: string | null
+          display_name?: string
+          id?: string
+          last_seen?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
