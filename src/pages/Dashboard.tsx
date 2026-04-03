@@ -37,6 +37,7 @@ const Dashboard = () => {
   const [streak, setStreak] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
   const tour = useOnboardingTour();
+  useOnlinePresence("dashboard");
 
   useEffect(() => {
     const verifyPayment = async () => {
