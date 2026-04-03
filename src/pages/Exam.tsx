@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import Logo from "@/components/Logo";
 import ExamSubmitOverlay from "@/components/ExamSubmitOverlay";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 
 const Exam = () => {
   const [searchParams] = useSearchParams();
