@@ -121,7 +121,7 @@ const AdminContent = () => {
       }
 
       parsed.push({
-        subject: subj || csvSubject,
+        subject: (subj || csvSubject).toLowerCase(),
         question_text: question,
         option_a: optA,
         option_b: optB,
