@@ -58,38 +58,41 @@ export async function fetchSmartQuestions(
   count: number = 60,
   mode: string = "cbt"
 ): Promise<QuestionWithShuffledOptions[]> {
+  // Cap at 60 questions max
+  const cappedCount = Math.min(count, 60);
+
   // Get previously answered question IDs (for no-repetition)
   const { data: history } = await supabase
     .from("user_history")
     .select("question_id")
     .eq("user_id", userId);
 
-  const answeredIds = (history || []).map((h) => h.question_id);
+  const answeredIds = new Set((history || []).map((h) => h.question_id));
 
-  // Fetch ALL questions for the subject randomly
+  // Fetch questions for the subject - get more than needed for filtering
+  const fetchLimit = Math.min(cappedCount * 3, 1000);
   const { data: questions, error } = await supabase
     .from("questions")
     .select("*")
     .eq("subject", subject)
-    .limit(1000);
+    .limit(fetchLimit);
 
   if (error || !questions || questions.length === 0) return [];
 
   // Randomize server results further
   const randomized = shuffleArray(questions);
 
-  // Filter out answered questions (except revision mode)
-  let filtered = mode === "revision"
-    ? randomized
-    : randomized.filter((q) => !answeredIds.includes(q.id));
+  // Strongly prioritize unseen questions
+  let unseen = randomized.filter((q) => !answeredIds.has(q.id));
+  let seen = randomized.filter((q) => answeredIds.has(q.id));
 
-  // If not enough unanswered, use all available questions
-  if (filtered.length < Math.min(count, randomized.length)) {
-    filtered = randomized;
-  }
+  // In revision mode, prefer seen questions
+  let filtered = mode === "revision"
+    ? [...shuffleArray(seen), ...shuffleArray(unseen)]
+    : [...shuffleArray(unseen), ...shuffleArray(seen)];
 
   // Adjust count to available questions
-  const actualCount = Math.min(count, filtered.length);
+  const actualCount = Math.min(cappedCount, filtered.length);
 
   // Balance difficulty: ~30% easy, ~50% medium, ~20% hard
   const easy = filtered.filter((q) => q.difficulty === "easy");

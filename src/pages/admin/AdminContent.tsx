@@ -101,7 +101,23 @@ const AdminContent = () => {
 
     for (let i = 1; i < lines.length; i++) {
       // Simple CSV parsing (handles quoted fields)
-      const vals = lines[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map(v => v.trim().replace(/^"|"$/g, "")) || [];
+      // Improved CSV parsing that handles empty fields and quoted values
+      const vals: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      const line = lines[i];
+      for (let c = 0; c < line.length; c++) {
+        const char = line[c];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          vals.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      vals.push(current.trim());
       
       const subj = colMap.subject >= 0 ? vals[colMap.subject]?.trim() : csvSubject;
       const question = vals[colMap.question]?.trim();

@@ -169,8 +169,8 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className={`absolute bg-card border border-border rounded-2xl shadow-2xl p-4 z-[101] overflow-y-auto ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[90vw] w-[340px]" : "w-[calc(100vw-32px)] max-w-[300px]"}`}
-              style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100vh - 32px)" }}
+              className={`absolute bg-card border border-border rounded-2xl shadow-2xl p-4 z-[101] overflow-y-auto ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[85vw] w-[300px]" : "max-w-[85vw] w-[280px]"}`}
+              style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100vh - 100px)" }}
             >
               {/* Close btn */}
               <button onClick={skip} className="absolute top-3 right-3 h-6 w-6 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">

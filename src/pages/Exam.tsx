@@ -401,8 +401,8 @@ const Exam = () => {
             <motion.div key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
               {currentQuestion.passage && (
                 <Card className="mb-3 border-border/50">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Passage</p>
+                  <CardContent className="p-4 max-h-[40vh] overflow-y-auto">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">📖 Comprehension Passage</p>
                     <p className="text-xs leading-relaxed whitespace-pre-wrap">{currentQuestion.passage}</p>
                   </CardContent>
                 </Card>
@@ -414,7 +414,7 @@ const Exam = () => {
                     <Flag className={cn("h-3.5 w-3.5", flagged.has(currentQuestion.id) ? "text-warning fill-warning" : "text-muted-foreground")} />
                   </button>
                 </div>
-                <p className="text-sm font-medium leading-relaxed">{currentQuestion.question_text}</p>
+                <p className="text-sm font-semibold leading-relaxed">{currentQuestion.question_text}</p>
               </div>
               <div className="space-y-2">
                 {currentQuestion.options.map((option) => {

@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 
-const QUESTION_PRESETS = [20, 40, 60, 80, 100];
+const QUESTION_PRESETS = [10, 20, 40, 60];
 
 const SelectSubjects = () => {
   const [searchParams] = useSearchParams();
@@ -114,16 +114,18 @@ const SelectSubjects = () => {
                 <div className="flex items-center gap-3">
                   <Input
                     type="number"
-                    value={questionCount}
+                    value={questionCount || ""}
                     onChange={(e) => {
                       const v = e.target.value;
                       if (v === "") { setQuestionCount(0 as any); return; }
                       const n = parseInt(v, 10);
-                      if (!isNaN(n) && n >= 0) setQuestionCount(n);
+                      if (!isNaN(n) && n >= 0) setQuestionCount(Math.min(n, 60));
                     }}
                     className="h-9 w-24 text-sm"
+                    min={1}
+                    max={60}
                   />
-                  <span className="text-xs text-muted-foreground">any number</span>
+                  <span className="text-xs text-muted-foreground">max 60</span>
                 </div>
               </CardContent>
             </Card>
