@@ -82,18 +82,17 @@ export async function fetchSmartQuestions(
   // Randomize server results further
   const randomized = shuffleArray(questions);
 
-  // Filter out answered questions (except revision mode)
-  let filtered = mode === "revision"
-    ? randomized
-    : randomized.filter((q) => !answeredIds.includes(q.id));
+  // Strongly prioritize unseen questions
+  let unseen = randomized.filter((q) => !answeredIds.has(q.id));
+  let seen = randomized.filter((q) => answeredIds.has(q.id));
 
-  // If not enough unanswered, use all available questions
-  if (filtered.length < Math.min(count, randomized.length)) {
-    filtered = randomized;
-  }
+  // In revision mode, prefer seen questions
+  let filtered = mode === "revision"
+    ? [...shuffleArray(seen), ...shuffleArray(unseen)]
+    : [...shuffleArray(unseen), ...shuffleArray(seen)];
 
   // Adjust count to available questions
-  const actualCount = Math.min(count, filtered.length);
+  const actualCount = Math.min(cappedCount, filtered.length);
 
   // Balance difficulty: ~30% easy, ~50% medium, ~20% hard
   const easy = filtered.filter((q) => q.difficulty === "easy");
