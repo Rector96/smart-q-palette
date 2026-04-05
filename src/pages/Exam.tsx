@@ -414,7 +414,7 @@ const Exam = () => {
                     <Flag className={cn("h-3.5 w-3.5", flagged.has(currentQuestion.id) ? "text-warning fill-warning" : "text-muted-foreground")} />
                   </button>
                 </div>
-                <p className="text-sm font-medium leading-relaxed">{currentQuestion.question_text}</p>
+                <p className="text-sm font-semibold leading-relaxed">{currentQuestion.question_text}</p>
               </div>
               <div className="space-y-2">
                 {currentQuestion.options.map((option) => {
