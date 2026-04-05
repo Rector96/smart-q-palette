@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 
-const QUESTION_PRESETS = [20, 40, 60, 80, 100];
+const QUESTION_PRESETS = [10, 20, 40, 60];
 
 const SelectSubjects = () => {
   const [searchParams] = useSearchParams();
