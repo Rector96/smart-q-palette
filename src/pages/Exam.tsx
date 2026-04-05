@@ -401,8 +401,8 @@ const Exam = () => {
             <motion.div key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
               {currentQuestion.passage && (
                 <Card className="mb-3 border-border/50">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Passage</p>
+                  <CardContent className="p-4 max-h-[40vh] overflow-y-auto">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">📖 Comprehension Passage</p>
                     <p className="text-xs leading-relaxed whitespace-pre-wrap">{currentQuestion.passage}</p>
                   </CardContent>
                 </Card>
