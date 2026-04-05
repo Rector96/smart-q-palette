@@ -58,20 +58,24 @@ export async function fetchSmartQuestions(
   count: number = 60,
   mode: string = "cbt"
 ): Promise<QuestionWithShuffledOptions[]> {
+  // Cap at 60 questions max
+  const cappedCount = Math.min(count, 60);
+
   // Get previously answered question IDs (for no-repetition)
   const { data: history } = await supabase
     .from("user_history")
     .select("question_id")
     .eq("user_id", userId);
 
-  const answeredIds = (history || []).map((h) => h.question_id);
+  const answeredIds = new Set((history || []).map((h) => h.question_id));
 
-  // Fetch ALL questions for the subject randomly
+  // Fetch questions for the subject - get more than needed for filtering
+  const fetchLimit = Math.min(cappedCount * 3, 1000);
   const { data: questions, error } = await supabase
     .from("questions")
     .select("*")
     .eq("subject", subject)
-    .limit(1000);
+    .limit(fetchLimit);
 
   if (error || !questions || questions.length === 0) return [];
 
