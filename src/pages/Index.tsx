@@ -165,14 +165,14 @@ const Index = () => {
 
           {/* Dashboard Preview */}
           <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.6 }}>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/30">
+            <div className="relative flex items-center justify-center">
               <img
-                src={dashboardPreview}
-                alt="Weblines CBT Dashboard showing exam stats, subjects, and AI tutor"
-                className="w-full rounded-2xl"
-                loading="lazy"
+                src={studentReading}
+                alt="Student reading and preparing for exams with Weblines CBT"
+                className="w-full max-w-md mx-auto"
+                width={800}
+                height={800}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-transparent pointer-events-none" />
             </div>
           </motion.div>
         </div>
