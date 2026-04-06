@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Trophy, Target, Clock, ArrowLeft, RotateCcw, Share2, CheckCircle2, XCircle } from "lucide-react";
+import { RotateCcw, Share2, Trophy, CheckCircle2, XCircle, Clock, Target, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import ShareResultHighlight from "@/components/ShareResultHighlight";
+import ResultShareModal from "@/components/ResultShareModal";
 
 const Results = () => {
   const { toast } = useToast();
@@ -19,6 +20,7 @@ const Results = () => {
   const [profileName, setProfileName] = useState("");
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
   const [history, setHistory] = useState<any[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (!user || !sessionId) return;
@@ -45,7 +47,23 @@ const Results = () => {
     fetchResults();
   }, [user, sessionId]);
 
-  const handleShare = async () => {
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!session) return;
+    const score = Math.round(Number(session.score_percentage) || 0);
+    const grade = getGrade(score);
+    const text = `🎓 *Weblines CBT Result*\n\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\n\nCan you beat me? 🚀\n👉 https://weblines.org`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleFacebookShare = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://weblines.org")}&quote=${encodeURIComponent(`I scored ${Math.round(Number(session?.score_percentage) || 0)}% on Weblines CBT! Can you beat me? 🚀`)}`, "_blank");
+  };
+
+  const handleCopyLink = async () => {
     if (!session || !user) return;
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     await supabase.from("shared_exams").insert({
@@ -55,148 +73,261 @@ const Results = () => {
       mode: session.mode,
       subjects: session.subjects,
     } as any);
-
     const score = Math.round(Number(session.score_percentage) || 0);
-    const shareText = `I just scored ${score}% on Weblines CBT 🚀 Can you beat me?\n${session.correct_answers}/${session.total_questions} correct · ${session.mode.toUpperCase()} mode`;
-    const url = `${window.location.origin}/s/${code}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "My Weblines CBT Score", text: shareText, url });
-        return;
-      } catch {}
-    }
+    const grade = getGrade(score);
+    const shareText = `🎓 Weblines CBT Result\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\nCan you beat me? 🚀\n👉 ${window.location.origin}/s/${code}`;
     try {
-      await navigator.clipboard.writeText(`${shareText}\n${url}`);
-      toast({ title: "Link copied! 🔗", description: `Share link: ${url}` });
+      await navigator.clipboard.writeText(shareText);
+      toast({ title: "Copied! 🔗", description: "Share text copied to clipboard" });
     } catch {
-      toast({ title: "Share link", description: url });
+      toast({ title: "Share link", description: `${window.location.origin}/s/${code}` });
     }
   };
 
   if (!session) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-xs text-muted-foreground">Loading results...</p>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   const score = Number(session.score_percentage) || 0;
-  const grade = score >= 70 ? "A" : score >= 60 ? "B" : score >= 50 ? "C" : score >= 40 ? "D" : "F";
+  const roundedScore = Math.round(score);
   const duration = session.duration_seconds || 0;
   const mins = Math.floor(duration / 60);
-  const passed = score >= 50;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Results</span>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)" }}>
+      {/* Gradient Header */}
+      <div className="pt-8 pb-4 px-4 text-center text-white">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }}>
+          <h1 className="text-2xl font-extrabold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            {getHeadline(roundedScore)}
+          </h1>
+          <p className="text-sm opacity-90">{getSubHeadline(roundedScore)}</p>
+        </motion.div>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* Score Card */}
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-          <Card className="border-border/50 overflow-hidden">
-            <div className={`h-20 ${passed ? "bg-gradient-to-r from-[hsl(var(--success))] to-primary" : "bg-gradient-to-r from-destructive to-primary"} relative overflow-hidden`}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-primary-foreground">
-                  <p className="text-lg font-bold">{passed ? "🎉 Congratulations!" : "Keep Trying! 💪"}</p>
-                  {profileName && <p className="text-xs opacity-80">{profileName}</p>}
+      {/* Main Content Card */}
+      <div className="px-4 pb-8">
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+          <Card className="rounded-3xl shadow-2xl border-0 overflow-hidden">
+            <CardContent className="p-6 pt-8">
+              {/* Score Circle */}
+              <div className="flex justify-center mb-4">
+                <div className="relative inline-flex items-center justify-center w-32 h-32">
+                  <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
+                    <motion.circle
+                      cx="50" cy="50" r="42" fill="none"
+                      stroke={getScoreColor(roundedScore)}
+                      strokeWidth="8" strokeLinecap="round"
+                      initial={{ strokeDasharray: "0 264" }}
+                      animate={{ strokeDasharray: `${roundedScore * 2.64} 264` }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                    />
+                  </svg>
+                  <span className="absolute text-3xl font-extrabold">{roundedScore}%</span>
                 </div>
               </div>
-            </div>
-            <CardContent className="p-6 text-center">
-              <div className="relative inline-flex items-center justify-center w-24 h-24 mb-4 -mt-12">
-                <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${score * 2.64} 264`} />
-                </svg>
-                <span className="absolute text-xl font-bold bg-card rounded-full h-16 w-16 flex items-center justify-center shadow-md">{Math.round(score)}%</span>
+
+              {/* Weak Topics Message */}
+              {Object.keys(topicBreakdown).length > 0 && (
+                <WeakTopicsMessage topicBreakdown={topicBreakdown} score={roundedScore} />
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-center mt-5 flex-wrap">
+                <Button size="sm" className="rounded-full px-5 h-9 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90" onClick={() => navigate("/select-subjects?mode=practice")}>
+                  <RotateCcw className="h-3.5 w-3.5" /> Retry Test
+                </Button>
+                <Button size="sm" className="rounded-full px-5 h-9 text-xs font-semibold gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={handleShare}>
+                  <Share2 className="h-3.5 w-3.5" /> Share Result
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-full px-5 h-9 text-xs font-semibold gap-1.5" onClick={() => navigate("/dashboard")}>
+                  <Trophy className="h-3.5 w-3.5" /> Dashboard
+                </Button>
               </div>
-              <p className="text-lg font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Grade: {grade}</p>
-              <p className="text-xs text-muted-foreground mt-1">{session.correct_answers}/{session.total_questions} correct · {mins} min</p>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="border-border/50"><CardContent className="p-3 text-center"><Trophy className="h-4 w-4 mx-auto mb-1 text-[hsl(var(--success))]" /><p className="text-sm font-bold">{session.correct_answers}</p><p className="text-[10px] text-muted-foreground">Correct</p></CardContent></Card>
-          <Card className="border-border/50"><CardContent className="p-3 text-center"><Target className="h-4 w-4 mx-auto mb-1 text-destructive" /><p className="text-sm font-bold">{session.total_questions - session.correct_answers}</p><p className="text-[10px] text-muted-foreground">Wrong</p></CardContent></Card>
-          <Card className="border-border/50"><CardContent className="p-3 text-center"><Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><p className="text-sm font-bold">{mins}m</p><p className="text-[10px] text-muted-foreground">Duration</p></CardContent></Card>
-        </div>
+        {/* Stats Row */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }} className="grid grid-cols-3 gap-3 mt-4">
+          <Card className="rounded-2xl shadow-lg border-0">
+            <CardContent className="p-4 text-center">
+              <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
+              <p className="text-xs text-muted-foreground">Correct</p>
+              <p className="text-xl font-bold">{session.correct_answers}</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl shadow-lg border-0">
+            <CardContent className="p-4 text-center">
+              <XCircle className="h-5 w-5 mx-auto mb-1 text-red-500" />
+              <p className="text-xs text-muted-foreground">Wrong</p>
+              <p className="text-xl font-bold">{session.total_questions - session.correct_answers}</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl shadow-lg border-0">
+            <CardContent className="p-4 text-center">
+              <Clock className="h-5 w-5 mx-auto mb-1 text-blue-500" />
+              <p className="text-xs text-muted-foreground">Time</p>
+              <p className="text-xl font-bold">{mins} min</p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Topic Breakdown */}
         {Object.keys(topicBreakdown).length > 0 && (
-          <Card className="border-border/50">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Topic Breakdown</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {Object.entries(topicBreakdown).map(([topic, data]) => {
-                const pct = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-                return (
-                  <div key={topic}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-medium">{topic}</span>
-                      <span className="text-muted-foreground">{data.correct}/{data.total}</span>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}>
+            <Card className="rounded-2xl shadow-lg border-0 mt-4">
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-bold">Topic Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-4">
+                {Object.entries(topicBreakdown).map(([topic, data]) => {
+                  const pct = data.total > 0 ? (data.correct / data.total) * 100 : 0;
+                  const status = pct >= 70 ? "Strong" : pct >= 40 ? "Average" : pct === 0 ? "Weak Area" : "Needs Improvement";
+                  const statusColor = pct >= 70 ? "text-green-600" : pct >= 40 ? "text-orange-500" : "text-red-500";
+                  const barColor = pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-orange-400" : "bg-red-500";
+                  const icon = pct >= 70 ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <AlertCircle className="h-4 w-4 text-red-500" />;
+
+                  return (
+                    <div key={topic}>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        {icon}
+                        <span className="text-sm font-semibold flex-1">{topic}</span>
+                        <span className="text-xs text-muted-foreground font-medium">{data.correct}/{data.total}</span>
+                      </div>
+                      <p className={`text-[11px] ${statusColor} font-medium ml-6 mb-1`}>{status}</p>
+                      <div className="ml-6 h-2 rounded-full bg-secondary overflow-hidden">
+                        <motion.div
+                          className={`h-full rounded-full ${barColor}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                        />
+                      </div>
                     </div>
-                    <Progress value={pct} className="h-1.5" />
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         {/* Answer Review */}
         {history.length > 0 && (
-          <Card className="border-border/50">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Your Answers</CardTitle></CardHeader>
-            <CardContent className="space-y-2 max-h-64 overflow-y-auto">
-              {history.map((h: any, idx: number) => (
-                <div key={h.id} className={`p-2.5 rounded-lg border text-xs ${h.is_correct ? "bg-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20" : "bg-destructive/5 border-destructive/20"}`}>
-                  <div className="flex items-start gap-2">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${h.is_correct ? "bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]" : "bg-destructive text-destructive-foreground"}`}>{idx + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium line-clamp-2">{h.questions?.question_text || "Question"}</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        {h.is_correct ? <CheckCircle2 className="h-3 w-3 text-[hsl(var(--success))]" /> : <XCircle className="h-3 w-3 text-destructive" />}
-                        <span className={h.is_correct ? "text-[hsl(var(--success))]" : "text-destructive"}>
-                          {h.is_correct ? "Correct" : `Wrong — Answer: ${h.questions?.correct_answer || ""}`}
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
+            <Card className="rounded-2xl shadow-lg border-0 mt-4">
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-bold">Your Answers {score < 50 ? "😣" : "🎉"}</CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-3">
+                {history.map((h: any, idx: number) => {
+                  const q = h.questions;
+                  const userAnswer = h.selected_answer;
+                  const correctAnswer = q?.correct_answer;
+                  const userOptionText = q ? q[`option_${userAnswer?.toLowerCase()}`] : null;
+                  const correctOptionText = q ? q[`option_${correctAnswer?.toLowerCase()}`] : null;
+
+                  return (
+                    <div key={h.id} className="rounded-xl border border-border/50 p-3.5">
+                      <div className="flex items-start gap-2 mb-2">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${h.is_correct ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {idx + 1}
                         </span>
+                        <p className="text-sm font-semibold leading-snug">{q?.question_text || "Question"}</p>
                       </div>
+
+                      {/* User's wrong answer */}
+                      {!h.is_correct && userOptionText && (
+                        <div className="ml-8 mb-1.5 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/20 px-3 py-2">
+                          <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                          <span className="text-xs text-red-700 dark:text-red-400">{userOptionText}</span>
+                        </div>
+                      )}
+
+                      {/* Correct answer */}
+                      <div className="ml-8 flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-950/20 px-3 py-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                        <span className="text-xs text-green-700 dark:text-green-400">{correctOptionText || correctAnswer}</span>
+                        {!h.is_correct && <span className="ml-auto text-[10px] font-semibold text-green-600 bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded-full">Correct Answer</span>}
+                      </div>
+
+                      {/* Explanation */}
+                      {q?.explanation && (
+                        <p className="ml-8 mt-2 text-[11px] text-muted-foreground leading-relaxed italic">💡 {q.explanation}</p>
+                      )}
                     </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
-        <div className="flex gap-3 justify-center pt-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Dashboard
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleShare}>
-            <Share2 className="h-3.5 w-3.5 mr-1" /> Share
-          </Button>
-          <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/select-subjects?mode=practice")}>
-            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Try Again
-          </Button>
-        </div>
-      </main>
+        <div className="h-8" />
+      </div>
 
       <ShareResultHighlight onShare={handleShare} />
+      <ResultShareModal
+        open={showShareModal}
+        onOpenChange={setShowShareModal}
+        profileName={profileName}
+        score={roundedScore}
+        grade={getGrade(roundedScore)}
+        correct={session.correct_answers}
+        total={session.total_questions}
+        onWhatsApp={handleWhatsAppShare}
+        onFacebook={handleFacebookShare}
+        onCopyLink={handleCopyLink}
+      />
     </div>
   );
 };
+
+function getGrade(score: number) {
+  return score >= 70 ? "A" : score >= 60 ? "B" : score >= 50 ? "C" : score >= 40 ? "D" : "F";
+}
+
+function getScoreColor(score: number) {
+  if (score >= 70) return "#22c55e";
+  if (score >= 40) return "#f97316";
+  return "#ef4444";
+}
+
+function getHeadline(score: number) {
+  if (score >= 70) return "Excellent! 🔥";
+  if (score >= 40) return "Keep Going! 👍";
+  return "Don't Give Up! 😤";
+}
+
+function getSubHeadline(score: number) {
+  if (score >= 70) return "Outstanding performance!";
+  if (score >= 40) return "You're getting there!";
+  return "You Can Do Better!";
+}
+
+function WeakTopicsMessage({ topicBreakdown, score }: { topicBreakdown: Record<string, { correct: number; total: number }>; score: number }) {
+  if (score >= 70) return null;
+  const weakTopics = Object.entries(topicBreakdown)
+    .filter(([, d]) => d.total > 0 && (d.correct / d.total) < 0.5)
+    .map(([t]) => t)
+    .slice(0, 3);
+  if (weakTopics.length === 0) return null;
+  return (
+    <p className="text-center text-sm text-muted-foreground mt-2">
+      You need more practice in{" "}
+      {weakTopics.map((t, i) => (
+        <span key={t}>
+          {i > 0 && (i === weakTopics.length - 1 ? " and " : ", ")}
+          <strong>{t}</strong>
+        </span>
+      ))}.
+    </p>
+  );
+}
 
 export default Results;

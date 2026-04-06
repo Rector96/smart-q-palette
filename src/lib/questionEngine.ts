@@ -8,7 +8,7 @@ export interface QuestionWithShuffledOptions {
   difficulty: string;
   question_text: string;
   options: { label: string; text: string; originalLabel: string }[];
-  correct_answer: string; // shuffled label
+  correct_answer: string;
   explanation: string | null;
   passage: string | null;
   question_type: string | null;
@@ -49,7 +49,17 @@ export function getLearningTip(): string {
 }
 
 export function shouldShowTip(): boolean {
-  return Math.random() < 0.2; // 20% chance
+  return Math.random() < 0.2;
+}
+
+export async function saveSeenQuestions(userId: string, questionIds: string[]) {
+  if (questionIds.length === 0) return;
+  const entries = questionIds.map(qid => ({ user_id: userId, question_id: qid }));
+  // Insert in batches of 50
+  for (let i = 0; i < entries.length; i += 50) {
+    const batch = entries.slice(i, i + 50);
+    await supabase.from("user_seen_questions").upsert(batch as any, { onConflict: "user_id,question_id" });
+  }
 }
 
 export async function fetchSmartQuestions(
@@ -58,18 +68,17 @@ export async function fetchSmartQuestions(
   count: number = 60,
   mode: string = "cbt"
 ): Promise<QuestionWithShuffledOptions[]> {
-  // Cap at 60 questions max
   const cappedCount = Math.min(count, 60);
 
-  // Get previously answered question IDs (for no-repetition)
-  const { data: history } = await supabase
-    .from("user_history")
+  // Get seen question IDs from dedicated tracking table
+  const { data: seenData } = await supabase
+    .from("user_seen_questions")
     .select("question_id")
     .eq("user_id", userId);
 
-  const answeredIds = new Set((history || []).map((h) => h.question_id));
+  const seenIds = new Set((seenData || []).map((s: any) => s.question_id));
 
-  // Fetch questions for the subject - get more than needed for filtering
+  // Fetch questions for the subject
   const fetchLimit = Math.min(cappedCount * 3, 1000);
   const { data: questions, error } = await supabase
     .from("questions")
@@ -79,22 +88,34 @@ export async function fetchSmartQuestions(
 
   if (error || !questions || questions.length === 0) return [];
 
-  // Randomize server results further
   const randomized = shuffleArray(questions);
 
-  // Strongly prioritize unseen questions
-  let unseen = randomized.filter((q) => !answeredIds.has(q.id));
-  let seen = randomized.filter((q) => answeredIds.has(q.id));
+  let unseen = randomized.filter((q) => !seenIds.has(q.id));
+  let seen = randomized.filter((q) => seenIds.has(q.id));
+
+  // If user has seen 80%+ of questions, auto-reset their seen history for this subject
+  const totalAvailable = questions.length;
+  if (unseen.length < cappedCount && seen.length > 0 && (seenIds.size / Math.max(totalAvailable, 1)) >= 0.8) {
+    // Reset seen questions for this subject
+    const subjectQIds = questions.map(q => q.id);
+    await supabase
+      .from("user_seen_questions")
+      .delete()
+      .eq("user_id", userId)
+      .in("question_id", subjectQIds);
+    // Treat all as unseen now
+    unseen = randomized;
+    seen = [];
+  }
 
   // In revision mode, prefer seen questions
   let filtered = mode === "revision"
     ? [...shuffleArray(seen), ...shuffleArray(unseen)]
     : [...shuffleArray(unseen), ...shuffleArray(seen)];
 
-  // Adjust count to available questions
   const actualCount = Math.min(cappedCount, filtered.length);
 
-  // Balance difficulty: ~30% easy, ~50% medium, ~20% hard
+  // Balance difficulty
   const easy = filtered.filter((q) => q.difficulty === "easy");
   const medium = filtered.filter((q) => q.difficulty === "medium");
   const hard = filtered.filter((q) => q.difficulty === "hard");
@@ -109,14 +130,12 @@ export async function fetchSmartQuestions(
     ...hard.slice(0, hardCount),
   ];
 
-  // Fill from shuffled if not enough by difficulty
   while (selected.length < actualCount && filtered.length > selected.length) {
     const remaining = filtered.filter((q) => !selected.includes(q));
     if (remaining.length === 0) break;
     selected.push(remaining[0]);
   }
 
-  // Shuffle final selection and options
   return shuffleArray(selected.slice(0, actualCount)).map((q) => {
     const options = shuffleArray([
       { label: "A", text: q.option_a, originalLabel: "A" },
