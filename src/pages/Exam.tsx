@@ -218,6 +218,8 @@ const Exam = () => {
       return { user_id: user.id, question_id: q.id, selected_answer: userAnswer || "X", is_correct: isCorrect, session_id: sessionId, time_spent_seconds: 0 };
     });
     await supabase.from("user_history").insert(historyEntries);
+    // Track seen questions for non-repetition
+    await saveSeenQuestions(user.id, questions.map(q => q.id));
     const duration = Math.round((Date.now() - startTimeRef[0]) / 1000);
     const scorePercentage = questions.length > 0 ? (correct / questions.length) * 100 : 0;
     await supabase.from("exam_sessions").update({ correct_answers: correct, score_percentage: scorePercentage, duration_seconds: duration, completed: true, completed_at: new Date().toISOString() }).eq("id", sessionId);
