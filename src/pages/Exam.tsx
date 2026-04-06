@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSmartQuestions, type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
+import { fetchSmartQuestions, saveSeenQuestions, type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
 import { SUBJECTS } from "@/lib/subjects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
