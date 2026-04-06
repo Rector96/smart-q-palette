@@ -567,6 +567,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_seen_questions: {
+        Row: {
+          id: string
+          question_id: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          question_id: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          question_id?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_seen_questions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
