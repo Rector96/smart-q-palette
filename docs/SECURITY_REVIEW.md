@@ -7,9 +7,10 @@ Scope: source code and checked-in Supabase migrations only. This is a static rev
 ## Status and safety boundary
 
 - This review was performed against the repository's checked-in source and migration history.
-- No production database, Supabase project, deployment, or user data was changed.
-- The independent development branch is now linked to the new Supabase project `igntxwcitbjnafgrrcot` (`https://igntxwcitbjnafgrrcot.supabase.co`, region `eu-west-1`). The connected project was verified `ACTIVE_HEALTHY` on 2026-11-19.
-- The new project currently has **zero application tables and zero migration records**. No application migrations or Edge Functions have been deployed to it.
+- No production database, production deployment, or production user data was changed.
+- The independent development branch is linked to the new Supabase project `igntxwcitbjnafgrrcot` (`https://igntxwcitbjnafgrrcot.supabase.co`, region `eu-west-1`). The project was verified `ACTIVE_HEALTHY` on 2026-11-19.
+- The new development project now has the account/payment foundation, CBT question bank, exam history, session-question mapping, and protected submission RPC migrations applied. The authenticated `cbt-start` (v3) and `cbt-submit` (v1) Edge Functions are deployed.
+- The CBT database grading path passed a rollback-only SQL test for shuffled-option scoring and rejection of duplicate submissions. Full browser-to-function testing still requires a real test student and seeded question bank.
 - The old project `gotqwaqemszscdpgzdxp` remains the existing/live backend and has not been modified by this migration work.
 - `supabase/config.toml` on `independent-platform-cleanup` points to the new project. This is a development-branch configuration change only; Netlify production environment variables and deployment have not been changed.
 - This document does not claim that the live database currently has exactly these policies. Migration history can differ from the deployed schema.
