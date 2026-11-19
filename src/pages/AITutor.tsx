@@ -53,7 +53,6 @@ const AITutor = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-    // Check usage limit
     if (!isPro && usageCount >= MAX_FREE_USES) {
       setBlocked(true);
       setShowSub(true);
@@ -67,11 +66,15 @@ const AITutor = () => {
     let assistantSoFar = "";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Your session has expired. Please sign in again.");
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
       });
@@ -126,14 +129,11 @@ const AITutor = () => {
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
-      // Increment usage
       if (user && !isPro) {
         const newCount = usageCount + 1;
         setUsageCount(newCount);
         await supabase.from("profiles").update({ ai_tutor_usage: newCount } as any).eq("user_id", user.id);
-        if (newCount >= MAX_FREE_USES) {
-          setBlocked(true);
-        }
+        if (newCount >= MAX_FREE_USES) setBlocked(true);
       }
     }
   };
@@ -164,7 +164,6 @@ const AITutor = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] lg:h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
@@ -177,8 +176,6 @@ const AITutor = () => {
           <span className="text-[10px] text-[hsl(var(--success))] font-semibold">● Online</span>
         </div>
       </header>
-
-      {/* Messages */}
       <ScrollArea className="flex-1 max-w-3xl mx-auto w-full" ref={scrollRef}>
         <div className="px-4 py-4 space-y-4">
           <AnimatePresence initial={false}>
@@ -206,7 +203,6 @@ const AITutor = () => {
               </motion.div>
             ))}
           </AnimatePresence>
-
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-2.5">
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -217,7 +213,6 @@ const AITutor = () => {
               </div>
             </div>
           )}
-
           {messages.length === 1 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
               {quickPrompts.map((prompt) => (
@@ -229,8 +224,6 @@ const AITutor = () => {
           )}
         </div>
       </ScrollArea>
-
-      {/* Input */}
       <footer className="border-t border-border bg-card/80 backdrop-blur-sm shrink-0">
         <div className="max-w-3xl mx-auto px-4 py-3">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
