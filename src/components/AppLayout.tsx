@@ -3,10 +3,12 @@ import DesktopSidebar from "@/components/DesktopSidebar";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-background flex overflow-x-hidden">
-      <DesktopSidebar />
-      <div className="flex-1 min-w-0 min-h-screen pb-24 lg:pb-0">
-        {children}
+    <div className="min-h-[100dvh] overflow-x-clip bg-background">
+      <div className="flex min-h-[100dvh]">
+        <DesktopSidebar />
+        <div className="min-w-0 min-h-[100dvh] flex-1 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+          {children}
+        </div>
       </div>
       <div className="lg:hidden">
         <BottomNav />
