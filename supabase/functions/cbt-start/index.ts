@@ -44,7 +44,9 @@ Deno.serve(async (req: Request) => {
       ? [...new Set(body.subjects.filter((s: unknown) => typeof s === "string" && s.trim()).map((s: string) => s.trim()))]
       : [];
     const mode = body.mode;
-    const examination = typeof body.examination === "string" ? body.examination.trim().toUpperCase() : "";
+    // Backward compatibility: older clients without the exam selector default to JAMB only.
+    const requestedExamination = typeof body.examination === "string" ? body.examination.trim().toUpperCase() : "";
+    const examination = requestedExamination || "JAMB";
     const examYear = body.year === null || body.year === undefined || body.year === "" ? null : Number(body.year);
     const count = Math.max(1, Math.min(Number(body.count) || 60, 60));
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
