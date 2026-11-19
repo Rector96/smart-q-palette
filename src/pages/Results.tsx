@@ -72,6 +72,8 @@ const Results = () => {
       session_id: sessionId!,
       mode: session.mode,
       subjects: session.subjects,
+      examination: session.examination,
+      exam_year: session.exam_year,
     } as any);
     const score = Math.round(Number(session.score_percentage) || 0);
     const grade = getGrade(score);
