@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
     for (const subject of subjects) {
       const { data, error } = await admin.from("questions")
         .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,passage,question_type,exam_hint")
-        .eq("subject", subject).limit(1000);
+        .eq("subject", subject).eq("is_published", true).limit(1000);
       if (error) return respond({ error: "Could not load the question bank." }, 500);
       const shuffled = shuffle(data ?? []);
       let unseen = shuffled.filter((q) => !seen.has(q.id));
