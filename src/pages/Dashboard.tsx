@@ -104,10 +104,10 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] overflow-x-clip bg-background">
       <SEOHead title="Dashboard – Weblines CBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
-      <main className="max-w-4xl mx-auto px-4 lg:px-6 py-5 lg:py-6 space-y-5">
+      <main className="mx-auto max-w-4xl space-y-5 px-3 py-5 sm:px-4 lg:px-6 lg:py-6">
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between">
@@ -166,9 +166,9 @@ const Dashboard = () => {
         {/* Stats Grid */}
         <Card className="border-border/50 shadow-sm rounded-2xl">
           <CardContent className="p-3">
-            <div className="grid grid-cols-4 divide-x divide-border">
+            <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
               {statCards.map((stat) => (
-                <div key={stat.label} className="text-center px-2">
+                <div key={stat.label} className="px-2 py-2 text-center sm:py-0">
                   <stat.icon className={`h-4 w-4 lg:h-5 lg:w-5 mx-auto mb-1 ${stat.color}`} />
                   <p className="text-base lg:text-lg font-bold leading-tight">{stat.value}</p>
                   <p className="text-[10px] text-muted-foreground">{stat.label}</p>
@@ -232,7 +232,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base lg:text-lg font-bold">Subjects</h2>
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 min-[420px]:grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
             {SUBJECTS.map((subject) => (
               <motion.div key={subject.id} whileTap={{ scale: 0.96 }}>
                 <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}>
