@@ -136,3 +136,33 @@ The following client access patterns were traced from the current branch. This i
 ## Current migration gate
 
 The next implementation unit is **the auth/profile/roles and core CBT schema**, but it must not be applied until its full client compatibility and RLS tests are ready. The current empty Supabase project is an intentional clean starting point, not a completed migration. The new project's clean advisor output is only a baseline and is not evidence that the application schema has passed security review.
+
+
+## Paystack and account-flow review (2026-11-19)
+
+Reviewed source files: `supabase/functions/paystack-initialize/index.ts`, `paystack-verify/index.ts`, `paystack-webhook/index.ts`, `src/components/SubscriptionModal.tsx`, `src/pages/admin/AdminPayments.tsx`, and `src/pages/Profile.tsx`.
+
+### Confirmed findings
+
+- **Client-controlled payment amount:** the subscription modal sends `amount: 200000` and the initialize function accepts the request body's amount. The server must own the plan identifier and amount; never trust a browser-supplied amount.
+- **Verification ownership gap:** `paystack-verify` verifies the supplied reference with Paystack but updates the payment row by reference without constraining it to the authenticated user's payment. It then upgrades the caller's profile by caller user ID. A caller could potentially use another user's valid reference to trigger an upgrade.
+- **Verification integrity gaps:** the current verification handler checks only `verifyData.data?.status === "success"`; it does not check Paystack's top-level success flag, expected amount, currency, reference equality, or the stored pending payment's owner and plan before granting access.
+- **Unsigned webhook acceptance:** `paystack-webhook` validates the signature only when the header exists. A missing signature currently does not reject the request. It must require the header and compare signatures using a constant-time comparison before processing.
+- **Webhook trust in metadata:** the webhook upgrades `metadata.user_id` without first loading the pending payment row and matching its owner, expected amount, currency, and reference. It should use the stored payment row as the source of truth, with idempotent state transitions.
+- **Admin payment controls are client-side:** `AdminPayments.tsx` directly updates payment status and profile subscription fields from the browser. Approval/rejection must move behind a server-side admin authorization check; UI route protection alone is insufficient.
+- **Profile edits:** `Profile.tsx` only updates `full_name`, which is appropriate, but the database policy must explicitly prevent users from changing subscription and usage-control columns.
+
+### Existing price behavior to preserve pending product confirmation
+
+The current subscription modal describes a one-time lifetime plan priced at **₦2,000** and sends **200,000 kobo** to Paystack. Do not silently convert this into a recurring subscription or alter the price during migration. The backend should map a fixed server-side plan ID to this amount until the product owner approves a pricing change.
+
+### Required implementation order
+
+1. Define a server-owned plan catalogue and payment schema constraints.
+2. Make payment initialization authenticate the caller and derive amount/currency from the plan ID, not request amount.
+3. Make verification load the caller-owned pending payment, verify with Paystack, and compare reference, amount, currency, and status before an idempotent grant.
+4. Require and securely validate Paystack webhook signatures; use the stored payment row, not untrusted metadata, to identify the account to update.
+5. Move admin payment approval/rejection to an authenticated server-side admin operation.
+6. Add tests for wrong owner, altered amount, wrong currency, missing/invalid signature, duplicate webhook, failed transaction, and unauthorized admin action.
+
+**Migration safety:** these are source-code findings only. No new-project SQL, secrets, Edge Functions, Netlify variables, or production deployments were changed as part of this review.
