@@ -124,11 +124,13 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Could not prepare your exam questions. Please try again." }, 500);
     }
 
-    const { error: trialError } = await admin.from("profiles")
-      .update({ trial_count: (profile.trial_count ?? 0) + 1 }).eq("user_id", user.id);
-    if (trialError) {
+    const { data: trialResult, error: trialError } = await admin.rpc("consume_cbt_trial", {
+      p_user_id: user.id,
+    });
+    if (trialError || !trialResult?.allowed) {
       await admin.from("exam_sessions").delete().eq("id", session.id);
-      return respond({ error: "Could not update your exam allowance. Please try again." }, 500);
+      if (trialError) return respond({ error: "Could not update your exam allowance. Please try again." }, 500);
+      return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
     }
 
     const questions = prepared.map((item) => ({
