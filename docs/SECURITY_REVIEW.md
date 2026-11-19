@@ -166,3 +166,35 @@ The current subscription modal describes a one-time lifetime plan priced at **â‚
 6. Add tests for wrong owner, altered amount, wrong currency, missing/invalid signature, duplicate webhook, failed transaction, and unauthorized admin action.
 
 **Migration safety:** these are source-code findings only. No new-project SQL, secrets, Edge Functions, Netlify variables, or production deployments were changed as part of this review.
+
+
+## First independent database migration applied (2026-11-19)
+
+Migration `20261119171145_secure_account_payment_foundation.sql` was applied to the new Supabase project `igntxwcitbjnafgrrcot` and committed to this branch.
+
+### Tables created
+
+- `profiles`: account display name, preferred subjects, and existing app counters/entitlement fields.
+- `user_roles`: role assignments, with no client-side role mutation permissions.
+- `payments`: owner-linked payment records with NGN currency, positive amount, constrained status, unique references, and plan identifier.
+
+### Security controls
+
+- RLS is enabled on all three tables.
+- Authenticated users can read only their own profile, roles, and payment rows.
+- Profile self-service updates are restricted by SQL column grants to `full_name` and `preferred_subjects`; subscription and usage counters are not client-editable.
+- Payment and role writes are not granted to browser clients; privileged server-side operations are required.
+- New auth users receive a profile via a trigger.
+- Role lookup is isolated in a non-exposed `private` schema; the helper only answers for the calling user's own ID and has a fixed empty search path.
+- No administrator account has been auto-promoted. Initial administrator assignment must be explicitly verified and performed through a trusted administrative process.
+
+### Verification
+
+- Supabase migration history records version `20261119171145`.
+- `profiles`, `user_roles`, and `payments` exist and each reports RLS enabled.
+- Security advisor returned no lints at verification time.
+- Performance advisor reports three currently unused indexes. This is expected on a brand-new empty database; retain them because they support owner lookups as real user data arrives, and reassess after workload exists.
+
+### Compatibility and rollout note
+
+This is the account/payment foundation only. The remaining CBT, question bank, history, exam sessions, sharing, library, and live-quiz schema is not yet migrated. The current front-end and payment Edge Functions are not yet switched to the new project. Do not point production Netlify variables at this project until the remaining schema, secure payment handlers, storage, realtime, and end-to-end preview tests are complete.
