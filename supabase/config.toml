@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.cbt-start]
 verify_jwt = true
+
+[functions.cbt-submit]
+verify_jwt = true
