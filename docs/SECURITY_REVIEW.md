@@ -8,7 +8,7 @@ Scope: source code and checked-in Supabase migrations only. This is a static rev
 
 - This review was performed against the repository's checked-in source and migration history.
 - No production database, production deployment, or production user data was changed.
-- The independent development branch is linked to the new Supabase project `igntxwcitbjnafgrrcot` (`https://igntxwcitbjnafgrrcot.supabase.co`, region `eu-west-1`). The project was verified `ACTIVE_HEALTHY` on 2026-11-19.
+- The independent development branch is linked to the new Supabase project `igntxwcitbjnafgrrcot` (region `eu-west-1`; URL is configured in the deployment environment). The project was verified `ACTIVE_HEALTHY` on 2026-11-19.
 - The new development project now has the account/payment foundation, CBT question bank, exam history, session-question mapping, and protected submission RPC migrations applied. The authenticated `cbt-start` (v3) and `cbt-submit` (v1) Edge Functions are deployed.
 - The CBT database grading path passed a rollback-only SQL test for shuffled-option scoring and rejection of duplicate submissions. Full browser-to-function testing still requires a real test student and seeded question bank.
 - Free CBT attempt consumption is now an atomic database operation, preventing simultaneous exam starts from exceeding the three-attempt allowance. Question review access is granted only after the student's own exam is completed; the question-to-session mapping remains unavailable to client roles.
