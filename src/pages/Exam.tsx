@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSmartQuestions, saveSeenQuestions, type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
+import { type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
 import { SUBJECTS } from "@/lib/subjects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -80,22 +80,10 @@ const Exam = () => {
     const checkTrial = async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("trial_count, is_subscribed, full_name")
+        .select("full_name")
         .eq("user_id", user.id)
         .single();
       if (profile?.full_name) setProfileName(profile.full_name);
-      if (profile && !profile.is_subscribed && profile.trial_count >= 3) {
-        setTrialBlocked(true);
-        setShowSubscription(true);
-        setLoading(false);
-        // Send trial expired email
-        try {
-          await supabase.functions.invoke("send-email", {
-            body: { type: "trial_expired", email: user.email, name: profile.full_name || "Student" },
-          });
-        } catch {}
-        return;
-      }
       loadQuestions();
     };
     checkTrial();
@@ -104,24 +92,23 @@ const Exam = () => {
   const loadQuestions = async () => {
     if (!user) return;
     setLoading(true);
-    let allQuestions: QuestionWithShuffledOptions[] = [];
-    for (const subject of subjects) {
-      const qs = await fetchSmartQuestions(subject, user.id, requestedCount, mode);
-      allQuestions = [...allQuestions, ...qs];
+    const { data, error } = await supabase.functions.invoke("cbt-start", {
+      body: { subjects, mode, count: requestedCount },
+    });
+    if (error || !data?.session?.id || !Array.isArray(data.questions)) {
+      const message = data?.error || error?.message || "We could not prepare your exam. Please try again.";
+      if (message === "TRIAL_LIMIT_REACHED") {
+        setTrialBlocked(true);
+        setShowSubscription(true);
+      } else {
+        toast({ title: "Unable to start exam", description: message, variant: "destructive" });
+      }
+      setQuestions([]);
+      setLoading(false);
+      return;
     }
-    setQuestions(allQuestions);
-    const { data: session } = await supabase
-      .from("exam_sessions")
-      .insert({ user_id: user.id, mode, subjects, total_questions: allQuestions.length })
-      .select()
-      .single();
-    if (session) setSessionId(session.id);
-
-    const { data: prof } = await supabase.from("profiles").select("trial_count").eq("user_id", user.id).single();
-    if (prof) {
-      await supabase.from("profiles").update({ trial_count: (prof.trial_count || 0) + 1 } as any).eq("user_id", user.id);
-    }
-
+    setQuestions(data.questions as QuestionWithShuffledOptions[]);
+    setSessionId(data.session.id);
     setLoading(false);
     startTimeRef[1](Date.now());
     questionStartRef[1](Date.now());
@@ -210,20 +197,24 @@ const Exam = () => {
     setShowConfirmSubmit(false);
     setSubmitting(true);
     if (timerRef[0]) clearInterval(timerRef[0]);
-    let correct = 0;
-    const historyEntries = questions.map((q) => {
-      const userAnswer = answers[q.id] || "";
-      const isCorrect = userAnswer === q.correct_answer;
-      if (isCorrect) correct++;
-      return { user_id: user.id, question_id: q.id, selected_answer: userAnswer || "X", is_correct: isCorrect, session_id: sessionId, time_spent_seconds: 0 };
+    const submission = questions.map((q) => ({
+      question_id: q.id,
+      selected_answer: answers[q.id] || "X",
+      time_spent_seconds: 0,
+    }));
+    const { data: submitData, error: submitError } = await supabase.functions.invoke("cbt-submit", {
+      body: { session_id: sessionId, answers: submission },
     });
-    await supabase.from("user_history").insert(historyEntries);
-    // Track seen questions for non-repetition
-    await saveSeenQuestions(user.id, questions.map(q => q.id));
-    const duration = Math.round((Date.now() - startTimeRef[0]) / 1000);
-    const scorePercentage = questions.length > 0 ? (correct / questions.length) * 100 : 0;
-    await supabase.from("exam_sessions").update({ correct_answers: correct, score_percentage: scorePercentage, duration_seconds: duration, completed: true, completed_at: new Date().toISOString() }).eq("id", sessionId);
-    
+    if (submitError || !submitData?.result) {
+      setSubmitting(false);
+      toast({
+        title: "Submission not completed",
+        description: submitData?.error || submitError?.message || "Please try submitting again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check if this is user's first completed CBT and send email
     const { count } = await supabase.from("exam_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true);
     if (count === 1) {
