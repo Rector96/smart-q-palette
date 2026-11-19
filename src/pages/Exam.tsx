@@ -22,6 +22,9 @@ import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
+  const examination = searchParams.get("examination") || "";
+  const yearParam = searchParams.get("year") || "all";
+  const selectedYear = yearParam === "all" ? null : Number(yearParam);
   const subjectsParam = searchParams.get("subjects") || "";
   const timerParam = searchParams.get("timer");
   const shareCode = searchParams.get("share");
@@ -93,7 +96,7 @@ const Exam = () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("cbt-start", {
-      body: { subjects, mode, count: requestedCount },
+      body: { subjects, mode, count: requestedCount, examination, year: selectedYear },
     });
     let responseData = data;
     if (error && !responseData && error.context instanceof Response) {
@@ -330,6 +333,9 @@ const Exam = () => {
           <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full">
             <BookOpen className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-semibold capitalize">{mode} Mode</span>
+          </div>
+          <div className="px-3 py-1 bg-primary/10 text-primary rounded-full">
+            <span className="text-[10px] font-semibold">{examination}{selectedYear ? ` · ${selectedYear}` : " · All years"}</span>
           </div>
           {isTimed && (
             <div className={cn("flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full", timeLeft < 300 && "text-destructive")}>
