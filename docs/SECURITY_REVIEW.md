@@ -8,7 +8,10 @@ Scope: source code and checked-in Supabase migrations only. This is a static rev
 
 - This review was performed against the repository's checked-in source and migration history.
 - No production database, Supabase project, deployment, or user data was changed.
-- The Supabase project configured in this repository is `gotqwaqemszscdpgzdxp`. The currently connected Supabase project available to the maintenance tools is a different project. Do not apply migrations or run database changes until the correct project is connected and confirmed.
+- The independent development branch is now linked to the new Supabase project `igntxwcitbjnafgrrcot` (`https://igntxwcitbjnafgrrcot.supabase.co`, region `eu-west-1`). The connected project was verified `ACTIVE_HEALTHY` on 2026-11-19.
+- The new project currently has **zero application tables and zero migration records**. No application migrations or Edge Functions have been deployed to it.
+- The old project `gotqwaqemszscdpgzdxp` remains the existing/live backend and has not been modified by this migration work.
+- `supabase/config.toml` on `independent-platform-cleanup` points to the new project. This is a development-branch configuration change only; Netlify production environment variables and deployment have not been changed.
 - This document does not claim that the live database currently has exactly these policies. Migration history can differ from the deployed schema.
 
 ## Critical findings
@@ -76,16 +79,30 @@ The role/payment migration allows a user to insert their own payment row. A pend
 
 ### 6. Admin role and security-definer functions require review
 
-The migrations define `has_role` as SECURITY DEFINER and use it in policies. Review function execute grants, search path, ownership, and deployed definitions. The signup trigger assigning admin based on a hard-coded email should also be replaced with a controlled bootstrap process once the authorized administrator identity is confirmed.
+The migrations define `has_role` as SECURITY DEFINER and use it in policies. Review function execute grants, search path, ownership, and deployed definitions. The signup trigger assigning admin based on a hard-coded email (`peteroche53@gmail.com`) should be replaced with a controlled bootstrap process after confirming the intended application administrator. Do not infer that the Supabase project login email must automatically be the platform's administrator identity.
+
+### 7. Paystack verification does not adequately bind the transaction to the user
+
+Source review of `supabase/functions/paystack-verify/index.ts` found that it verifies a Paystack reference and then activates the profile for the currently authenticated `userId`, but it does not first prove that the referenced payment row belongs to that same user. It also does not validate the expected amount/currency against the stored payment record before activating the subscription.
+
+Source review of `supabase/functions/paystack-webhook/index.ts` found that the handler only rejects an invalid signature when a signature header is present; a missing signature is not rejected. It trusts `metadata.user_id` when upgrading a profile and does not first bind the successful transaction to a matching pending payment row and expected amount/currency.
+
+Required remediation:
+- Require a valid Paystack signature on every webhook event (except CORS preflight).
+- Match the Paystack reference to an existing pending payment record; verify ownership, amount in kobo, currency, and successful status.
+- Make entitlement activation idempotent and derive the account to upgrade from the trusted payment record, not arbitrary webhook metadata or a client-supplied user ID.
+- Ensure the initialize endpoint accepts only server-defined plan amounts or validates requested plans against a server-side price catalogue.
+- Add tests for missing/invalid signatures, wrong user, wrong amount/currency, unknown reference, duplicate webhook, and valid payment.
 
 ## Safe implementation sequence
 
-1. Confirm the correct Supabase project reference and obtain authorized access to that project.
-2. Inspect the deployed schema, grants, RLS policies, functions, triggers, and storage policies; compare them with repository migrations.
+1. Correct project is confirmed: `igntxwcitbjnafgrrcot`; inspect the new project's Data API exposure/default grants before schema creation.
+2. Complete the source-to-schema dependency map, including every page, hook, admin screen, Edge Function, storage bucket, and realtime subscription.
 3. Design and test server-side Live Quiz operations and sanitized participant payloads.
 4. Tighten profile, custom exam, result, payment, and role policies without disrupting existing product flows.
-5. Add migration(s) to the repository, deploy to a test environment, and run adversarial tests using separate student/host accounts.
-6. Only after successful verification, schedule production rollout and monitor errors.
+5. Build a reproducible migration set and database tests. Do not copy the legacy SQL policies blindly.
+6. Deploy the backend to a non-production preview and run adversarial tests using separate student, host, and admin accounts.
+7. Only after successful verification and explicit approval, switch the Netlify preview environment, validate the app end-to-end, and then plan production rollout.
 
 ## Verification still required
 
@@ -100,3 +117,22 @@ The migrations define `has_role` as SECURITY DEFINER and use it in policies. Rev
 ## Important limitation
 
 This document records code-level risks and remediation requirements. It is not a security certification and does not establish the state of the live Supabase database.
+
+
+## Additional migration dependency map (2026-11-19)
+
+The following client access patterns were traced from the current branch. This is the compatibility checklist for the independent schema and APIs:
+
+| Feature | Current client-side dependencies | Migration requirement |
+|---|---|---|
+| CBT practice | `questions`, `exam_sessions`, `user_history`, `user_seen_questions`, `profiles` | Preserve subject/question selection and session history; move trial/quota writes to trusted atomic operations. |
+| Custom exam builder/taker | `custom_exams`, `custom_exam_results`, `profiles`, `ai-tutor` Edge Function | Preserve share-code workflow; use server-side exam retrieval/grading so answer keys and student results are not exposed. |
+| Live quiz | `quiz_rooms`, `quiz_participants`, `quiz_answers`, `online_presence`, Realtime | Server-authoritative room lifecycle, answer validation, scores and quota; publish only safe room state to participants. |
+| Billing/admin | `payments`, `profiles`, `user_roles`, Paystack initialize/verify/webhook | Server-verified payment ownership, amount/currency checks, idempotent subscription updates; admin-only management. |
+| Digital library | `digital_library`, private Storage bucket `library` | Preserve private object access and add explicit Storage policies for intended subscribers/admins. |
+| Admin content | `questions`, `digital_library`, `profiles`, `payments` | Gate all writes through a trusted admin-role check; do not rely on client route guards alone. |
+| Presence | `online_presence`, `profiles`, Realtime | Keep user identity immutable and scope reads to the minimum presence information needed by the UI. |
+
+## Current migration gate
+
+The next implementation unit is **the auth/profile/roles and core CBT schema**, but it must not be applied until its full client compatibility and RLS tests are ready. The current empty Supabase project is an intentional clean starting point, not a completed migration. The new project's clean advisor output is only a baseline and is not evidence that the application schema has passed security review.
