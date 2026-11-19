@@ -142,15 +142,14 @@ const SelectSubjects = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <Logo size="sm" showText={false} />
-          <span className="font-bold text-sm">Set Up Your Practice</span>
+          <span className="font-bold text-sm">Select {isMock ? "4 Subjects" : "Subject"}</span>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
-        <div>
-          <h1 className="text-lg font-bold">Choose your examination</h1>
-          <p className="text-xs text-muted-foreground mt-1">Select the examination you are preparing for. We will only show its available subjects and past-question years.</p>
-        </div>
+      <main className="max-w-3xl mx-auto px-4 py-6">
+        <p className="text-xs text-muted-foreground mb-4">
+          {isMock ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)` : "Choose your examination, year and subject to begin practice."}
+        </p>
 
         {catalogLoading ? (
           <Card className="border-border/50"><CardContent className="p-6 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading available examinations…</CardContent></Card>
@@ -158,20 +157,20 @@ const SelectSubjects = () => {
           <Card className="border-destructive/30"><CardContent className="p-4 text-sm text-destructive">{catalogError}</CardContent></Card>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-3 gap-3 mb-5">
               {examOptions.map((exam) => {
                 const isSelected = examination === exam;
                 const hasContent = catalog.some((item) => item.examination === exam);
                 return (
                   <motion.div key={exam} whileTap={{ scale: 0.98 }}>
                     <Card
-                      className={cn("h-full border-2 transition-all cursor-pointer", isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 hover:border-primary/40", !hasContent && "opacity-60")}
+                      className={cn("h-full border-2 transition-all cursor-pointer shadow-sm", isSelected ? "border-primary bg-primary/5 shadow-md" : "border-border/50 hover:border-primary/30", !hasContent && "opacity-60")}
                       onClick={() => handleExamChange(exam)}
                     >
-                      <CardContent className="p-3 sm:p-4 text-center">
-                        <GraduationCap className="h-5 w-5 mx-auto mb-1.5 text-primary" />
-                        <p className="font-bold text-sm">{exam}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{hasContent ? "Past questions available" : "Coming soon"}</p>
+                      <CardContent className="p-4 text-center">
+                        <GraduationCap className="h-6 w-6 mx-auto mb-2 text-primary" />
+                        <p className="text-xs font-medium">{exam}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{hasContent ? "Available" : "Coming soon"}</p>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -185,13 +184,13 @@ const SelectSubjects = () => {
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-primary" />
-                      <Label className="text-sm font-semibold">Choose examination year</Label>
+                      <Label className="text-sm font-semibold">Select Year</Label>
                     </div>
                     <select value={selectedYear} onChange={(e) => handleYearChange(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring">
                       <option value="all">All available years</option>
                       {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
                     </select>
-                    <p className="text-[10px] text-muted-foreground">Choose a specific year to practise that paper, or select all available years.</p>
+                    <p className="text-[10px] text-muted-foreground">Choose a year or practise across all available years.</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -201,7 +200,7 @@ const SelectSubjects = () => {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="text-sm font-bold">Select {isMock ? "4 subjects" : "a subject"}</h2>
+                    <h2 className="text-sm font-bold">Select {isMock ? "4 Subjects" : "Subject"}</h2>
                     <p className="text-[11px] text-muted-foreground">{examination} · {selectedYear === "all" ? "All available years" : selectedYear} · {selected.length}/{maxSubjects} selected</p>
                   </div>
                 </div>
