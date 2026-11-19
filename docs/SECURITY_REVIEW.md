@@ -248,3 +248,16 @@ The current `questionEngine.ts` fetches `questions.select("*")` from the browser
 - Performance advisor initially identified four unindexed foreign keys; the follow-up index migration added the missing indexes.
 - The performance advisor may still report unused indexes on this empty project; reassess after representative data and traffic exist.
 - No questions or user records have been imported; the new tables are empty.
+
+
+## First CBT Edge Function deployed (2026-11-19)
+
+- Function: `cbt-start`
+- Deployment status: ACTIVE, version 2
+- JWT gateway verification: enabled
+- Source: `supabase/functions/cbt-start/index.ts`
+- Configuration: `[functions.cbt-start] verify_jwt = true`
+
+The function authenticates the caller's access token, checks the server-side profile trial/subscription allowance, selects questions from the private question bank, shuffles options, creates the exam session, and increments the trial count on the server. It only includes the correct option and explanation in practice mode; timed CBT/mock/revision modes do not receive answer keys in the response.
+
+**Not yet integrated:** `Exam.tsx` and `questionEngine.ts` still use the old direct-browser data flow. Do not change the Netlify environment or switch the app to this project yet. The next required pieces are a server-side submission/grading endpoint, idempotent/atomic result persistence, then front-end integration and preview testing. The function has been deployed but an authenticated end-to-end test with a real question-bank record is still pending because the new project currently has no imported questions or test student accounts.
