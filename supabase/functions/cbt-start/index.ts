@@ -44,9 +44,14 @@ Deno.serve(async (req: Request) => {
       ? [...new Set(body.subjects.filter((s: unknown) => typeof s === "string" && s.trim()).map((s: string) => s.trim()))]
       : [];
     const mode = body.mode;
+    const examination = typeof body.examination === "string" ? body.examination.trim().toUpperCase() : "";
+    const examYear = body.year === null || body.year === undefined || body.year === "" ? null : Number(body.year);
     const count = Math.max(1, Math.min(Number(body.count) || 60, 60));
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
+    if (!["JAMB", "WAEC", "NECO"].includes(examination)) return respond({ error: "Choose JAMB, WAEC or NECO." }, 400);
+    if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1990 || examYear > new Date().getFullYear())) return respond({ error: "Choose a valid examination year." }, 400);
     if (!["practice", "cbt", "mock", "revision"].includes(mode)) return respond({ error: "Invalid examination mode." }, 400);
+    if (mode === "mock" && examination !== "JAMB") return respond({ error: "The full mock exam format is currently available for JAMB only." }, 400);
 
     const { data: profile, error: profileError } = await admin.from("profiles")
       .select("trial_count, is_subscribed").eq("user_id", user.id).single();
@@ -60,9 +65,13 @@ Deno.serve(async (req: Request) => {
 
     const allQuestions: any[] = [];
     for (const subject of subjects) {
-      const { data, error } = await admin.from("questions")
+      let questionQuery = admin.from("questions")
         .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,passage,question_type,exam_hint")
-        .eq("subject", subject).eq("is_published", true).limit(1000);
+        .ilike("subject", subject)
+        .eq("examination", examination)
+        .eq("is_published", true);
+      if (examYear !== null) questionQuery = questionQuery.eq("year", examYear);
+      const { data, error } = await questionQuery.limit(1000);
       if (error) return respond({ error: "Could not load the question bank." }, 500);
       const shuffled = shuffle(data ?? []);
       let unseen = shuffled.filter((q) => !seen.has(q.id));
@@ -111,7 +120,7 @@ Deno.serve(async (req: Request) => {
     });
 
     const { data: session, error: sessionError } = await admin.from("exam_sessions")
-      .insert({ user_id: user.id, mode, subjects, total_questions: prepared.length })
+      .insert({ user_id: user.id, mode, subjects, total_questions: prepared.length, examination, exam_year: examYear })
       .select("id,started_at,total_questions").single();
     if (sessionError || !session) return respond({ error: "Could not create your exam session." }, 500);
 
