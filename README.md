@@ -32,7 +32,7 @@ Deploy independently to a Vite-compatible static host, including Netlify. Config
 
 ## Backend
 
-Supabase remains the external backend for authentication, database, realtime, and Edge Functions. Review and apply database migrations and deploy functions through Supabase tooling as needed.
+Supabase remains the external backend for authentication, database, realtime, and Edge Functions. The AI Tutor uses Groq first and falls back to Gemini when the primary provider is unavailable. Configure both provider secrets in the Supabase project's Edge Function secrets; see [AI provider setup](docs/AI_PROVIDER_SETUP.md). Review and apply database migrations and deploy functions through Supabase tooling as needed.
 
 ## Independence
 
