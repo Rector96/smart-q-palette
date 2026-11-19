@@ -99,7 +99,7 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
 
   // Calculate tooltip position — always fit within viewport
   let tooltipStyle: React.CSSProperties = {};
-  const tooltipWidth = Math.min(300, window.innerWidth - 32);
+  const tooltipWidth = Math.min(340, window.innerWidth - 24);
   if (highlight && !isCenter) {
     const padding = 12;
     const spaceBelow = window.innerHeight - highlight.bottom;
@@ -169,11 +169,11 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className={`absolute bg-card border border-border rounded-2xl shadow-2xl p-4 z-[101] overflow-y-auto ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[85vw] w-[300px]" : "max-w-[85vw] w-[280px]"}`}
-              style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100vh - 100px)" }}
+              className={`absolute bg-card border border-border rounded-3xl shadow-2xl p-5 z-[101] overflow-y-auto ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[92vw] w-[340px]" : "max-w-[92vw] w-[320px]"}`}
+              style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100dvh - 32px)" }}
             >
               {/* Close btn */}
-              <button onClick={skip} className="absolute top-3 right-3 h-6 w-6 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
+              <button onClick={skip} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
 
@@ -200,12 +200,12 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               <div className="flex items-center gap-2">
                 {step === 0 ? (
                   <>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs flex-1" onClick={skip}>Skip</Button>
-                    <Button size="sm" className="h-8 text-xs flex-1 gap-1" onClick={next}>Start Tour <ChevronRight className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="sm" className="h-11 text-xs flex-1" onClick={skip}>Skip</Button>
+                    <Button size="sm" className="h-11 text-xs flex-1 gap-1" onClick={next}>Start Tour <ChevronRight className="h-3.5 w-3.5" /></Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={prev}><ChevronLeft className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="sm" className="h-11 min-w-11 text-xs" onClick={prev}><ChevronLeft className="h-3.5 w-3.5" /></Button>
                     <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={skip}>Skip</Button>
                     <Button size="sm" className="h-8 text-xs flex-1 gap-1" onClick={next}>
                       {isLast ? "Finish 🎉" : "Next"} {!isLast && <ChevronRight className="h-3.5 w-3.5" />}
