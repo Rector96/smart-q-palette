@@ -95,8 +95,12 @@ const Exam = () => {
     const { data, error } = await supabase.functions.invoke("cbt-start", {
       body: { subjects, mode, count: requestedCount },
     });
-    if (error || !data?.session?.id || !Array.isArray(data.questions)) {
-      const message = data?.error || error?.message || "We could not prepare your exam. Please try again.";
+    let responseData = data;
+    if (error && !responseData && error.context instanceof Response) {
+      try { responseData = await error.context.clone().json(); } catch {}
+    }
+    if (error || !responseData?.session?.id || !Array.isArray(responseData.questions)) {
+      const message = responseData?.error || error?.message || "We could not prepare your exam. Please try again.";
       if (message === "TRIAL_LIMIT_REACHED") {
         setTrialBlocked(true);
         setShowSubscription(true);
