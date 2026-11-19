@@ -177,6 +177,8 @@ const Exam = () => {
       mode,
       subjects,
       timer_minutes: timerParam ? Number(timerParam) : null,
+      examination,
+      exam_year: selectedYear,
     });
     const url = `${window.location.origin}/s/${code}`;
     try {
