@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.ai-tutor]
 verify_jwt = true
+
+[functions.cbt-start]
+verify_jwt = true
