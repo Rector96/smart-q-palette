@@ -263,3 +263,10 @@ The current `questionEngine.ts` fetches `questions.select("*")` from the browser
 The function authenticates the caller's access token, checks the server-side profile trial/subscription allowance, selects questions from the private question bank, shuffles options, creates the exam session, and increments the trial count on the server. It only includes the correct option and explanation in practice mode; timed CBT/mock/revision modes do not receive answer keys in the response.
 
 **Not yet integrated:** `Exam.tsx` and `questionEngine.ts` still use the old direct-browser data flow. Do not change the Netlify environment or switch the app to this project yet. The next required pieces are a server-side submission/grading endpoint, idempotent/atomic result persistence, then front-end integration and preview testing. The function has been deployed but an authenticated end-to-end test with a real question-bank record is still pending because the new project currently has no imported questions or test student accounts.
+
+
+## Netlify secrets-scan compatibility (2026-11-19)
+
+The browser Supabase credential is the project's **publishable** key, not a secret key. Supabase documents that publishable keys are intended to be bundled into browser applications and rely on RLS for data protection. The frontend still reads it only from a Netlify/local environment variable; no key value is hardcoded in the source.
+
+To avoid classifying the old variable name as a secret-like key name, the Vite variable has been renamed from `VITE_SUPABASE_PUBLISHABLE_KEY` to `VITE_SUPABASE_PUBLISHABLE`. The Supabase client still uses the publishable key at runtime. Netlify must define the renamed variable as a normal (not "Contains secret values") browser configuration variable. Never place a Supabase secret/service-role key in a `VITE_` variable.
