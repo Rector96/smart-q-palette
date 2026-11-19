@@ -100,9 +100,9 @@ const Results = () => {
   const mins = Math.floor(duration / 60);
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)" }}>
+    <div className="min-h-[100dvh] overflow-x-clip bg-gradient-to-br from-[#123b73] via-[#1767a5] to-[#10a987] safe-area-top">
       {/* Gradient Header */}
-      <div className="pt-8 pb-4 px-4 text-center text-white">
+      <div className="mx-auto max-w-2xl px-4 pt-8 pb-5 text-center text-white sm:pt-10">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }}>
           <h1 className="text-2xl font-extrabold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             {getHeadline(roundedScore)}
@@ -112,10 +112,10 @@ const Results = () => {
       </div>
 
       {/* Main Content Card */}
-      <div className="px-4 pb-8">
+      <div className="mx-auto max-w-2xl px-3 pb-8 sm:px-4">
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-          <Card className="rounded-3xl shadow-2xl border-0 overflow-hidden">
-            <CardContent className="p-6 pt-8">
+          <Card className="overflow-hidden rounded-[28px] border-0 shadow-2xl">
+            <CardContent className="p-4 pt-6 sm:p-7 sm:pt-8">
               {/* Score Circle */}
               <div className="flex justify-center mb-4">
                 <div className="relative inline-flex items-center justify-center w-32 h-32">
@@ -147,14 +147,14 @@ const Results = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-2 justify-center mt-5 flex-wrap">
-                <Button size="sm" className="rounded-full px-5 h-9 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90" onClick={() => navigate("/select-subjects?mode=practice")}>
+              <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-center">
+                <Button size="sm" className="h-11 w-full gap-2 rounded-xl px-5 text-xs font-semibold sm:h-10 sm:w-auto sm:rounded-full" onClick={() => navigate("/select-subjects?mode=practice")}>
                   <RotateCcw className="h-3.5 w-3.5" /> Retry Test
                 </Button>
-                <Button size="sm" className="rounded-full px-5 h-9 text-xs font-semibold gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={handleShare}>
+                <Button size="sm" className="h-11 w-full gap-2 rounded-xl bg-green-600 px-5 text-xs font-semibold text-white hover:bg-green-700 sm:h-10 sm:w-auto sm:rounded-full" onClick={handleShare}>
                   <Share2 className="h-3.5 w-3.5" /> Share Result
                 </Button>
-                <Button variant="outline" size="sm" className="rounded-full px-5 h-9 text-xs font-semibold gap-1.5" onClick={() => navigate("/dashboard")}>
+                <Button variant="outline" size="sm" className="h-11 w-full gap-2 rounded-xl px-5 text-xs font-semibold sm:h-10 sm:w-auto sm:rounded-full" onClick={() => navigate("/dashboard")}>
                   <Trophy className="h-3.5 w-3.5" /> Dashboard
                 </Button>
               </div>
@@ -163,12 +163,12 @@ const Results = () => {
         </motion.div>
 
         {/* Stats Row */}
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }} className="grid grid-cols-3 gap-3 mt-4">
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }} className="mt-3 grid grid-cols-3 gap-2 sm:mt-4 sm:gap-3">
           <Card className="rounded-2xl shadow-lg border-0">
-            <CardContent className="p-4 text-center">
+            <CardContent className="p-2.5 text-center sm:p-4">
               <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
               <p className="text-xs text-muted-foreground">Correct</p>
-              <p className="text-xl font-bold">{session.correct_answers}</p>
+              <p className="text-lg font-bold sm:text-xl">{session.correct_answers}</p>
             </CardContent>
           </Card>
           <Card className="rounded-2xl shadow-lg border-0">
@@ -277,7 +277,7 @@ const Results = () => {
           </motion.div>
         )}
 
-        <div className="h-8" />
+        <div className="h-4 sm:h-8" />
       </div>
 
       <ShareResultHighlight onShare={handleShare} />
