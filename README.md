@@ -14,7 +14,7 @@ Smart Q Palette is a React, Vite and TypeScript CBT practice platform backed by 
 
 The browser app uses:
 - `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PUBLISHABLE`
 
 Never place Supabase service-role keys, private API keys, or server secrets in browser environment variables or committed files.
 
