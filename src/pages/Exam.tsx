@@ -315,10 +315,10 @@ const Exam = () => {
   return (
     <>
       {submitting && <ExamSubmitOverlay />}
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-[100dvh] overflow-x-clip bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2.5 flex items-center justify-between safe-area-top">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="h-4 w-4" />
@@ -331,21 +331,21 @@ const Exam = () => {
         </div>
 
         {/* Mode / Timer / Progress bar */}
-        <div className="max-w-4xl mx-auto px-4 py-1.5 flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2 flex flex-wrap items-center gap-2">
+          <div className="flex min-h-8 items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full">
             <BookOpen className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-semibold capitalize">{mode} Mode</span>
           </div>
-          <div className="px-3 py-1 bg-primary/10 text-primary rounded-full">
+          <div className="min-h-8 px-2.5 py-1 bg-primary/10 text-primary rounded-full">
             <span className="text-[10px] font-semibold">{examination}{selectedYear ? ` · ${selectedYear}` : " · All years"}</span>
           </div>
           {isTimed && (
-            <div className={cn("flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full", timeLeft < 300 && "text-destructive")}>
+            <div className={cn("flex min-h-8 items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full", timeLeft < 300 && "text-destructive")}>
               <Clock className="h-3.5 w-3.5" />
               <span className="text-[10px] font-mono font-bold">{formatTime(timeLeft)}</span>
             </div>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={handleShare} title="Share exam">
+          <Button variant="ghost" size="icon" className="h-9 w-9 ml-auto rounded-xl" onClick={handleShare} title="Share exam">
             <Share2 className="h-3.5 w-3.5" />
           </Button>
           <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full cursor-pointer" onClick={() => setShowNav(!showNav)}>
@@ -379,17 +379,17 @@ const Exam = () => {
           </div>
         )}
 
-        <Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-0.5" />
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 pb-2 flex items-center justify-between text-[10px] text-muted-foreground"><span>{Object.keys(answers).length} answered</span><span>{Math.max(0, totalQuestions - Object.keys(answers).length)} remaining</span></div><Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-1.5" />
       </header>
 
       {/* Question Nav Grid */}
       <AnimatePresence>
         {showNav && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-card border-b border-border overflow-hidden">
-            <div className="max-w-4xl mx-auto px-4 py-3">
+            <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-3">
               <div className="flex flex-wrap gap-1.5">
                 {(hasMultipleSubjects ? displayedQuestions : questions).map((q, idx) => (
-                  <button key={q.id} onClick={() => goToQuestion(idx)} className={cn("h-7 w-7 rounded text-[10px] font-medium transition-colors", idx === currentIndex && "ring-2 ring-primary", answers[q.id] ? "bg-primary text-primary-foreground" : flagged.has(q.id) ? "bg-warning text-warning-foreground" : "bg-secondary text-secondary-foreground")}>
+                  <button key={q.id} onClick={() => goToQuestion(idx)} className={cn("h-9 w-9 rounded-xl text-[11px] font-semibold transition-colors", idx === currentIndex && "ring-2 ring-primary", answers[q.id] ? "bg-primary text-primary-foreground" : flagged.has(q.id) ? "bg-warning text-warning-foreground" : "bg-secondary text-secondary-foreground")}>
                     {idx + 1}
                   </button>
                 ))}
@@ -400,7 +400,7 @@ const Exam = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl mx-auto px-4 py-4 w-full">
+      <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full">
         {currentQuestion && (
           <AnimatePresence mode="wait">
             <motion.div key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
@@ -412,14 +412,14 @@ const Exam = () => {
                   </CardContent>
                 </Card>
               )}
-              <div className="mb-4">
+              <div className="mb-5 rounded-2xl border border-border/60 bg-card p-4 sm:mb-4 sm:border-0 sm:bg-transparent sm:p-0">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <span className="text-[10px] text-muted-foreground">Q{currentIndex + 1} · {currentQuestion.topic} · {currentQuestion.difficulty}</span>
                   <button onClick={toggleFlag} className="shrink-0">
                     <Flag className={cn("h-3.5 w-3.5", flagged.has(currentQuestion.id) ? "text-warning fill-warning" : "text-muted-foreground")} />
                   </button>
                 </div>
-                <p className="text-sm font-semibold leading-relaxed">{currentQuestion.question_text}</p>
+                <p className="text-[15px] sm:text-base font-semibold leading-7">{currentQuestion.question_text}</p>
               </div>
               <div className="space-y-2">
                 {currentQuestion.options.map((option) => {
@@ -429,9 +429,9 @@ const Exam = () => {
                   return (
                     <div key={option.label}>
                       <motion.button whileTap={{ scale: 0.99 }} onClick={() => selectAnswer(currentQuestion.id, option.label)}
-                        className={cn("w-full text-left p-3 rounded-xl border-2 transition-all text-xs flex items-center gap-3",
+                        className={cn("w-full min-h-[58px] text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all text-sm leading-relaxed flex items-center gap-3 active:scale-[0.995]",
                           showFeedback && isCorrect ? "border-[hsl(var(--success))] bg-[hsl(var(--success))]/10" : showFeedback && isSelected && !isCorrect ? "border-destructive bg-destructive/10" : isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")}>
-                        <span className={cn("shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
+                        <span className={cn("shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
                         <span className="flex-1">{option.text}</span>
                         {isSelected && !showFeedback && (
                           <X className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -470,13 +470,13 @@ const Exam = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/80 backdrop-blur-sm sticky bottom-0">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+      <footer className="border-t border-border bg-card/95 backdrop-blur-xl sticky bottom-0 z-20 safe-area-bottom shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
           <Button variant="ghost" size="sm" className="h-8 text-xs" disabled={currentIndex === 0} onClick={() => goToQuestion(currentIndex - 1)}>
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Prev
           </Button>
           {currentIndex === totalQuestions - 1 ? (
-            <Button size="sm" className="h-8 text-xs" onClick={confirmAndSubmit} disabled={submitting}>
+            <Button size="sm" className="h-11 min-w-28 rounded-xl text-xs" onClick={confirmAndSubmit} disabled={submitting}>
               {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Submit
             </Button>
           ) : (
