@@ -379,7 +379,7 @@ const Exam = () => {
           </div>
         )}
 
-        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 pb-2 flex items-center justify-between text-[10px] text-muted-foreground"><span>{Object.keys(answers).length} answered</span><span>{Math.max(0, totalQuestions - Object.keys(answers).length)} remaining</span></div><Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-1.5" />
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 pb-2 flex items-center justify-between text-[10px] text-muted-foreground"><span>{displayedQuestions.filter((question) => answers[question.id]).length} answered</span><span>{Math.max(0, totalQuestions - displayedQuestions.filter((question) => answers[question.id]).length)} remaining</span></div><Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-1.5" />
       </header>
 
       {/* Question Nav Grid */}
