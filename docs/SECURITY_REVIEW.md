@@ -212,3 +212,39 @@ The repeated SQL privilege test now confirms:
 - They cannot assign roles.
 
 The security advisor remains clear after the correction. Both migration versions are recorded by the new Supabase project.
+
+
+## CBT question bank and exam-history foundation (2026-11-19)
+
+Applied and committed:
+- `20261119171328_cbt_question_bank_and_exam_history.sql`
+- `20261119171410_index_cbt_foreign_keys.sql`
+
+### Tables added
+
+- `questions` — subject/topic/year/difficulty, four options, answer key, explanation, passage, question type and exam hint.
+- `exam_sessions` — practice/CBT/mock/revision session metadata and result fields.
+- `user_history` — per-question answers and result history.
+- `user_seen_questions` — per-user non-repetition tracking.
+- `shared_exams` — share code, owner, session, mode, subjects and timer metadata.
+
+### Access model
+
+- RLS enabled on all five tables.
+- Question-bank rows are only directly readable/writable by an authenticated administrator. This prevents ordinary students from downloading answer keys through the Data API.
+- Exam sessions and answer history are owner-readable; browser clients are not granted write access to scores or history. Secure server-side session and submission handlers must be implemented before the new backend is connected to the front end.
+- Seen-question tracking is owner-scoped and supports only own-row select/insert/delete.
+- Shared-exam metadata is readable for link resolution; only authenticated creators can insert their own share records.
+- Added indexes for common subject/history/session lookups and all flagged foreign-key columns.
+
+### Important integration dependency
+
+The current `questionEngine.ts` fetches `questions.select("*")` from the browser and reads `correct_answer`; `Exam.tsx` also writes session scores and answer history directly. Those old client flows will not work against the new secured policies by design. Before switching Netlify, replace them with authenticated Edge Functions that return question payloads without answer keys, grade submissions server-side, and record results atomically. Keep the current live backend unchanged until those changes are implemented and tested.
+
+### Verification
+
+- All five tables exist in the new Supabase project and report RLS enabled.
+- Security advisor returned no lints after the CBT migration.
+- Performance advisor initially identified four unindexed foreign keys; the follow-up index migration added the missing indexes.
+- The performance advisor may still report unused indexes on this empty project; reassess after representative data and traffic exist.
+- No questions or user records have been imported; the new tables are empty.
