@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace(/^Bearer\\s+/i, "");
+    const token = authHeader?.replace(/^Bearer\s+/i, "");
     if (!token || token === authHeader) return respond({ error: "Sign in to continue." }, 401);
 
     const url = Deno.env.get("SUPABASE_URL");
