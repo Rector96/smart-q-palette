@@ -134,6 +134,13 @@ const Results = () => {
                 </div>
               </div>
 
+              <div className="text-center mb-4">
+                <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold">
+                  {session.examination || "Practice"}{session.exam_year ? ` · ${session.exam_year}` : ""}
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">{(session.subjects || []).join(" · ")}</p>
+              </div>
+
               {/* Weak Topics Message */}
               {Object.keys(topicBreakdown).length > 0 && (
                 <WeakTopicsMessage topicBreakdown={topicBreakdown} score={roundedScore} />
