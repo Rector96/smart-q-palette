@@ -198,3 +198,17 @@ Migration `20261119171145_secure_account_payment_foundation.sql` was applied to 
 ### Compatibility and rollout note
 
 This is the account/payment foundation only. The remaining CBT, question bank, history, exam sessions, sharing, library, and live-quiz schema is not yet migrated. The current front-end and payment Edge Functions are not yet switched to the new project. Do not point production Netlify variables at this project until the remaining schema, secure payment handlers, storage, realtime, and end-to-end preview tests are complete.
+
+
+### Follow-up privilege verification
+
+A post-migration privilege test initially showed that authenticated users still inherited UPDATE capability on the subscription column. This was corrected immediately with migration `20261119171229_restrict_account_table_grants.sql`, which revokes table-level browser grants and re-grants only SELECT plus column-level profile edits.
+
+The repeated SQL privilege test now confirms:
+- Authenticated users can read their own profile (subject to RLS).
+- They can update `full_name`.
+- They cannot update `is_subscribed`.
+- They cannot insert payment records.
+- They cannot assign roles.
+
+The security advisor remains clear after the correction. Both migration versions are recorded by the new Supabase project.
