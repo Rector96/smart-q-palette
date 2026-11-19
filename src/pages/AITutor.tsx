@@ -147,7 +147,7 @@ const AITutor = () => {
 
   if (blocked) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] lg:h-screen bg-background px-4">
+      <div className="flex min-h-[calc(100dvh-5.25rem)] flex-col items-center justify-center bg-background px-4 lg:min-h-[100dvh]">
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="max-w-sm w-full text-center space-y-4">
           <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
             <Lock className="h-8 w-8 text-primary" />
@@ -163,10 +163,10 @@ const AITutor = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)] lg:h-screen bg-background">
+    <div className="flex h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden bg-background lg:h-[100dvh]">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+        <div className="max-w-3xl mx-auto w-full px-3 sm:px-4 py-3 flex items-center gap-3 safe-area-top">
+          <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center shrink-0">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
           <div className="flex-1">
@@ -177,7 +177,7 @@ const AITutor = () => {
         </div>
       </header>
       <ScrollArea className="flex-1 max-w-3xl mx-auto w-full" ref={scrollRef}>
-        <div className="px-4 py-4 space-y-4">
+        <div className="px-3 py-4 space-y-4 sm:px-4">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -186,7 +186,7 @@ const AITutor = () => {
                     <Bot className="h-3.5 w-3.5 text-primary" />
                   </div>
                 )}
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-secondary-foreground rounded-bl-md"}`}>
+                <div className={`max-w-[88%] sm:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-secondary-foreground rounded-bl-md"}`}>
                   {msg.role === "assistant" ? (
                     <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm [&>p]:text-sm [&>li]:text-sm">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -216,7 +216,7 @@ const AITutor = () => {
           {messages.length === 1 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
               {quickPrompts.map((prompt) => (
-                <button key={prompt} onClick={() => { setInput(prompt); }} className="text-left p-3 rounded-xl border border-border/50 hover:border-primary/30 transition-colors text-xs text-muted-foreground hover:text-foreground">
+                <button key={prompt} onClick={() => { setInput(prompt); }} className="min-h-14 text-left p-3.5 rounded-2xl border border-border/60 bg-card hover:border-primary/30 transition-colors text-xs leading-relaxed text-muted-foreground hover:text-foreground active:scale-[0.99]">
                   {prompt}
                 </button>
               ))}
@@ -225,10 +225,10 @@ const AITutor = () => {
         </div>
       </ScrollArea>
       <footer className="border-t border-border bg-card/80 backdrop-blur-sm shrink-0">
-        <div className="max-w-3xl mx-auto px-4 py-3">
+        <div className="max-w-3xl mx-auto w-full px-3 sm:px-4 py-3 safe-area-bottom">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
-            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about JAMB..." className="h-10 text-sm flex-1" disabled={isLoading} />
-            <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={isLoading || !input.trim()}>
+            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about JAMB..." className="h-12 text-base flex-1 rounded-xl" disabled={isLoading} />
+            <Button type="submit" size="icon" className="h-12 w-12 shrink-0 rounded-xl" disabled={isLoading || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>
           </form>
