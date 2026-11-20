@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles } from "lucide-react";
 import Logo from "@/components/Logo";
+import { useAdmin } from "@/hooks/useAdmin";
 
 interface OnlineUser { user_id: string; display_name: string; current_page: string; current_subject: string | null; last_seen: string; }
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
+  const { isAdmin, isSupportAgent } = useAdmin();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ totalUsers: 0, paidUsers: 0, revenue: 0, totalSessions: 0, totalQuestions: 0 });
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
@@ -64,6 +66,8 @@ const AdminDashboard = () => {
     { icon: Mail, title: "Communication", description: "Send important updates to your users.", to: "/admin/email", action: "Send message" },
     { icon: Settings, title: "Platform settings", description: "Review administrator and platform settings.", to: "/admin/settings", action: "Open settings" },
   ];
+  const visibleSections = isAdmin ? sections : sections.filter((item) => ["/admin/users", "/admin/payments"].includes(item.to));
+  const visibleMetrics = isAdmin ? metrics : metrics.filter((item) => ["/admin/users", "/admin/payments"].includes(item.to));
   const getPageLabel = (page: string) => {
     const map: Record<string, string> = { exam: "Taking an exam", dashboard: "Student dashboard", browsing: "Browsing", "ai-tutor": "AI Tutor", library: "Digital library", "live-quiz": "Live quiz" };
     return map[page] || page;
@@ -76,12 +80,12 @@ const AdminDashboard = () => {
           <div className="flex min-w-0 items-center gap-3">
             <Logo size="sm" showText={false} />
             <div className="min-w-0">
-              <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /><span className="truncate text-sm font-bold">Smart Q Palette</span><Badge variant="secondary" className="hidden sm:inline-flex text-[10px]">Admin centre</Badge></div>
-              <p className="text-[11px] text-muted-foreground">Platform control centre</p>
+              <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /><span className="truncate text-sm font-bold">Smart Q Palette</span><Badge variant="secondary" className="hidden sm:inline-flex text-[10px]">{isSupportAgent && !isAdmin ? "Customer care" : "Admin centre"}</Badge></div>
+              <p className="text-[11px] text-muted-foreground">{isSupportAgent && !isAdmin ? "Customer support workspace" : "Platform control centre"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => navigate("/dashboard")}>Student view</Button>
+            {isAdmin && <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => navigate("/dashboard")}>Student view</Button>}
             <Button variant="ghost" size="icon" aria-label="Sign out" onClick={signOut}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
@@ -93,8 +97,8 @@ const AdminDashboard = () => {
           <div className="relative z-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-2xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-blue-100"><Sparkles className="h-3.5 w-3.5" /> Admin workspace</div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Good to see you.</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100/85">Manage customers, resolve payment issues and keep the learning platform running smoothly from one place.</p>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{isSupportAgent && !isAdmin ? "Welcome to customer care." : "Good to see you."}</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100/85">{isSupportAgent && !isAdmin ? "Find customers, confirm offline payments and resolve account access issues." : "Manage customers, resolve payment issues and keep the learning platform running smoothly from one place."}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="bg-white text-slate-950 hover:bg-blue-50"><Link to="/admin/users"><Search className="mr-2 h-4 w-4" /> Find a customer</Link></Button>
@@ -119,9 +123,9 @@ const AdminDashboard = () => {
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-3">
-            <div className="flex items-end justify-between gap-3"><div><h2 className="text-base font-bold">Workspace</h2><p className="text-xs text-muted-foreground">Choose what you need to manage.</p></div><Badge variant="outline" className="hidden sm:inline-flex">6 work areas</Badge></div>
+            <div className="flex items-end justify-between gap-3"><div><h2 className="text-base font-bold">Workspace</h2><p className="text-xs text-muted-foreground">Choose what you need to manage.</p></div><Badge variant="outline" className="hidden sm:inline-flex">{visibleSections.length} work areas</Badge></div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {sections.map((item) => (
+              {visibleSections.map((item) => (
                 <Link key={item.to} to={item.to} className="group">
                   <Card className="h-full border-border/70 transition-all group-hover:border-primary/30 group-hover:shadow-sm">
                     <CardContent className="flex h-full items-start gap-3 p-4 sm:p-5">
@@ -148,7 +152,7 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-primary/15 bg-primary/[0.03]"><CardContent className="flex items-start gap-3 p-4"><div className="rounded-lg bg-primary/10 p-2 text-primary"><Headset className="h-4 w-4" /></div><div className="min-w-0"><h3 className="text-sm font-semibold">Customer care shortcut</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Search a customer, check their access and resolve a payment issue.</p><Link to="/admin/users" className="mt-3 inline-flex items-center text-xs font-semibold text-primary">Open customer list <ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link></div></CardContent></Card>
+            {isAdmin && <Card className="border-primary/15 bg-primary/[0.03]"><CardContent className="flex items-start gap-3 p-4"><div className="rounded-lg bg-primary/10 p-2 text-primary"><Headset className="h-4 w-4" /></div><div className="min-w-0"><h3 className="text-sm font-semibold">Customer care shortcut</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Search a customer, check their access and resolve a payment issue.</p><Link to="/admin/users" className="mt-3 inline-flex items-center text-xs font-semibold text-primary">Open customer list <ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link></div></CardContent></Card>}
           </aside>
         </section>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-[11px] text-muted-foreground"><span>Smart Q Palette · Admin workspace</span><span>Administrative actions are logged</span></div>
