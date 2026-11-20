@@ -404,7 +404,7 @@ const QuizRoom = () => {
               <Users className="h-7 w-7 text-primary" />
             </div>
             <h2 className="text-2xl font-extrabold tracking-tight">Waiting Room</h2>
-            <p className="text-sm text-muted-foreground capitalize">{room.subject} <span className="mx-1">·</span> {questions.length} questions <span className="mx-1">·</span> {room.time_per_question}s per question</p>
+            <p className="text-sm text-muted-foreground capitalize">{room.subject} <span className="mx-1">·</span> {room.room_code?.startsWith("D") ? "1-vs-1 Friend Battle" : "Group Quiz"} <span className="mx-1">·</span> {questions.length} questions <span className="mx-1">·</span> {room.time_per_question}s per question</p>
           </div>
 
           {/* Room Code */}
@@ -443,10 +443,11 @@ const QuizRoom = () => {
           </div>
 
           {isHost && (
-            <Button className="h-12 w-full gap-2 rounded-xl text-base font-bold shadow-md" onClick={handleStart} disabled={participants.length < 1}>
-              <Play className="h-4 w-4" /> Start Quiz
+            <Button className="h-12 w-full gap-2 rounded-xl text-base font-bold shadow-md" onClick={handleStart} disabled={room.room_code?.startsWith("D") ? participants.length !== 2 : participants.length < 1}>
+              <Play className="h-4 w-4" /> {room.room_code?.startsWith("D") ? "Start Friend Battle" : "Start Quiz"}
             </Button>
           )}
+          {room.room_code?.startsWith("D") && participants.length < 2 && <p className="text-center text-xs text-muted-foreground">Share your challenge code. The battle starts when your friend joins.</p>}
           {!isHost && <p className="text-center text-xs text-muted-foreground">Waiting for host to start...</p>}
         </div>
       </div>
