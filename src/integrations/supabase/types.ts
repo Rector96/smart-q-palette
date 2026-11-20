@@ -505,6 +505,42 @@ export type Database = {
           },
         ]
       }
+      student_topic_mastery: {
+        Row: {
+          attempts: number
+          correct_answers: number
+          created_at: string
+          id: string
+          last_attempt_at: string
+          subject: string
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string
+          subject: string
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string
+          subject?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_history: {
         Row: {
           answered_at: string
