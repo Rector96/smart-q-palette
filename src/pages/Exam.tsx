@@ -13,6 +13,7 @@ import {
   ArrowLeft, ArrowRight, Flag, Clock, CheckCircle2, XCircle,
   BookOpen, Send, Loader2, Share2, X
 } from "lucide-react";
+import ScientificCalculator from "@/components/ScientificCalculator";
 import { motion, AnimatePresence } from "framer-motion";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import Logo from "@/components/Logo";
@@ -326,9 +327,12 @@ const Exam = () => {
             </Button>
             <Logo size="sm" showText />
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {subjects.some((subject) => ["mathematics", "physics", "chemistry", "economics"].includes(subject.toLowerCase())) && <ScientificCalculator />}
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Mode / Timer / Progress bar */}
