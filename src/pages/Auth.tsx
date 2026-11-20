@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff, ArrowLeft, Sparkles, ShieldCheck, Zap } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 
+type AuthMode = "login" | "signup" | "forgot";
+
 const Auth = () => {
-  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -26,7 +27,7 @@ const Auth = () => {
     setLoading(true);
 
     if (mode === "forgot") {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/auth`,
       });
       if (error) {
@@ -40,156 +41,174 @@ const Auth = () => {
     }
 
     if (mode === "login") {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(email.trim().toLowerCase(), password);
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
         navigate("/dashboard");
       }
     } else {
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email.trim().toLowerCase(), password, fullName.trim());
       if (error) {
         toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
       } else {
-        toast({ title: "Account created! 🎉", description: "You can now sign in and start practicing." });
+        toast({
+          title: "Account created! 🎉",
+          description: "You can now sign in and start practicing.",
+        });
         setMode("login");
+        setPassword("");
       }
     }
     setLoading(false);
   };
 
   const isForgot = mode === "forgot";
+  const isSignup = mode === "signup";
 
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background px-4 py-8 safe-area-top safe-area-bottom">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-28 -top-24 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
-        <div className="absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-[hsl(var(--success))]/10 blur-3xl" />
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/[0.06] to-transparent" />
-      </div>
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 py-8 sm:py-10 safe-area-top safe-area-bottom">
+      <Logo size="lg" showText className="self-start" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 18, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-[440px]"
-      >
-        <div className="mb-7 flex flex-col items-center text-center">
-          <Logo size="lg" />
-          <div className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            Your exam-prep journey starts here
-          </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-            {mode === "login" ? "Welcome back!" : mode === "signup" ? "Let's get you started" : "Reset your password"}
-          </h1>
-          <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
-            {mode === "login"
-              ? "Pick up where you left off. Your next great result starts with one practice session."
-              : mode === "signup"
-              ? "Create your free account and build a smarter, stronger study routine."
+      <header className="mt-7">
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-[28px]">
+          {mode === "login"
+            ? "Welcome Back 👋"
+            : isSignup
+              ? "Create your account"
+              : "Reset your password"}
+        </h1>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          {mode === "login"
+            ? "Log in to continue your learning journey with Smart Q Palette."
+            : isSignup
+              ? "Create your free account and start practising smarter today."
               : "Enter the email linked to your account and we'll send you a secure reset link."}
-          </p>
-        </div>
+        </p>
+      </header>
 
-        <div className="overflow-hidden rounded-[28px] border border-border/70 bg-card/95 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-          <div className="h-1.5 bg-gradient-to-r from-primary via-[hsl(var(--success))] to-primary" />
-          <div className="p-5 sm:p-7">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={mode}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-              >
-                <div className="mb-6">
-                  <p className="text-sm font-bold">{mode === "login" ? "Sign in to your account" : mode === "signup" ? "Create your account" : "Password recovery"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Simple, secure and ready when you are.</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {mode === "signup" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="text-xs font-semibold">Full name</Label>
-                      <Input id="name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Chinedu Okafor" required className="h-12 rounded-xl bg-background/70 px-4 text-base" />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-xs font-semibold">Email address</Label>
-                    <Input id="email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="h-12 rounded-xl bg-background/70 px-4 text-base" />
-                  </div>
-
-                  {!isForgot && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="password" className="text-xs font-semibold">Password</Label>
-                        {mode === "login" && (
-                          <button type="button" onClick={() => setMode("forgot")} className="min-h-8 text-xs font-semibold text-primary hover:underline">
-                            Forgot password?
-                          </button>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          autoComplete={mode === "login" ? "current-password" : "new-password"}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="At least 6 characters"
-                          required
-                          minLength={6}
-                          className="h-12 rounded-xl bg-background/70 px-4 pr-12 text-base"
-                        />
-                        <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <Button type="submit" className="app-tap h-12 w-full rounded-xl text-sm font-bold shadow-lg shadow-primary/20" disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : mode === "login" ? <Zap className="mr-2 h-4 w-4" /> : null}
-                    {mode === "login" ? "Sign in and continue" : mode === "signup" ? "Create free account" : "Send reset link"}
-                  </Button>
-                </form>
-
-                <div className="mt-6 text-center">
-                  {isForgot ? (
-                    <button type="button" onClick={() => setMode("login")} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary">
-                      <ArrowLeft className="h-4 w-4" /> Back to sign in
-                    </button>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {mode === "login" ? "New here?" : "Already have an account?"}{" "}
-                      <button
-                        type="button"
-                        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                        className="min-h-10 font-bold text-primary"
-                      >
-                        {mode === "login" ? "Create an account" : "Sign in"}
-                      </button>
-                    </p>
-                  )}
-                </div>
-
-                {mode === "signup" && (
-                  <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
-                    By creating an account, you agree to our Terms of Service and Privacy Policy. Start with 3 free exam sessions!
-                  </p>
-                )}
-              </motion.div>
-            </AnimatePresence>
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+        {isSignup && (
+          <div className="space-y-2">
+            <Label htmlFor="full-name">Full Name</Label>
+            <Input
+              id="full-name"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Your full name"
+              required
+              className="h-[52px] rounded-xl bg-card px-4 text-base"
+            />
           </div>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@email.com"
+            required
+            className="h-[52px] rounded-xl bg-card px-4 text-base"
+          />
         </div>
 
-        <div className="mt-5 flex items-center justify-center gap-5 text-[10px] font-medium text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-[hsl(var(--success))]" /> Secure account</span>
-          <span className="inline-flex items-center gap-1"><Zap className="h-3.5 w-3.5 text-primary" /> Fast practice</span>
-        </div>
-      </motion.div>
+        {!isForgot && (
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={isSignup ? "Create a password" : "Enter your password"}
+                minLength={6}
+                required
+                className="h-[52px] rounded-xl bg-card px-4 pr-12 text-base"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute inset-y-0 right-3 grid min-h-11 min-w-11 place-items-center text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === "login" && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setMode("forgot")}
+              className="min-h-9 text-sm font-semibold text-primary"
+            >
+              Forgot Password?
+            </button>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-[52px] w-full rounded-2xl text-base font-bold"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {mode === "login" ? "Logging in…" : isSignup ? "Creating account…" : "Sending link…"}
+            </>
+          ) : mode === "login" ? (
+            "Login"
+          ) : isSignup ? (
+            "Create Account"
+          ) : (
+            "Send reset link"
+          )}
+        </Button>
+
+        {isSignup && (
+          <p className="text-center text-xs leading-relaxed text-muted-foreground">
+            By creating an account, you agree to our Terms of Service and Privacy Policy.
+          </p>
+        )}
+      </form>
+
+      <div className="mt-auto pt-10 text-center text-sm text-muted-foreground">
+        {isForgot ? (
+          <button
+            type="button"
+            onClick={() => setMode("login")}
+            className="inline-flex min-h-10 items-center gap-1 font-semibold text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Login
+          </button>
+        ) : (
+          <p>
+            {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setMode(isSignup ? "login" : "signup");
+                setShowPassword(false);
+              }}
+              className="min-h-10 font-bold text-primary"
+            >
+              {isSignup ? "Login" : "Sign Up"}
+            </button>
+          </p>
+        )}
+      </div>
     </main>
   );
 };
