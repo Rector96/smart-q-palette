@@ -400,6 +400,7 @@ const QuizRoom = () => {
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
+          </div>
           <div className="flex items-center gap-2">
             <span className="hidden rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:inline-flex"><Users className="mr-1 h-3 w-3" />{participants.length} playing</span>
             <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5">
