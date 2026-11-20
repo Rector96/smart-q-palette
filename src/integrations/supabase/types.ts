@@ -505,6 +505,53 @@ export type Database = {
           },
         ]
       }
+      student_question_reviews: {
+        Row: {
+          created_at: string
+          due_at: string
+          id: string
+          interval_days: number
+          last_result: boolean
+          last_reviewed_at: string
+          question_id: string
+          repetitions: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_at?: string
+          id?: string
+          interval_days?: number
+          last_result?: boolean
+          last_reviewed_at?: string
+          question_id: string
+          repetitions?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          due_at?: string
+          id?: string
+          interval_days?: number
+          last_result?: boolean
+          last_reviewed_at?: string
+          question_id?: string
+          repetitions?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_question_reviews_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_topic_mastery: {
         Row: {
           attempts: number
