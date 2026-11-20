@@ -37,7 +37,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const amount = Number(body?.amount);
     const bankAccountId = typeof body?.bank_account_id === "string" ? body.bank_account_id : "";
-    if (!Number.isSafeInteger(amount) || amount < 1000 || amount > 1000000 || !bankAccountId) {
+    if (!Number.isSafeInteger(amount) || amount < 1000 || !bankAccountId) {
       return json({ error: "Enter a whole-naira withdrawal amount of at least ₦1,000." }, 400);
     }
 
