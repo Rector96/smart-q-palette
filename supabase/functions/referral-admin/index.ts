@@ -71,7 +71,7 @@ serve(async (req) => {
         serviceClient.from("referral_rewards").select("id,payment_id,referrer_user_id,referred_user_id,amount,status,created_at,available_at,reversed_at").order("created_at", { ascending: false }).limit(500),
         serviceClient.from("referral_withdrawals").select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at,referral_bank_accounts(bank_name,account_name,account_number_masked)").order("requested_at", { ascending: false }).limit(500),
         serviceClient.from("referral_attributions").select("referred_user_id,referrer_user_id,referral_code,created_at").order("created_at", { ascending: false }).limit(500),
-        serviceClient.from("payments").select("id,user_id,amount,currency,status,plan_id,verified_at,created_at").eq("status", "success").not("verified_at", "is", null).order("verified_at", { ascending: false }).limit(2000),
+        serviceClient.from("payments").select("id,user_id,amount,currency,status,plan_id,verified_at,created_at").eq("status", "success").eq("amount", 2500).eq("currency", "NGN").eq("plan_id", "lifetime_access").not("verified_at", "is", null).order("verified_at", { ascending: false }).limit(2000),
       ]);
       const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error || paymentResult.error;
       if (failure) {
@@ -134,9 +134,11 @@ serve(async (req) => {
       const referralPayments = (paymentResult.data || []).filter((payment: any) =>
         (attributionResult.data || []).some((attribution: any) => attribution.referred_user_id === payment.user_id)
       );
-      const referralPaymentIds = new Set((rewardResult.data || []).map((reward: any) => reward.payment_id));
+      const referralPaymentIds = new Set(qualifyingRewards.map((reward: any) => reward.payment_id));
       const referralRevenue = referralPayments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
-      const rewardTotal = (rewardResult.data || []).reduce((sum: number, reward: any) => sum + Number(reward.amount || 0), 0);
+      const qualifyingPaymentIds = new Set(referralPayments.map((payment: any) => payment.id));
+      const qualifyingRewards = (rewardResult.data || []).filter((reward: any) => qualifyingPaymentIds.has(reward.payment_id) && reward.status !== "reversed");
+      const rewardTotal = qualifyingRewards.reduce((sum: number, reward: any) => sum + Number(reward.amount || 0), 0);
       const successfulPayouts = withdrawals.filter((row: any) => row.status === "success").reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
       const monthly = new Map<string, { subscriptions: number; revenue: number; rewards: number }>();
       for (const payment of referralPayments) {
@@ -146,7 +148,7 @@ serve(async (req) => {
         current.revenue += Number(payment.amount || 0);
         monthly.set(key, current);
       }
-      for (const reward of rewardResult.data || []) {
+      for (const reward of qualifyingRewards) {
         const payment = referralPayments.find((item: any) => item.id === reward.payment_id);
         if (payment) {
           const key = new Date(payment.verified_at).toISOString().slice(0, 7);
