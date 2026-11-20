@@ -694,6 +694,14 @@ export type Database = {
         Args: { _amount: number; _note: string; _plan_id?: string | null; _reference: string; _target_user_id: string }
         Returns: string
       }
+      admin_set_support_agent_role: {
+        Args: { _enabled: boolean; _target_user_id: string }
+        Returns: undefined
+      }
+      is_current_user_support_agent: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       admin_reset_user_trials: {
         Args: { _target_user_id: string }
         Returns: undefined
