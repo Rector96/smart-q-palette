@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, RefreshCw, ShieldCheck, Loader2, Banknote, Clock3, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+type CustomerControl = { user_id: string; full_name: string | null; email: string | null; withdrawals_blocked: boolean; withdrawals_block_reason: string | null; has_referral_profile: boolean };
+
 type Withdrawal = {
   id: string;
   amount: number;
@@ -31,6 +33,11 @@ const AdminReferrals = () => {
   const [savingId, setSavingId] = useState("");
   const [otp, setOtp] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customers, setCustomers] = useState<CustomerControl[]>([]);
+  const [customerSearchBusy, setCustomerSearchBusy] = useState(false);
+  const [customerActionId, setCustomerActionId] = useState("");
+  const [blockReason, setBlockReason] = useState("");
 
   const loadWithdrawals = useCallback(async () => {
     setLoading(true);
@@ -49,6 +56,45 @@ const AdminReferrals = () => {
   }, [toast]);
 
   useEffect(() => { void loadWithdrawals(); }, [loadWithdrawals]);
+
+
+  const searchCustomers = async () => {
+    if (customerQuery.trim().length < 3) {
+      toast({ title: "Enter more details", description: "Search by at least 3 letters of the customer's name or email.", variant: "destructive" });
+      return;
+    }
+    setCustomerSearchBusy(true);
+    const { data, error } = await supabase.functions.invoke("referral-admin", {
+      body: { action: "find_customer", query: customerQuery.trim() },
+    });
+    setCustomerSearchBusy(false);
+    if (error || !data?.customers) {
+      toast({ title: "Customer search failed", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
+      return;
+    }
+    setCustomers(data.customers as CustomerControl[]);
+  };
+
+  const setCustomerWithdrawalBlock = async (customer: CustomerControl, blocked: boolean) => {
+    if (blocked && blockReason.trim().length < 5) {
+      toast({ title: "Reason required", description: "Enter a clear reason before blocking this customer's withdrawals.", variant: "destructive" });
+      return;
+    }
+    setCustomerActionId(customer.user_id);
+    const { data, error } = await supabase.functions.invoke("referral-admin", {
+      body: { action: "set_withdrawal_block", user_id: customer.user_id, blocked, reason: blockReason.trim() },
+    });
+    setCustomerActionId("");
+    if (error || !data?.updated) {
+      toast({ title: "Could not update withdrawal access", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
+      return;
+    }
+    setCustomers((current) => current.map((item) => item.user_id === customer.user_id
+      ? { ...item, withdrawals_blocked: blocked, withdrawals_block_reason: blocked ? blockReason.trim() : null }
+      : item));
+    setBlockReason("");
+    toast({ title: blocked ? "Withdrawals blocked" : "Withdrawals restored", description: data.message });
+  };
 
   const approveTransfer = async (withdrawalId: string) => {
     if (!/^\d{4,8}$/.test(otp.trim())) {
@@ -94,6 +140,33 @@ const AdminReferrals = () => {
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Awaiting your Paystack code</p><p className="mt-1 text-2xl font-bold">{pendingOtpCount}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open referral payouts</p><p className="mt-1 text-2xl font-bold">{withdrawals.length}</p></CardContent></Card>
         </section>
+
+        <Card><CardContent className="space-y-3 p-4 sm:p-5">
+          <div><h2 className="text-base font-bold">Customer withdrawal controls</h2><p className="text-xs text-muted-foreground">Search for a customer to temporarily block or restore withdrawals. Blocking never removes their earned wallet balance.</p></div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder="Search customer name or email" className="min-w-0 flex-1" />
+            <Button variant="outline" onClick={() => void searchCustomers()} disabled={customerSearchBusy}>{customerSearchBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Search customer</Button>
+          </div>
+          {customers.map((customer) => (
+            <div key={customer.user_id} className="space-y-3 rounded-xl border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0"><p className="text-sm font-semibold">{customer.full_name || "Customer"}</p><p className="break-all text-xs text-muted-foreground">{customer.email || customer.user_id}</p></div>
+                <Badge variant={customer.withdrawals_blocked ? "destructive" : "secondary"}>{customer.withdrawals_blocked ? "Withdrawals blocked" : "Withdrawals allowed"}</Badge>
+              </div>
+              {customer.withdrawals_blocked && customer.withdrawals_block_reason ? <p className="text-xs text-muted-foreground">Reason: {customer.withdrawals_block_reason}</p> : null}
+              {!customer.has_referral_profile ? <p className="text-xs text-muted-foreground">This account has no referral wallet profile to control.</p> : customer.withdrawals_blocked ? (
+                <Button size="sm" variant="outline" onClick={() => void setCustomerWithdrawalBlock(customer, false)} disabled={customerActionId === customer.user_id}>{customerActionId === customer.user_id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Restore withdrawals</Button>
+              ) : (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input value={blockReason} onChange={(event) => setBlockReason(event.target.value)} placeholder="Reason for temporary block" maxLength={500} className="min-w-0 flex-1" />
+                  <Button size="sm" variant="destructive" onClick={() => void setCustomerWithdrawalBlock(customer, true)} disabled={customerActionId === customer.user_id}>{customerActionId === customer.user_id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Block withdrawals</Button>
+                </div>
+              )}
+            </div>
+          ))}
+          {customers.length === 0 && customerQuery.trim().length >= 3 && !customerSearchBusy ? <p className="text-xs text-muted-foreground">No matching customers found. Try another name or email.</p> : null}
+        </CardContent></Card>
+
         <Card className="border-primary/20 bg-primary/[0.03]"><CardContent className="flex items-start gap-3 p-4"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div><p className="text-sm font-semibold">Administrator-only approval</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Paystack sends the transfer code to the business contact registered on the Paystack account. Enter that code here. Customers never need to see or enter this code. Never share it with a customer or anyone outside the authorised admin team.</p></div></CardContent></Card>
 
         <section className="space-y-3">
