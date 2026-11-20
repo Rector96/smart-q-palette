@@ -65,14 +65,15 @@ serve(async (req) => {
 
 
     if (action === "overview") {
-      const [walletResult, transactionResult, rewardResult, withdrawalResult, attributionResult] = await Promise.all([
+      const [walletResult, transactionResult, rewardResult, withdrawalResult, attributionResult, paymentResult] = await Promise.all([
         serviceClient.from("referral_wallets").select("user_id,pending_balance,available_balance,lifetime_earned,lifetime_paid,recovery_balance,updated_at").order("updated_at", { ascending: false }).limit(500),
         serviceClient.from("referral_wallet_transactions").select("id,user_id,transaction_type,amount,status,reference_type,reference_id,idempotency_key,description,created_at").order("created_at", { ascending: false }).limit(500),
         serviceClient.from("referral_rewards").select("id,payment_id,referrer_user_id,referred_user_id,amount,status,created_at,available_at,reversed_at").order("created_at", { ascending: false }).limit(500),
         serviceClient.from("referral_withdrawals").select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at,referral_bank_accounts(bank_name,account_name,account_number_masked)").order("requested_at", { ascending: false }).limit(500),
         serviceClient.from("referral_attributions").select("referred_user_id,referrer_user_id,referral_code,created_at").order("created_at", { ascending: false }).limit(500),
+        serviceClient.from("payments").select("id,user_id,amount,currency,status,plan_id,verified_at,created_at").eq("status", "success").not("verified_at", "is", null).order("verified_at", { ascending: false }).limit(2000),
       ]);
-      const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error;
+      const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error || paymentResult.error;
       if (failure) {
         console.error("Referral financial overview failed:", failure.message);
         return json({ error: "Could not load the complete referral financial overview." }, 500);
@@ -83,6 +84,7 @@ serve(async (req) => {
         ...(rewardResult.data || []).flatMap((r: any) => [r.referrer_user_id, r.referred_user_id]),
         ...(withdrawalResult.data || []).map((r: any) => r.user_id),
         ...(attributionResult.data || []).flatMap((r: any) => [r.referrer_user_id, r.referred_user_id]),
+        ...(paymentResult.data || []).map((r: any) => r.user_id),
       ].filter(Boolean))];
       const { data: profiles, error: profilesError } = ids.length
         ? await serviceClient.from("profiles").select("user_id,full_name,email,is_subscribed").in("user_id", ids)
@@ -129,6 +131,40 @@ serve(async (req) => {
         bank: Array.isArray(row.referral_bank_accounts) ? row.referral_bank_accounts[0] : row.referral_bank_accounts,
       }));
       const total = (key: string) => wallets.reduce((sum: number, row: any) => sum + Number(row[key] || 0), 0);
+      const referralPayments = (paymentResult.data || []).filter((payment: any) =>
+        (attributionResult.data || []).some((attribution: any) => attribution.referred_user_id === payment.user_id)
+      );
+      const referralPaymentIds = new Set((rewardResult.data || []).map((reward: any) => reward.payment_id));
+      const referralRevenue = referralPayments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
+      const rewardTotal = (rewardResult.data || []).reduce((sum: number, reward: any) => sum + Number(reward.amount || 0), 0);
+      const successfulPayouts = withdrawals.filter((row: any) => row.status === "success").reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
+      const monthly = new Map<string, { subscriptions: number; revenue: number; rewards: number }>();
+      for (const payment of referralPayments) {
+        const key = new Date(payment.verified_at).toISOString().slice(0, 7);
+        const current = monthly.get(key) || { subscriptions: 0, revenue: 0, rewards: 0 };
+        current.subscriptions += 1;
+        current.revenue += Number(payment.amount || 0);
+        monthly.set(key, current);
+      }
+      for (const reward of rewardResult.data || []) {
+        const payment = referralPayments.find((item: any) => item.id === reward.payment_id);
+        if (payment) {
+          const key = new Date(payment.verified_at).toISOString().slice(0, 7);
+          const current = monthly.get(key) || { subscriptions: 0, revenue: 0, rewards: 0 };
+          current.rewards += Number(reward.amount || 0);
+          monthly.set(key, current);
+        }
+      }
+      const referralPaymentsEnriched = referralPayments.map((payment: any) => {
+        const attribution = (attributionResult.data || []).find((item: any) => item.referred_user_id === payment.user_id);
+        return {
+          ...payment,
+          customer_name: profileMap.get(payment.user_id)?.full_name || "Customer",
+          customer_email: profileMap.get(payment.user_id)?.email || "",
+          referrer_name: attribution ? profileMap.get(attribution.referrer_user_id)?.full_name || "Referrer" : "Unknown",
+          reward_credited: referralPaymentIds.has(payment.id),
+        };
+      });
       return json({
         summary: {
           users: wallets.length,
@@ -137,10 +173,17 @@ serve(async (req) => {
           lifetime_earned: total("lifetime_earned"),
           lifetime_paid: total("lifetime_paid"),
           recovery_balance: total("recovery_balance"),
+          referral_subscription_revenue: referralRevenue,
+          referral_subscription_count: referralPayments.length,
+          referral_reward_cost: rewardTotal,
+          referral_payouts_paid: successfulPayouts,
+          referral_net_before_fees: referralRevenue - rewardTotal,
           rewards: rewards.length,
           withdrawals: withdrawals.length,
         },
         wallets, transactions, rewards, withdrawals,
+        referral_payments: referralPaymentsEnriched,
+        monthly_referral_performance: [...monthly.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, values]) => ({ month, ...values, net: values.revenue - values.rewards })),
         attributions: attributionResult.data || [],
       });
     }
