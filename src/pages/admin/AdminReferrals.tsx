@@ -5,10 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, RefreshCw, ShieldCheck, Loader2, Banknote } from "lucide-react";
+import { ArrowLeft, RefreshCw, ShieldCheck, Loader2, Banknote, Activity, Users, Wallet, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type CustomerControl = { user_id: string; full_name: string | null; email: string | null; withdrawals_blocked: boolean; withdrawals_block_reason: string | null; has_referral_profile: boolean };
+
+type AdminWallet = { user_id: string; customer_name: string; customer_email: string; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; updated_at: string; is_subscribed: boolean; referral_code: string | null; withdrawals_blocked: boolean; withdrawals_block_reason: string | null };
+type AdminTransaction = { id: string; user_id: string; customer_name: string; customer_email: string; transaction_type: string; amount: number; status: string; description: string | null; created_at: string };
+type AdminOverview = { summary: { users: number; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; rewards: number; withdrawals: number }; wallets: AdminWallet[]; transactions: AdminTransaction[]; rewards: any[]; withdrawals: any[] };
 
 type Withdrawal = {
   id: string;
@@ -28,7 +32,7 @@ const money = (value: number) => new Intl.NumberFormat("en-NG", {
 
 const AdminReferrals = () => {
   const { toast } = useToast();
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);\n  const [overview, setOverview] = useState<AdminOverview | null>(null);\n  const [overviewLoading, setOverviewLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customers, setCustomers] = useState<CustomerControl[]>([]);
@@ -52,7 +56,28 @@ const AdminReferrals = () => {
     setWithdrawals(data.withdrawals as Withdrawal[]);
   }, [toast]);
 
-  useEffect(() => { void loadWithdrawals(); }, [loadWithdrawals]);
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    const { data, error } = await supabase.functions.invoke("referral-admin", { body: { action: "overview" } });
+    setOverviewLoading(false);
+    if (error || !data?.summary || !Array.isArray(data.wallets)) {
+      toast({ title: "Financial overview unavailable", description: data?.error || error?.message || "Could not load wallet activity.", variant: "destructive" });
+      return;
+    }
+    setOverview(data as AdminOverview);
+  }, [toast]);
+
+  useEffect(() => { void loadWithdrawals(); void loadOverview(); }, [loadWithdrawals, loadOverview]);
+
+  useEffect(() => {
+    const channel = supabase.channel("admin-referral-financial-activity")
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_wallets" }, () => { void loadOverview(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_wallet_transactions" }, () => { void loadOverview(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_rewards" }, () => { void loadOverview(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_withdrawals" }, () => { void loadOverview(); void loadWithdrawals(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [loadOverview, loadWithdrawals]);
 
 
   const searchCustomers = async () => {
@@ -105,13 +130,52 @@ const AdminReferrals = () => {
           <Link to="/admin" className="rounded-lg p-2 hover:bg-muted"><ArrowLeft className="h-4 w-4" /></Link>
           <div className="rounded-lg bg-primary/10 p-2 text-primary"><Banknote className="h-4 w-4" /></div>
           <div className="min-w-0"><h1 className="text-sm font-bold">Referral payouts</h1><p className="text-[11px] text-muted-foreground">Review and authorise Paystack withdrawals</p></div>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => void loadWithdrawals()} disabled={loading}><RefreshCw className={"mr-2 h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} />Refresh</Button>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => { void loadWithdrawals(); void loadOverview(); }} disabled={loading || overviewLoading}><RefreshCw className={"mr-2 h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} />Refresh</Button>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl space-y-5 px-4 py-5 sm:px-6 sm:py-7">
+      <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-7">
         <section className="grid gap-3 sm:grid-cols-2">
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Legacy OTP requests to review</p><p className="mt-1 text-2xl font-bold">{legacyOtpCount}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open referral payouts</p><p className="mt-1 text-2xl font-bold">{withdrawals.length}</p></CardContent></Card>
+        </section>
+
+        <section className="space-y-3">
+          <div><h2 className="flex items-center gap-2 text-base font-bold"><Activity className="h-4 w-4" />Financial control centre</h2><p className="text-xs text-muted-foreground">Live wallet positions and the referral money trail. Amounts are in naira; refresh or use the activity stream to monitor changes.</p></div>
+          {overviewLoading && !overview ? <div className="py-8 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading financial records…</div> : overview ? <>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><Users className="h-3.5 w-3.5"/>Wallet customers</p><p className="mt-1 text-2xl font-bold tabular-nums">{overview.summary.users}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><Wallet className="h-3.5 w-3.5"/>Available wallet funds</p><p className="mt-1 text-xl font-bold tabular-nums">{money(overview.summary.available_balance)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground">Pending rewards</p><p className="mt-1 text-xl font-bold tabular-nums">{money(overview.summary.pending_balance)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5"/>Lifetime paid out</p><p className="mt-1 text-xl font-bold tabular-nums">{money(overview.summary.lifetime_paid)}</p></CardContent></Card>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Total rewards earned</p><p className="mt-1 text-lg font-bold">{money(overview.summary.lifetime_earned)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open recovery balances</p><p className="mt-1 text-lg font-bold">{money(overview.summary.recovery_balance)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Recorded referral rewards</p><p className="mt-1 text-lg font-bold">{overview.summary.rewards}</p></CardContent></Card>
+            </div>
+            <Card><CardContent className="space-y-3 p-4">
+              <div><h3 className="font-bold">All customer wallets</h3><p className="text-xs text-muted-foreground">Up to 500 most recently updated wallets. Blocked accounts retain their balances.</p></div>
+              <div className="max-h-[440px] overflow-auto rounded-lg border">
+                <table className="w-full min-w-[760px] text-left text-xs">
+                  <thead className="sticky top-0 bg-muted"><tr><th className="p-3">Customer</th><th className="p-3">Available</th><th className="p-3">Pending</th><th className="p-3">Earned</th><th className="p-3">Paid</th><th className="p-3">Account</th></tr></thead>
+                  <tbody>{overview.wallets.map((wallet) => <tr key={wallet.user_id} className="border-t">
+                    <td className="p-3"><p className="font-semibold">{wallet.customer_name}</p><p className="text-muted-foreground">{wallet.customer_email}</p></td>
+                    <td className="p-3 font-semibold tabular-nums">{money(wallet.available_balance)}</td><td className="p-3 tabular-nums">{money(wallet.pending_balance)}</td><td className="p-3 tabular-nums">{money(wallet.lifetime_earned)}</td><td className="p-3 tabular-nums">{money(wallet.lifetime_paid)}</td>
+                    <td className="p-3"><Badge variant={wallet.withdrawals_blocked ? "destructive" : wallet.is_subscribed ? "default" : "secondary"}>{wallet.withdrawals_blocked ? "Blocked" : wallet.is_subscribed ? "Subscribed" : "Not subscribed"}</Badge></td>
+                  </tr>)}</tbody>
+                </table>
+                {overview.wallets.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">No referral wallets have been created yet.</p>}
+              </div>
+            </CardContent></Card>
+            <Card><CardContent className="space-y-3 p-4">
+              <div><h3 className="font-bold">Latest wallet activity</h3><p className="text-xs text-muted-foreground">Credits, reservations, reversals and payout ledger entries.</p></div>
+              <div className="space-y-2">{overview.transactions.slice(0, 100).map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0">
+                <div className="min-w-0"><p className="text-sm font-semibold">{item.customer_name} <span className="font-normal text-muted-foreground">· {item.transaction_type.replaceAll("_", " ")}</span></p><p className="text-xs text-muted-foreground">{item.description || item.customer_email} · {new Date(item.created_at).toLocaleString()}</p></div>
+                <div className="text-right"><p className="text-sm font-bold tabular-nums">{money(item.amount)}</p><Badge variant={item.status === "posted" ? "secondary" : "outline"}>{item.status}</Badge></div>
+              </div>)}
+              {overview.transactions.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No wallet transactions recorded yet.</p>}</div>
+            </CardContent></Card>
+          </> : <p className="text-sm text-muted-foreground">Financial records could not be loaded.</p>}
         </section>
 
         <Card><CardContent className="space-y-3 p-4 sm:p-5">
