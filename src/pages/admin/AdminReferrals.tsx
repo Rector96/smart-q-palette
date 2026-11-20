@@ -32,7 +32,9 @@ const money = (value: number) => new Intl.NumberFormat("en-NG", {
 
 const AdminReferrals = () => {
   const { toast } = useToast();
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);\n  const [overview, setOverview] = useState<AdminOverview | null>(null);\n  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customers, setCustomers] = useState<CustomerControl[]>([]);
