@@ -28,6 +28,7 @@ const LiveQuiz = () => {
   const [subject, setSubject] = useState("");
   const [numQuestions, setNumQuestions] = useState(10);
   const [timePerQuestion, setTimePerQuestion] = useState(30);
+  const [gameMode, setGameMode] = useState<"group" | "duel">("group");
 
   // Join form
   const [roomCode, setRoomCode] = useState("");
@@ -68,7 +69,7 @@ const LiveQuiz = () => {
 
       // Shuffle and pick
       const shuffled = questions.sort(() => Math.random() - 0.5).slice(0, numQuestions);
-      const roomCodeGen = Math.floor(1000 + Math.random() * 9000).toString();
+      const roomCodeGen = `${gameMode === "duel" ? "D" : ""}${Math.floor(1000 + Math.random() * 9000)}`;
       const expiresAt = new Date(Date.now() + 2 * 3600000).toISOString();
 
       const { data: room, error } = await supabase.from("quiz_rooms").insert({
@@ -130,6 +131,18 @@ const LiveQuiz = () => {
         toast({ title: "Quiz expired", description: "This quiz session has expired.", variant: "destructive" });
         setLoading(false);
         return;
+      }
+
+      if (room.room_code.startsWith("D")) {
+        const { data: existingPlayers, error: playersError } = await supabase
+          .from("quiz_participants").select("user_id").eq("room_id", room.id);
+        if (playersError) throw playersError;
+        const alreadyJoined = existingPlayers?.some((player) => player.user_id === user.id);
+        if (!alreadyJoined && (existingPlayers?.length || 0) >= 2) {
+          toast({ title: "Battle is full", description: "This 1-vs-1 challenge already has two players.", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
       }
 
       // Increment free usage if not subscribed
@@ -212,6 +225,17 @@ const LiveQuiz = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <h2 className="text-xl font-extrabold">Set up your quiz</h2>
             <div className="space-y-2">
+              <Label className="text-sm font-semibold">Battle type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant={gameMode === "duel" ? "default" : "outline"} className="h-auto min-h-16 flex-col gap-1 rounded-xl" onClick={() => setGameMode("duel")}>
+                  <span className="text-sm font-bold">1-vs-1 Battle</span><span className="text-[10px] opacity-80">Challenge one friend</span>
+                </Button>
+                <Button type="button" variant={gameMode === "group" ? "default" : "outline"} className="h-auto min-h-16 flex-col gap-1 rounded-xl" onClick={() => setGameMode("group")}>
+                  <span className="text-sm font-bold">Group Quiz</span><span className="text-[10px] opacity-80">Compete with a group</span>
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
               <Label className="text-sm font-semibold">Subject</Label>
               <Select value={subject} onValueChange={setSubject}>
                 <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
@@ -231,7 +255,7 @@ const LiveQuiz = () => {
               </div>
             </div>
             <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject}>
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : "Create Room"}
+              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : gameMode === "duel" ? "Create 1-vs-1 Challenge" : "Create Group Room"}
             </Button>
           </motion.div>
         )}
