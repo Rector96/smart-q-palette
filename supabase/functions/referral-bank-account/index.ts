@@ -50,7 +50,59 @@ serve(async (req) => {
 
     if (action === "list_banks") {
       const banks = await paystack("/bank?country=nigeria&use_cursor=false&perPage=100", paystackSecret);
-      return json({ banks: (banks || []).map((bank: any) => ({ name: bank.name, code: bank.code, slug: bank.slug })) });
+      const testModeEnabled = paystackSecret.startsWith("sk_test_") &&
+        Deno.env.get("REFERRAL_TEST_BANK_VERIFICATION") === "true";
+      return json({
+        banks: (banks || []).map((bank: any) => ({ name: bank.name, code: bank.code, slug: bank.slug })),
+        test_mode_enabled: testModeEnabled,
+      });
+    }
+
+    // This creates a clearly marked Paystack test recipient only. It never
+    // performs a real account resolve and its TEST: marker prevents payouts.
+    if (action === "save_test_account") {
+      if (!paystackSecret.startsWith("sk_test_") ||
+          Deno.env.get("REFERRAL_TEST_BANK_VERIFICATION") !== "true") {
+        return json({ error: "Test bank setup is disabled." }, 403);
+      }
+      const serviceClient = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: profile, error: profileError } = await serviceClient
+        .from("referral_profiles").select("signup_full_name")
+        .eq("user_id", userId).maybeSingle();
+      if (profileError || !String(profile?.signup_full_name || "").trim()) {
+        return json({ error: "Your registered signup name is missing. Please contact support." }, 400);
+      }
+      const registeredName = String(profile.signup_full_name).trim();
+      const recipient = await paystack("/transferrecipient", paystackSecret, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "nuban",
+          name: registeredName,
+          account_number: "1000000001",
+          bank_code: "057",
+          currency: "NGN",
+        }),
+      });
+      if (!recipient?.recipient_code) {
+        return json({ error: "Paystack did not create its test recipient." }, 502);
+      }
+      const { data: saved, error: saveError } = await serviceClient
+        .from("referral_bank_accounts").insert({
+          user_id: userId,
+          bank_code: "057",
+          bank_name: "Zenith Bank (Paystack test)",
+          account_name: registeredName,
+          account_number_masked: "TEST ••••0001",
+          paystack_recipient_code: `TEST:${recipient.recipient_code}`,
+          is_verified: true,
+        }).select("id,bank_name,account_name,account_number_masked").single();
+      if (saveError) {
+        console.error("Could not save test recipient:", saveError.message);
+        return json({ error: "The test recipient was created but could not be saved." }, 500);
+      }
+      return json({ saved: true, test_mode: true, bank_account: saved });
     }
 
     const accountNumber = typeof body?.account_number === "string" ? body.account_number.trim() : "";
