@@ -62,23 +62,19 @@ const Dashboard = () => {
     const fetchData = async () => {
       const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
       if (prof) setProfile(prof);
-      const [{ data: sessions }, { data: answerHistory }] = await Promise.all([
+      const [{ data: sessions }, { data: masteryRows }] = await Promise.all([
         supabase.from("exam_sessions").select("*").eq("user_id", user.id).eq("completed", true).order("completed_at", { ascending: false }),
-        supabase.from("user_history").select("is_correct, answered_at, questions(subject, topic)").eq("user_id", user.id).order("answered_at", { ascending: false }).limit(1000),
+        supabase.from("student_topic_mastery").select("subject, topic, attempts, correct_answers, last_attempt_at").eq("user_id", user.id).order("last_attempt_at", { ascending: false }),
       ]);
-      const topicStats: Record<string, { subject: string; topic: string; correct: number; total: number }> = {};
-      (answerHistory || []).forEach((entry: any) => {
-        const subject = entry.questions?.subject;
-        const topic = entry.questions?.topic;
-        if (!subject || !topic) return;
-        const key = `${subject}::${topic}`;
-        if (!topicStats[key]) topicStats[key] = { subject, topic, correct: 0, total: 0 };
-        topicStats[key].total += 1;
-        if (entry.is_correct) topicStats[key].correct += 1;
-      });
-      setFocusTopics(Object.values(topicStats)
-        .filter((item) => item.total >= 3)
-        .map((item) => ({ ...item, accuracy: Math.round(item.correct / item.total * 100) }))
+      setFocusTopics((masteryRows || [])
+        .filter((item: any) => item.attempts >= 3)
+        .map((item: any) => ({
+          subject: item.subject,
+          topic: item.topic,
+          correct: item.correct_answers,
+          total: item.attempts,
+          accuracy: Math.round(item.correct_answers / item.attempts * 100),
+        }))
         .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total)
         .slice(0, 3));
       if (sessions && sessions.length > 0) {
