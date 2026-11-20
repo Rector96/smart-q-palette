@@ -158,7 +158,11 @@ const SelectSubjects = () => {
 
       <main className="max-w-3xl mx-auto px-4 py-6">
         <p className="text-xs text-muted-foreground mb-4">
-          {isMock ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)` : "Choose your examination, year and subject to begin practice."}
+          {mode === "revision"
+            ? "Choose a subject to review. Questions you have practised and are due to repeat will appear first."
+            : isMock
+              ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)`
+              : "Choose your examination, year and subject to begin practice."}
         </p>
 
         {catalogLoading ? (
