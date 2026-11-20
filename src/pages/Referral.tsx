@@ -43,6 +43,7 @@ const Referral = () => {
   const [bankName, setBankName] = useState("");
   const [verifiedAccountName, setVerifiedAccountName] = useState("");
   const [bankBusy, setBankBusy] = useState(false);
+  const [showBankSetup, setShowBankSetup] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("1000");
   const [withdrawBankId, setWithdrawBankId] = useState("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
@@ -145,6 +146,8 @@ const Referral = () => {
     }
     setAccountNumber("");
     setVerifiedAccountName("");
+    setShowBankSetup(false);
+    if (data?.bank_account?.id) setWithdrawBankId(data.bank_account.id);
     setBankCode("");
     setBankName("");
     await loadReferralData();
@@ -233,7 +236,7 @@ const Referral = () => {
               <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] text-muted-foreground">Available rewards</p></div></CardContent></Card>
             </div>
 
-            <Card className="rounded-2xl shadow-sm">
+            {(bankAccounts.length > 0 || showBankSetup) && <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">
                 <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Bank account</h2><p className="text-xs text-muted-foreground">Verify the account name before saving your payout account.</p></div></div>
                 {bankAccounts.map((account) => (
@@ -242,6 +245,8 @@ const Referral = () => {
                     <Badge variant="secondary">Verified</Badge>
                   </div>
                 ))}
+                {showBankSetup && <>
+                <p className="text-xs text-muted-foreground">The verified bank account holder name must match your Smart Q Palette signup name: <span className="font-semibold text-foreground">{user?.user_metadata?.full_name || "your registered full name"}</span>.</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5"><Label htmlFor="referral-bank">Bank</Label>
                     <select id="referral-bank" value={bankCode} onChange={(event) => { const selected = banks.find((item) => item.code === event.target.value); setBankCode(event.target.value); setBankName(selected?.name || ""); setVerifiedAccountName(""); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -253,12 +258,15 @@ const Referral = () => {
                 {verifiedAccountName && <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs text-muted-foreground">Paystack verified account name</p><p className="font-semibold">{verifiedAccountName}</p></div>}
                 {!verifiedAccountName ? <Button variant="outline" className="w-full" disabled={bankBusy || !banks.length} onClick={() => void verifyBank()}>{bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Verify account</Button> :
                   <Button className="w-full" disabled={bankBusy} onClick={() => void saveBank()}>{bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Confirm and save bank account</Button>}
+                </>}
+                {!showBankSetup && <Button variant="outline" className="w-full" onClick={() => setShowBankSetup(true)}>Add another bank account</Button>}
               </CardContent>
-            </Card>
+            </Card>}
 
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center gap-2"><ArrowDownToLine className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Withdraw referral earnings</h2><p className="text-xs text-muted-foreground">Minimum withdrawal is ₦1,000.</p></div></div>
+                {bankAccounts.length > 0 && <div className="mb-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Withdrawal destination: {bankAccounts.find((account) => account.id === withdrawBankId)?.account_name || "Select a verified bank account"}</div>}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5"><Label htmlFor="withdraw-amount">Amount (₦)</Label><Input id="withdraw-amount" type="number" min="1000" step="1" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} /></div>
                   <div className="space-y-1.5"><Label htmlFor="withdraw-bank">Send to</Label>
@@ -267,8 +275,8 @@ const Referral = () => {
                     </select>
                   </div>
                 </div>
-                <Button className="w-full" disabled={withdrawBusy || Number(wallet.available_balance) < 1000 || !bankAccounts.length} onClick={() => void requestWithdrawal()}>
-                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Request withdrawal
+                <Button className="w-full" disabled={withdrawBusy || Number(wallet.available_balance) < 1000} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.length ? "Request withdrawal" : "Add bank account to withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>
               </CardContent>
