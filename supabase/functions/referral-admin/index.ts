@@ -64,6 +64,74 @@ serve(async (req) => {
 
 
 
+    if (action === "overview") {
+      const [walletResult, transactionResult, rewardResult, withdrawalResult, attributionResult] = await Promise.all([
+        serviceClient.from("referral_wallets").select("user_id,pending_balance,available_balance,lifetime_earned,lifetime_paid,recovery_balance,updated_at").order("updated_at", { ascending: false }).limit(500),
+        serviceClient.from("referral_wallet_transactions").select("id,user_id,transaction_type,amount,status,reference_type,reference_id,idempotency_key,description,created_at").order("created_at", { ascending: false }).limit(500),
+        serviceClient.from("referral_rewards").select("id,payment_id,referrer_user_id,referred_user_id,amount,status,created_at,available_at,reversed_at").order("created_at", { ascending: false }).limit(500),
+        serviceClient.from("referral_withdrawals").select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at").order("requested_at", { ascending: false }).limit(500),
+        serviceClient.from("referral_attributions").select("referred_user_id,referrer_user_id,referral_code,created_at").order("created_at", { ascending: false }).limit(500),
+      ]);
+      const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error;
+      if (failure) {
+        console.error("Referral financial overview failed:", failure.message);
+        return json({ error: "Could not load the complete referral financial overview." }, 500);
+      }
+      const ids = [...new Set([
+        ...(walletResult.data || []).map((r: any) => r.user_id),
+        ...(transactionResult.data || []).map((r: any) => r.user_id),
+        ...(rewardResult.data || []).flatMap((r: any) => [r.referrer_user_id, r.referred_user_id]),
+        ...(withdrawalResult.data || []).map((r: any) => r.user_id),
+        ...(attributionResult.data || []).flatMap((r: any) => [r.referrer_user_id, r.referred_user_id]),
+      ].filter(Boolean))];
+      const { data: profiles, error: profilesError } = ids.length
+        ? await serviceClient.from("profiles").select("user_id,full_name,email,is_subscribed").in("user_id", ids)
+        : { data: [], error: null };
+      if (profilesError) return json({ error: "Customer details could not be loaded." }, 500);
+      const { data: referralProfiles, error: referralProfilesError } = ids.length
+        ? await serviceClient.from("referral_profiles").select("user_id,referral_code,withdrawals_blocked,withdrawals_block_reason,withdrawals_block_source").in("user_id", ids)
+        : { data: [], error: null };
+      if (referralProfilesError) return json({ error: "Referral account controls could not be loaded." }, 500);
+      const profileMap = new Map((profiles || []).map((r: any) => [r.user_id, r]));
+      const referralMap = new Map((referralProfiles || []).map((r: any) => [r.user_id, r]));
+      const enrich = (row: any, idField = "user_id") => ({
+        ...row,
+        customer_name: profileMap.get(row[idField])?.full_name || "Customer",
+        customer_email: profileMap.get(row[idField])?.email || "",
+      });
+      const wallets = (walletResult.data || []).map((row: any) => ({
+        ...enrich(row),
+        is_subscribed: profileMap.get(row.user_id)?.is_subscribed === true,
+        referral_code: referralMap.get(row.user_id)?.referral_code || null,
+        withdrawals_blocked: referralMap.get(row.user_id)?.withdrawals_blocked === true,
+        withdrawals_block_reason: referralMap.get(row.user_id)?.withdrawals_block_reason || null,
+      }));
+      const transactions = (transactionResult.data || []).map((row: any) => enrich(row));
+      const rewards = (rewardResult.data || []).map((row: any) => ({
+        ...row,
+        referrer_name: profileMap.get(row.referrer_user_id)?.full_name || "Customer",
+        referrer_email: profileMap.get(row.referrer_user_id)?.email || "",
+        referred_name: profileMap.get(row.referred_user_id)?.full_name || "Customer",
+        referred_email: profileMap.get(row.referred_user_id)?.email || "",
+      }));
+      const withdrawals = (withdrawalResult.data || []).map((row: any) => enrich(row));
+      const total = (key: string) => wallets.reduce((sum: number, row: any) => sum + Number(row[key] || 0), 0);
+      return json({
+        summary: {
+          users: wallets.length,
+          available_balance: total("available_balance"),
+          pending_balance: total("pending_balance"),
+          lifetime_earned: total("lifetime_earned"),
+          lifetime_paid: total("lifetime_paid"),
+          recovery_balance: total("recovery_balance"),
+          rewards: rewards.length,
+          withdrawals: withdrawals.length,
+        },
+        wallets, transactions, rewards, withdrawals,
+        attributions: attributionResult.data || [],
+      });
+    }
+
     if (action === "find_customer") {
       const query = typeof body?.query === "string" ? body.query.trim().slice(0, 120) : "";
       // Plain text searches customer names only. Search email addresses when
