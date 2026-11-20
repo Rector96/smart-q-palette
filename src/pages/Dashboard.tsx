@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES } from "@/lib/subjects";
 import {
   Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, Users
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, Users, Gift
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -170,6 +170,12 @@ const Dashboard = () => {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10"><Flame className="h-5 w-5 text-primary" /></div>
           <div className="min-w-0 flex-1"><p className="text-sm font-bold">Revision due</p><p className="text-xs text-muted-foreground">{dueReviewCount > 0 ? `${dueReviewCount} question${dueReviewCount === 1 ? "" : "s"} ready to repeat` : "You are up to date. Keep practising to build your revision list."}</p><p className="mt-1 text-[10px] text-muted-foreground">Repeat intervals: 1 → 3 → 7 → 14 → 30 days</p></div>
           <Button size="sm" variant="outline" className="shrink-0 rounded-lg" onClick={() => navigate("/select-subjects?mode=revision")}>Revise <ChevronRight className="ml-1 h-4 w-4" /></Button>
+        </CardContent></Card>
+
+        <Card className="rounded-2xl border-primary/15 shadow-sm"><CardContent className="flex items-center gap-3 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10"><Gift className="h-5 w-5 text-primary" /></div>
+          <div className="min-w-0 flex-1"><p className="text-sm font-bold">Refer & Earn ₦500</p><p className="text-xs text-muted-foreground">Invite friends and earn when they make a verified payment.</p></div>
+          <Button size="sm" variant="outline" className="shrink-0 rounded-lg" onClick={() => navigate("/referrals")}>View <ChevronRight className="ml-1 h-4 w-4" /></Button>
         </CardContent></Card>
 
         <Card data-tour="ai-tutor" className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}><CardContent className="p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
