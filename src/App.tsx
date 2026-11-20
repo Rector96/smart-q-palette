@@ -42,6 +42,7 @@ const AdminContent = lazy(() => import("./pages/admin/AdminContent"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminLibrary = lazy(() => import("./pages/admin/AdminLibrary"));
 const AdminEmail = lazy(() => import("./pages/admin/AdminEmail"));
+const AdminReferrals = lazy(() => import("./pages/admin/AdminReferrals"));
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
               <Route path="/admin/library" element={<AdminRoute><AdminLibrary /></AdminRoute>} />
               <Route path="/admin/email" element={<AdminRoute><AdminEmail /></AdminRoute>} />
+              <Route path="/admin/referrals" element={<AdminRoute><AdminReferrals /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
