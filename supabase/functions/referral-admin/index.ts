@@ -62,6 +62,54 @@ serve(async (req) => {
       return json({ withdrawals });
     }
 
+
+    if (action === "set_withdrawal_block") {
+      const targetUserId = typeof body?.user_id === "string" ? body.user_id : "";
+      const blocked = body?.blocked === true;
+      const reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+      if (!targetUserId) return json({ error: "Select a customer account." }, 400);
+      if (blocked && reason.length < 5) return json({ error: "Enter a clear reason of at least 5 characters before blocking withdrawals." }, 400);
+
+      const { data: target, error: targetError } = await serviceClient
+        .from("referral_profiles").select("user_id").eq("user_id", targetUserId).maybeSingle();
+      if (targetError || !target) return json({ error: "Referral customer account was not found." }, 404);
+
+      const { error: updateError } = await serviceClient.from("referral_profiles").update({
+        withdrawals_blocked: blocked,
+        withdrawals_block_reason: blocked ? reason : null,
+        withdrawals_blocked_at: blocked ? new Date().toISOString() : null,
+        withdrawals_blocked_by: blocked ? authData.user.id : null,
+      }).eq("user_id", targetUserId);
+      if (updateError) {
+        console.error("Could not update referral withdrawal restriction:", updateError.message);
+        return json({ error: "Could not update this customer's withdrawal access." }, 500);
+      }
+
+      const { error: auditError } = await serviceClient.from("referral_admin_audit").insert({
+        actor_user_id: authData.user.id,
+        target_user_id: targetUserId,
+        action: blocked ? "withdrawals_blocked" : "withdrawals_unblocked",
+        reason: blocked ? reason : null,
+      });
+      if (auditError) {
+        console.error("Could not record referral admin action:", auditError.message);
+        return json({ error: "The restriction was changed, but its audit record could not be saved. Contact technical support." }, 500);
+      }
+      return json({ updated: true, blocked, message: blocked
+        ? "Withdrawals are now blocked for this customer. Their earned balance remains untouched."
+        : "Withdrawals are now enabled for this customer." });
+    }
+
+    if (action === "get_withdrawal_control") {
+      const targetUserId = typeof body?.user_id === "string" ? body.user_id : "";
+      if (!targetUserId) return json({ error: "Select a customer account." }, 400);
+      const { data: control, error: controlError } = await serviceClient.from("referral_profiles")
+        .select("user_id,withdrawals_blocked,withdrawals_block_reason,withdrawals_blocked_at")
+        .eq("user_id", targetUserId).maybeSingle();
+      if (controlError || !control) return json({ error: "Customer withdrawal controls could not be loaded." }, 404);
+      return json({ control });
+    }
+
     if (action === "finalize_otp") {
       const withdrawalId = typeof body?.withdrawal_id === "string" ? body.withdrawal_id : "";
       const otp = typeof body?.otp === "string" ? body.otp.trim() : "";
