@@ -2,11 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Shield, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Shield, ArrowLeft } from "lucide-react";
 
 interface Payment {
   id: string;
@@ -21,7 +19,6 @@ interface Payment {
 const AdminPayments = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -31,15 +28,6 @@ const AdminPayments = () => {
   };
 
   useEffect(() => { fetchPayments(); }, []);
-
-  const updateStatus = async (paymentId: string, userId: string, status: "success" | "failed") => {
-    await supabase.from("payments").update({ status, verified_at: new Date().toISOString() } as any).eq("id", paymentId);
-    if (status === "success") {
-      await supabase.from("profiles").update({ is_subscribed: true } as any).eq("user_id", userId);
-    }
-    toast({ title: status === "success" ? "Payment approved & user upgraded" : "Payment rejected" });
-    fetchPayments();
-  };
 
   const statusColor = (s: string) => s === "success" ? "default" : s === "pending" ? "secondary" : "destructive";
 
@@ -79,14 +67,7 @@ const AdminPayments = () => {
                     <TableCell className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {p.status === "pending" && (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateStatus(p.id, p.user_id, "success")}>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateStatus(p.id, p.user_id, "failed")}>
-                            <XCircle className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </div>
+                        <Badge variant="outline" className="text-[10px]">Awaiting secure verification</Badge>
                       )}
                     </TableCell>
                   </TableRow>
