@@ -272,11 +272,16 @@ const QuizRoom = () => {
       <div className="min-h-screen bg-background px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto space-y-6">
           <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-card p-7 text-center shadow-sm">
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><Trophy className="h-9 w-9 text-primary" /></div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Battle finished</p>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight">Quiz Complete!</h1>
             <p className="mt-1 text-sm text-muted-foreground">Here is how everyone performed</p>
-            <div className="mt-4 flex justify-center gap-5 text-xs text-muted-foreground"><span>{participants.length} players</span><span>{questions.length} questions</span></div>
+            <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs">
+              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">{participants.length} players</span>
+              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">{questions.length} questions</span>
+              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">Final leaderboard</span>
+            </div>
           </div>
           <div className="space-y-2">
             {sorted.map((p, i) => (
@@ -293,7 +298,10 @@ const QuizRoom = () => {
               </Card>
             ))}
           </div>
-          <Button className="h-12 w-full rounded-xl text-base font-bold shadow-md" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Button className="h-12 w-full rounded-xl text-base font-bold shadow-md" onClick={() => navigate("/live-quiz")}>Create another quiz</Button>
+            <Button variant="outline" className="h-12 w-full rounded-xl text-base font-bold" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          </div>
         </div>
       </div>
     );
@@ -309,6 +317,7 @@ const QuizRoom = () => {
           </Button>
 
           <div className="text-center space-y-3">
+            <div className="mx-auto mb-2 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Room is open</div>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 shadow-inner">
               <Users className="h-7 w-7 text-primary" />
             </div>
@@ -321,7 +330,8 @@ const QuizRoom = () => {
             <CardContent className="space-y-3 p-6 text-center">
               <p className="text-xs text-muted-foreground font-medium">Room Code</p>
               <p className="text-4xl font-black tracking-[0.35em] text-primary sm:text-5xl">{roomCode}</p>
-              <div className="flex items-center justify-center gap-2 pt-1">
+              <p className="text-xs text-muted-foreground">Invite friends to join this room and compete in real time.</p>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                 <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl px-4 text-xs" onClick={copyRoomCode}>
                   <Copy className="h-3 w-3" /> {copied ? "Copied!" : "Copy Code"}
                 </Button>
@@ -334,7 +344,7 @@ const QuizRoom = () => {
 
           {/* Participants */}
           <div>
-            <div className="mb-3 flex items-center justify-between"><p className="text-sm font-bold">Players in the room</p><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{participants.length} joined</span></div>
+            <div className="mb-3 flex items-center justify-between gap-2"><div><p className="text-sm font-bold">Players in the room</p><p className="text-xs text-muted-foreground">Your competition is gathering</p></div><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{participants.length} joined</span></div>
             <div className="space-y-1.5">
               {participants.map(p => (
                 <Card key={p.id} className="rounded-xl border-border/60 shadow-sm">
@@ -381,16 +391,21 @@ const QuizRoom = () => {
 
       {/* Header */}
       <div className="sticky top-0 z-30 border-b border-border/70 bg-card/95 px-4 py-3 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">{room.subject} · Live battle</span>
+            <div className="flex items-center gap-2">
             <span className="text-xs font-extrabold tracking-wide text-foreground">QUESTION {currentQ + 1}<span className="font-medium text-muted-foreground"> / {questions.length}</span></span>
             <div className="h-2 w-24 overflow-hidden rounded-full bg-secondary sm:w-32">
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:inline-flex"><Users className="mr-1 h-3 w-3" />{participants.length} playing</span>
+            <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5">
             <Clock className={cn("h-3.5 w-3.5", timeLeft <= 5 ? "text-destructive" : "text-muted-foreground")} />
-            <span className={cn("text-sm font-bold tabular-nums", timeLeft <= 5 && "text-destructive")}>{timeLeft}s</span>
+            <span className={cn("text-sm font-extrabold tabular-nums", timeLeft <= 5 && "text-destructive")}>{timeLeft}s</span>
+            </div>
           </div>
         </div>
         {/* Timer bar */}
@@ -408,6 +423,7 @@ const QuizRoom = () => {
         </motion.div>
 
         <div className="space-y-2">
+          <p className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Choose your answer</p>
           {["A", "B", "C", "D"].map(opt => {
             const optKey = `option_${opt.toLowerCase()}` as keyof QuizQuestion;
             const text = currentQuestion[optKey] as string;
@@ -422,7 +438,7 @@ const QuizRoom = () => {
             }
 
             return (
-              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("cursor-pointer rounded-2xl transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none")} onClick={() => handleAnswer(opt)}>
+              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("cursor-pointer rounded-2xl transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none", !answered && "hover:-translate-y-0.5 hover:shadow-md")} onClick={() => handleAnswer(opt)}>
                 <CardContent className="flex min-h-[64px] items-center gap-4 p-4 sm:p-5">
                   <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold", showResult && isCorrect ? "bg-[hsl(var(--success))] text-white" : showResult && isSelected ? "bg-destructive text-white" : "bg-secondary")}>
                     {showResult && isCorrect ? <CheckCircle2 className="h-4 w-4" /> : showResult && isSelected ? <XCircle className="h-4 w-4" /> : opt}
