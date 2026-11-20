@@ -216,3 +216,71 @@ drop trigger if exists referral_bank_accounts_set_updated_at on public.referral_
 create trigger referral_bank_accounts_set_updated_at
   before update on public.referral_bank_accounts
   for each row execute function private.set_referral_wallet_updated_at();
+
+
+-- Credit one ₦500 referral reward after a verified ₦2,500 payment.
+-- The unique payment_id and ledger idempotency key make webhook retries safe.
+create or replace function public.credit_referral_reward(p_payment_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_payment public.payments%rowtype;
+  v_referrer uuid;
+  v_reward_id uuid;
+begin
+  select * into v_payment
+  from public.payments
+  where id = p_payment_id
+  for update;
+
+  if not found then
+    return jsonb_build_object('credited', false, 'reason', 'payment_not_found');
+  end if;
+
+  if v_payment.status <> 'success'
+     or v_payment.currency <> 'NGN'
+     or v_payment.amount <> 2500 then
+    return jsonb_build_object('credited', false, 'reason', 'payment_not_eligible');
+  end if;
+
+  select a.referrer_user_id into v_referrer
+  from public.referral_attributions a
+  where a.referred_user_id = v_payment.user_id;
+
+  if v_referrer is null or v_referrer = v_payment.user_id then
+    return jsonb_build_object('credited', false, 'reason', 'no_valid_referrer');
+  end if;
+
+  insert into public.referral_rewards
+    (payment_id, referrer_user_id, referred_user_id, amount, status, available_at)
+  values
+    (v_payment.id, v_referrer, v_payment.user_id, 500, 'available', now())
+  on conflict (payment_id) do nothing
+  returning id into v_reward_id;
+
+  if v_reward_id is null then
+    return jsonb_build_object('credited', false, 'reason', 'already_credited');
+  end if;
+
+  insert into public.referral_wallets(user_id, available_balance, lifetime_earned)
+  values (v_referrer, 500, 500)
+  on conflict (user_id) do update
+    set available_balance = public.referral_wallets.available_balance + 500,
+        lifetime_earned = public.referral_wallets.lifetime_earned + 500;
+
+  insert into public.referral_wallet_transactions
+    (user_id, transaction_type, amount, status, reference_type, reference_id, idempotency_key, description)
+  values
+    (v_referrer, 'reward_available', 500, 'posted', 'referral_reward', v_reward_id,
+     'referral-reward:' || v_payment.id::text,
+     '₦500 referral reward for a verified ₦2,500 payment');
+
+  return jsonb_build_object('credited', true, 'reward_id', v_reward_id, 'amount', 500);
+end;
+$$;
+
+revoke all on function public.credit_referral_reward(uuid) from public, anon, authenticated;
+grant execute on function public.credit_referral_reward(uuid) to service_role;
