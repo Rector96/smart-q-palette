@@ -268,6 +268,8 @@ const QuizRoom = () => {
   // ENDED
   if (quizEnded) {
     const sorted = [...participants].sort((a, b) => b.score - a.score);
+    const winner = sorted[0];
+    const myRank = sorted.findIndex((p) => p.user_id === user?.id) + 1;
     return (
       <div className="min-h-screen bg-background px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto space-y-6">
@@ -277,6 +279,15 @@ const QuizRoom = () => {
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Battle finished</p>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight">Quiz Complete!</h1>
             <p className="mt-1 text-sm text-muted-foreground">Here is how everyone performed</p>
+            {winner && (
+              <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-primary/20 bg-background/70 p-4">
+                <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10"><Crown className="h-5 w-5 text-primary" /></div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Quiz champion</p>
+                <p className="mt-1 text-lg font-extrabold">{winner.display_name}{winner.user_id === user?.id ? " · You" : ""}</p>
+                <p className="text-sm font-semibold text-muted-foreground">{winner.score} points</p>
+                {myRank > 0 && <p className="mt-3 border-t border-border/60 pt-3 text-xs font-semibold text-foreground">Your finish: #{myRank} of {participants.length}</p>}
+              </div>
+            )}
             <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs">
               <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">{participants.length} players</span>
               <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">{questions.length} questions</span>
@@ -285,13 +296,15 @@ const QuizRoom = () => {
           </div>
           <div className="space-y-2">
             {sorted.map((p, i) => (
-              <Card key={p.id} className={cn("overflow-hidden rounded-2xl border-border/60 shadow-sm transition-transform", i === 0 && "border-primary/50 bg-primary/5 ring-1 ring-primary/20")}>
+              <Card key={p.id} className={cn("overflow-hidden rounded-2xl border-border/60 shadow-sm transition-transform", i === 0 && "border-primary/50 bg-primary/5 ring-1 ring-primary/20", p.user_id === user?.id && "ring-1 ring-primary/30")}>
                 <CardContent className="flex items-center gap-3 p-4">
                   <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0", i === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground")}>
                     {i === 0 ? <Crown className="h-4 w-4" /> : i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{p.display_name} {p.user_id === user?.id && "(You)"}</p>
+                    {i === 0 && <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-primary"><Crown className="h-3 w-3" /> Champion</span>}
+                    {p.user_id === user?.id && <span className="mt-0.5 block text-[10px] font-semibold text-primary">Your result</span>}
                   </div>
                   <p className="text-sm font-bold text-primary">{p.score} pts</p>
                 </CardContent>
