@@ -49,6 +49,7 @@ Deno.serve(async (req: Request) => {
     const examination = requestedExamination || "JAMB";
     const examYear = body.year === null || body.year === undefined || body.year === "" ? null : Number(body.year);
     const count = Math.max(1, Math.min(Number(body.count) || 60, 60));
+    const adaptive = body.adaptive === true && (mode === "practice" || mode === "revision");
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
     if (!["JAMB", "WAEC", "NECO"].includes(examination)) return respond({ error: "Choose JAMB, WAEC or NECO." }, 400);
     if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1990 || examYear > new Date().getFullYear())) return respond({ error: "Choose a valid examination year." }, 400);
@@ -84,19 +85,69 @@ Deno.serve(async (req: Request) => {
         unseen = shuffled;
       }
       const pool = mode === "revision" ? [...shuffle(previouslySeen), ...shuffle(unseen)] : [...shuffle(unseen), ...shuffle(previouslySeen)];
-      const chosen = pool.slice(0, count);
-      const easy = shuffle(chosen.filter((q) => q.difficulty === "easy"));
-      const medium = shuffle(chosen.filter((q) => q.difficulty === "medium"));
-      const hard = shuffle(chosen.filter((q) => q.difficulty === "hard"));
-      const targetEasy = Math.round(chosen.length * 0.3);
-      const targetHard = Math.round(chosen.length * 0.2);
-      const balanced = [
-        ...easy.slice(0, targetEasy),
-        ...medium.slice(0, Math.max(0, chosen.length - targetEasy - targetHard)),
-        ...hard.slice(0, targetHard),
-      ];
-      const fill = chosen.filter((q) => !balanced.some((b) => b.id === q.id));
-      allQuestions.push(...shuffle([...balanced, ...fill]).slice(0, count));
+
+      if (adaptive) {
+        const { data: masteryRows, error: masteryError } = await admin.from("student_topic_mastery")
+          .select("topic, attempts, correct_answers")
+          .eq("user_id", user.id)
+          .ilike("subject", subject);
+        if (masteryError) return respond({ error: "Could not load your learning profile. Please try standard practice or try again." }, 500);
+
+        const masteryByTopic = new Map((masteryRows ?? []).map((row) => [
+          String(row.topic ?? "").trim().toLowerCase(),
+          { attempts: Number(row.attempts) || 0, accuracy: Number(row.attempts) > 0 ? Number(row.correct_answers) / Number(row.attempts) : 0 },
+        ]));
+        const topicGroups = new Map<string, any[]>();
+        for (const question of pool) {
+          const topicKey = String(question.topic ?? "").trim().toLowerCase() || "__general__";
+          if (!topicGroups.has(topicKey)) topicGroups.set(topicKey, []);
+          topicGroups.get(topicKey)!.push(question);
+        }
+
+        const groups = [...topicGroups.entries()].map(([topicKey, questions]) => {
+          const mastery = masteryByTopic.get(topicKey);
+          const attempts = mastery?.attempts ?? 0;
+          const accuracy = mastery?.accuracy ?? 0.5;
+          const targetDifficulty = attempts >= 3 && accuracy < 0.4
+            ? "easy"
+            : attempts >= 5 && accuracy >= 0.75
+              ? "hard"
+              : "medium";
+          const preferred = shuffle(questions.filter((q) => q.difficulty === targetDifficulty));
+          const fallback = shuffle(questions.filter((q) => q.difficulty !== targetDifficulty));
+          return {
+            questions: [...preferred, ...fallback],
+            priority: attempts >= 3 ? accuracy : 0.5,
+          };
+        }).sort((a, b) => a.priority - b.priority);
+
+        const chosen: any[] = [];
+        let round = 0;
+        while (chosen.length < count && groups.some((group) => group.questions.length > 0)) {
+          for (const group of groups) {
+            if (chosen.length >= count) break;
+            const next = group.questions.shift();
+            if (next) chosen.push(next);
+          }
+          round++;
+          if (round > count) break;
+        }
+        allQuestions.push(...shuffle(chosen));
+      } else {
+        const chosen = pool.slice(0, count);
+        const easy = shuffle(chosen.filter((q) => q.difficulty === "easy"));
+        const medium = shuffle(chosen.filter((q) => q.difficulty === "medium"));
+        const hard = shuffle(chosen.filter((q) => q.difficulty === "hard"));
+        const targetEasy = Math.round(chosen.length * 0.3);
+        const targetHard = Math.round(chosen.length * 0.2);
+        const balanced = [
+          ...easy.slice(0, targetEasy),
+          ...medium.slice(0, Math.max(0, chosen.length - targetEasy - targetHard)),
+          ...hard.slice(0, targetHard),
+        ];
+        const fill = chosen.filter((q) => !balanced.some((b) => b.id === q.id));
+        allQuestions.push(...shuffle([...balanced, ...fill]).slice(0, count));
+      }
     }
     if (!allQuestions.length) return respond({ error: "No questions are available for the selected subjects." }, 404);
 
