@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const QUESTION_PRESETS = [10, 20, 40, 60];
 type ExamType = "JAMB" | "WAEC" | "NECO";
@@ -200,10 +201,20 @@ const SelectSubjects = () => {
                       <CalendarDays className="h-4 w-4 text-primary" />
                       <Label className="text-sm font-semibold">Select Year</Label>
                     </div>
-                    <select value={selectedYear} onChange={(e) => handleYearChange(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring">
-                      <option value="all">All available years</option>
-                      {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
-                    </select>
+                    <Select value={selectedYear} onValueChange={handleYearChange}>
+                      <SelectTrigger aria-label="Select year" className="h-10 w-full">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent
+                        align="start"
+                        side="bottom"
+                        sideOffset={4}
+                        className="w-[var(--radix-select-trigger-width)] min-w-0"
+                      >
+                        <SelectItem value="all">All available years</SelectItem>
+                        {availableYears.map((year) => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[10px] text-muted-foreground">Choose a year or practise across all available years.</p>
                   </CardContent>
                 </Card>
@@ -303,7 +314,7 @@ const SelectSubjects = () => {
             </div>
           </motion.div>
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="scroll-mb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]" />
       </main>
     </div>
   );
