@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, Sparkles, User, BookOpen, Shield, Users } from "lucide-react";
+import { Home, BarChart3, Sparkles, User, BookOpen, Shield, Users, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { path: "/library", label: "Library", icon: BookOpen },
   { path: "/live-quiz", label: "Live Quiz", icon: Users },
   { path: "/profile", label: "Profile", icon: User },
+  { path: "/referrals", label: "Refer & Earn", icon: Gift },
 ];
 
 const DesktopSidebar = () => {

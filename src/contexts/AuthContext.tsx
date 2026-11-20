@@ -23,6 +23,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const welcomeEmailSent = useRef(false);
 
   useEffect(() => {
+    // Preserve a referral code while a visitor moves from the referral landing
+    // page to signup. The database trigger validates the code against its owner.
+    const referralFromUrl = new URLSearchParams(window.location.search).get("ref");
+    if (referralFromUrl && /^[A-Z0-9]{10,16}$/i.test(referralFromUrl)) {
+      window.sessionStorage.setItem("sqp_referral_code", referralFromUrl.toUpperCase());
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -55,14 +62,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    const referralCode = window.sessionStorage.getItem("sqp_referral_code");
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          ...(referralCode ? { referral_code: referralCode } : {}),
+        },
         emailRedirectTo: window.location.origin,
       },
     });
+    if (!error) window.sessionStorage.removeItem("sqp_referral_code");
     return { error: error as Error | null };
   };
 
