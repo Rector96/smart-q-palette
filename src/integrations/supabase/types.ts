@@ -297,6 +297,7 @@ export type Database = {
           correct_answer: string
           created_at: string
           difficulty: string
+          examination: string | null
           exam_hint: string | null
           explanation: string | null
           id: string
@@ -315,6 +316,7 @@ export type Database = {
           correct_answer: string
           created_at?: string
           difficulty?: string
+          examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
           id?: string
@@ -333,6 +335,7 @@ export type Database = {
           correct_answer?: string
           created_at?: string
           difficulty?: string
+          examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
           id?: string

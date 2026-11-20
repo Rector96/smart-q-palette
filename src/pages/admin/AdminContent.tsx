@@ -15,6 +15,8 @@ import { Progress } from "@/components/ui/progress";
 
 interface CSVQuestion {
   subject: string;
+  examination: string;
+  year: number;
   question_text: string;
   option_a: string;
   option_b: string;
@@ -27,10 +29,10 @@ interface CSVQuestion {
 }
 
 const AdminContent = () => {
-  const [subjectCounts, setSubjectCounts] = useState<Record<string, number>>({});
+  const [subjectCounts, setSubjectCounts] = useState<Record<string, { total: number; byYear: Record<string, number> }>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [showCSV, setShowCSV] = useState(false);
-  const [form, setForm] = useState({ subject: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -40,12 +42,31 @@ const AdminContent = () => {
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvProgress, setCsvProgress] = useState(0);
   const [csvSubject, setCsvSubject] = useState("");
+  const [csvExamination, setCsvExamination] = useState("JAMB");
+  const [csvYear, setCsvYear] = useState("");
 
   const fetchCounts = async () => {
-    const counts: Record<string, number> = {};
-    for (const s of SUBJECTS) {
-      const { count } = await supabase.from("questions").select("*", { count: "exact", head: true }).eq("subject", s.id);
-      counts[s.id] = count || 0;
+    const counts: Record<string, { total: number; byYear: Record<string, number> }> = {};
+    SUBJECTS.forEach((subject) => { counts[subject.id] = { total: 0, byYear: {} }; });
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from("questions")
+        .select("subject,year,examination")
+        .order("subject")
+        .range(offset, offset + pageSize - 1);
+      if (error) {
+        toast({ title: "Could not load question counts", description: error.message, variant: "destructive" });
+        break;
+      }
+      (data || []).forEach((question) => {
+        const subject = String(question.subject || "").toLowerCase();
+        if (!counts[subject]) counts[subject] = { total: 0, byYear: {} };
+        counts[subject].total += 1;
+        const yearKey = question.year ? `${question.examination || "Other"} · ${question.year}` : "Year not set";
+        counts[subject].byYear[yearKey] = (counts[subject].byYear[yearKey] || 0) + 1;
+      });
+      if (!data || data.length < pageSize) break;
     }
     setSubjectCounts(counts);
   };
@@ -53,16 +74,17 @@ const AdminContent = () => {
   useEffect(() => { fetchCounts(); }, []);
 
   const handleAdd = async () => {
-    if (!form.subject || !form.question_text || !form.option_a) {
+    const questionYear = Number(form.year);
+    if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a) {
       toast({ title: "Fill required fields", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("questions").insert(form as any);
+    const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination } as any);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Question added!" });
-      setForm({ subject: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+      setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
       setShowAdd(false);
       fetchCounts();
     }
@@ -94,6 +116,8 @@ const AdminContent = () => {
       topic: headerNorm.findIndex(h => h === "topic"),
       explanation: headerNorm.findIndex(h => h === "explanation"),
       examHint: headerNorm.findIndex(h => h.includes("hint")),
+      examination: headerNorm.findIndex(h => h === "examination" || h === "exam"),
+      year: headerNorm.findIndex(h => h === "year"),
     };
 
     const errors: string[] = [];
@@ -126,9 +150,23 @@ const AdminContent = () => {
       const optC = vals[colMap.optionC]?.trim();
       const optD = vals[colMap.optionD]?.trim();
       const correct = vals[colMap.correct]?.trim().toUpperCase();
+      const examination = (colMap.examination >= 0 ? vals[colMap.examination]?.trim().toUpperCase() : csvExamination) || csvExamination;
+      const year = Number((colMap.year >= 0 ? vals[colMap.year]?.trim() : csvYear) || 0);
 
+      if (!(subj || csvSubject)) {
+        errors.push(`Row ${i + 1}: Select or provide a subject`);
+        continue;
+      }
       if (!question || !optA || !optB || !optC || !optD || !correct) {
         errors.push(`Row ${i + 1}: Missing required fields`);
+        continue;
+      }
+      if (!["JAMB", "WAEC", "NECO"].includes(examination)) {
+        errors.push(`Row ${i + 1}: Examination must be JAMB, WAEC or NECO`);
+        continue;
+      }
+      if (!Number.isInteger(year) || year < 1990 || year > new Date().getFullYear()) {
+        errors.push(`Row ${i + 1}: Enter a valid examination year (1990–${new Date().getFullYear()})`);
         continue;
       }
       if (!["A", "B", "C", "D"].includes(correct)) {
@@ -138,6 +176,8 @@ const AdminContent = () => {
 
       parsed.push({
         subject: (subj || csvSubject).toLowerCase(),
+        examination,
+        year,
         question_text: question,
         option_a: optA,
         option_b: optB,
@@ -178,6 +218,8 @@ const AdminContent = () => {
     for (let i = 0; i < csvData.length; i += batchSize) {
       const batch = csvData.slice(i, i + batchSize).map(q => ({
         subject: q.subject,
+        examination: q.examination,
+        year: q.year,
         question_text: q.question_text,
         option_a: q.option_a,
         option_b: q.option_b,
@@ -242,16 +284,27 @@ const AdminContent = () => {
                 <h3 className="text-sm font-bold">Bulk Upload via CSV</h3>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer (optional: Topic, Explanation, ExamHint)
+                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: Examination, Year, Topic, Explanation, ExamHint. Choose defaults below when those columns are omitted.
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <Label className="text-xs">Default Subject (if not in CSV)</Label>
                   <Select value={csvSubject} onValueChange={setCsvSubject}>
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select subject" /></SelectTrigger>
                     <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>)}</SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Examination (default)</Label>
+                  <Select value={csvExamination} onValueChange={setCsvExamination}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>{["JAMB", "WAEC", "NECO"].map((exam) => <SelectItem key={exam} value={exam}>{exam}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Year (default)</Label>
+                  <Input type="number" min="1990" max={new Date().getFullYear()} value={csvYear} onChange={(e) => setCsvYear(e.target.value)} placeholder="e.g. 2024" className="h-9 text-xs" />
                 </div>
                 <div>
                   <Label className="text-xs">CSV File</Label>
@@ -283,6 +336,7 @@ const AdminContent = () => {
                       <thead className="bg-muted/50 sticky top-0">
                         <tr>
                           <th className="p-2 text-left">#</th>
+                          <th className="p-2 text-left">Exam / Year</th>
                           <th className="p-2 text-left">Subject</th>
                           <th className="p-2 text-left">Question</th>
                           <th className="p-2 text-left">Answer</th>
@@ -292,6 +346,7 @@ const AdminContent = () => {
                         {csvData.slice(0, 20).map((q, i) => (
                           <tr key={i} className="border-t border-border/50">
                             <td className="p-2">{i + 1}</td>
+                            <td className="p-2">{q.examination} {q.year}</td>
                             <td className="p-2">{q.subject}</td>
                             <td className="p-2 max-w-[200px] truncate">{q.question_text}</td>
                             <td className="p-2">{q.correct_answer}</td>
@@ -323,6 +378,17 @@ const AdminContent = () => {
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select subject" /></SelectTrigger>
                     <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>)}</SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Examination</Label>
+                  <Select value={form.examination} onValueChange={(v) => setForm({ ...form, examination: v })}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>{["JAMB", "WAEC", "NECO"].map((exam) => <SelectItem key={exam} value={exam}>{exam}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Year</Label>
+                  <Input type="number" min="1990" max={new Date().getFullYear()} value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="e.g. 2024" className="h-9 text-xs" />
                 </div>
                 <div>
                   <Label className="text-xs">Topic</Label>
@@ -366,17 +432,43 @@ const AdminContent = () => {
           </Card>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {SUBJECTS.map((s) => (
-            <Card key={s.id} className="border-border/50">
-              <CardContent className="p-4 text-center">
-                <BookOpen className="h-5 w-5 mx-auto mb-1 text-primary" />
-                <p className="text-xs font-medium">{s.name}</p>
-                <Badge variant="secondary" className="text-[10px] mt-1">{subjectCounts[s.id] || 0} questions</Badge>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold">Question Bank by Subject and Year</h2>
+            <p className="text-[11px] text-muted-foreground">Track how many questions are available for each examination year. Counts include all questions in the admin bank.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {SUBJECTS.map((s) => {
+              const summary = subjectCounts[s.id] || { total: 0, byYear: {} };
+              const yearEntries = Object.entries(summary.byYear).sort((a, b) => b[0].localeCompare(a[0], undefined, { numeric: true }));
+              return (
+                <Card key={s.id} className="border-border/50">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <BookOpen className="h-4 w-4 shrink-0 text-primary" />
+                        <p className="text-xs font-semibold truncate">{s.name}</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">{summary.total} total</Badge>
+                    </div>
+                    {yearEntries.length ? (
+                      <div className="space-y-1 border-t border-border/60 pt-2">
+                        {yearEntries.map(([year, count]) => (
+                          <div key={year} className="flex items-center justify-between text-[11px]">
+                            <span className="text-muted-foreground">{year}</span>
+                            <span className="font-semibold tabular-nums">{count} questions</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="border-t border-border/60 pt-2 text-[11px] text-muted-foreground">No questions added yet.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
       </main>
     </div>
   );
