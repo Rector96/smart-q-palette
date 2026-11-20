@@ -277,7 +277,7 @@ const Referral = () => {
                     </div>
                   </div>
                 </> : <p className="text-sm text-muted-foreground">Add a bank account in your name to continue. We will verify it before any withdrawal.</p>}
-                <Button className="w-full" disabled={withdrawBusy || Number(wallet.available_balance) < 1000} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                <Button className="w-full" disabled={withdrawBusy || (bankAccounts.length > 0 && Number(wallet.available_balance) < 1000)} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
                   {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.length ? "Request withdrawal" : "Withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>
