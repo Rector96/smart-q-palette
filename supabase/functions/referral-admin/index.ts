@@ -66,11 +66,14 @@ serve(async (req) => {
 
     if (action === "find_customer") {
       const query = typeof body?.query === "string" ? body.query.trim().slice(0, 120) : "";
-      if (query.length < 3) return json({ error: "Enter at least 3 characters to search." }, 400);
-      const safeQuery = query.replace(/[%,()]/g, "").trim();
+      // Treat user input as literal text: PostgREST ILIKE wildcards must not
+      // turn a search into a match-all query.
+      const safeQuery = query.replace(/[%,_()]/g, "").trim();
+      if (safeQuery.length < 3) return json({ error: "Enter at least 3 valid letters or numbers to search." }, 400);
+      const pattern = `%${safeQuery}%`;
       const [nameSearch, emailSearch] = await Promise.all([
-        serviceClient.from("profiles").select("user_id,full_name,email").ilike("full_name", `%${safeQuery}%`).limit(10),
-        serviceClient.from("profiles").select("user_id,full_name,email").ilike("email", `%${safeQuery}%`).limit(10),
+        serviceClient.from("profiles").select("user_id,full_name,email").ilike("full_name", pattern).limit(50),
+        serviceClient.from("profiles").select("user_id,full_name,email").ilike("email", pattern).limit(50),
       ]);
       if (nameSearch.error || emailSearch.error) {
         console.error("Referral customer search failed:", nameSearch.error?.message || emailSearch.error?.message);
@@ -78,7 +81,7 @@ serve(async (req) => {
       }
       const profileMapById = new Map<string, any>();
       [...(nameSearch.data || []), ...(emailSearch.data || [])].forEach((profile: any) => profileMapById.set(profile.user_id, profile));
-      const profiles = [...profileMapById.values()].slice(0, 10);
+      const profiles = [...profileMapById.values()].slice(0, 50);
       const userIds = profiles.map((profile: any) => profile.user_id);
       const { data: controls, error: controlsError } = userIds.length
         ? await serviceClient.from("referral_profiles")
@@ -87,7 +90,7 @@ serve(async (req) => {
         : { data: [], error: null };
       if (controlsError) return json({ error: "Customer withdrawal controls could not be loaded." }, 500);
       const controlMap = new Map((controls || []).map((control: any) => [control.user_id, control]));
-      return json({ customers: (profiles || []).map((profile: any) => ({
+      return json({ customers: profiles.map((profile: any) => ({
         ...profile,
         withdrawals_blocked: controlMap.get(profile.user_id)?.withdrawals_blocked === true,
         withdrawals_block_reason: controlMap.get(profile.user_id)?.withdrawals_block_reason || null,
