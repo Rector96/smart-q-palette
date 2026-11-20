@@ -20,7 +20,7 @@ type WalletRow = { pending_balance: number; available_balance: number; lifetime_
 type RewardRow = { id: string; amount: number; status: string; created_at: string };
 type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
 type Bank = { name: string; code: string };
-type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string };
+type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
 
 const money = (value: number) => new Intl.NumberFormat("en-NG", {
   style: "currency", currency: "NGN", maximumFractionDigits: 0,
@@ -64,7 +64,7 @@ const Referral = () => {
       referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(10),
       referralDb.from("referral_withdrawals").select("id,amount,status,requested_at").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(5),
       referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
-      referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
+      referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
     ]);
     const hasError = [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult].some((result) => result.error);
     if (hasError) {
@@ -283,7 +283,7 @@ const Referral = () => {
                 {bankAccounts.map((account) => (
                   <div key={account.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
                     <div className="min-w-0"><p className="truncate text-sm font-semibold">{account.account_name}</p><p className="text-xs text-muted-foreground">{account.bank_name} · {account.account_number_masked}</p></div>
-                    <Badge variant="secondary">Verified</Badge>
+                    <Badge variant="secondary">{account.paystack_recipient_code.startsWith("TEST:") ? "Test only" : "Verified"}</Badge>
                   </div>
                 ))}
                 {showBankSetup && <>
@@ -326,8 +326,9 @@ const Referral = () => {
                     </div>
                   </div>
                 </> : <p className="text-sm text-muted-foreground">Add a bank account in your name to continue. We will verify it before any withdrawal.</p>}
-                <Button className="w-full" disabled={withdrawBusy || (bankAccounts.length > 0 && Number(wallet.available_balance) < 1000)} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
-                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.length ? "Request withdrawal" : "Withdraw"}
+                {bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") && <p className="text-xs text-amber-700 dark:text-amber-400">This test recipient is for setup testing only. Payouts are disabled.</p>}
+                <Button className="w-full" disabled={withdrawBusy || (bankAccounts.length > 0 && Number(wallet.available_balance) < 1000) || Boolean(bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:"))} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Test account — payouts disabled" : bankAccounts.length ? "Request withdrawal" : "Withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>
               </CardContent>
