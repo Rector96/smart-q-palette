@@ -22,6 +22,7 @@ import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
+  const adaptivePractice = searchParams.get("adaptive") === "true" && (mode === "practice" || mode === "revision");
   const examination = searchParams.get("examination") || "";
   const yearParam = searchParams.get("year") || "all";
   const selectedYear = yearParam === "all" ? null : Number(yearParam);
@@ -96,7 +97,7 @@ const Exam = () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("cbt-start", {
-      body: { subjects, mode, count: requestedCount, examination, year: selectedYear },
+      body: { subjects, mode, count: requestedCount, examination, year: selectedYear, adaptive: adaptivePractice },
     });
     let responseData = data;
     if (error && !responseData && error.context instanceof Response) {
