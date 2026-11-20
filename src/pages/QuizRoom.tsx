@@ -271,10 +271,12 @@ const QuizRoom = () => {
     return (
       <div className="min-h-screen bg-background px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <Trophy className="h-12 w-12 text-primary mx-auto" />
-            <h1 className="text-xl font-bold">Quiz Complete!</h1>
-            <p className="text-sm text-muted-foreground">Final Leaderboard</p>
+          <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-card p-7 text-center shadow-sm">
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><Trophy className="h-9 w-9 text-primary" /></div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Battle finished</p>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight">Quiz Complete!</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Here is how everyone performed</p>
+            <div className="mt-4 flex justify-center gap-5 text-xs text-muted-foreground"><span>{participants.length} players</span><span>{questions.length} questions</span></div>
           </div>
           <div className="space-y-2">
             {sorted.map((p, i) => (
