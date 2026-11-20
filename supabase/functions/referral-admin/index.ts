@@ -66,22 +66,21 @@ serve(async (req) => {
 
     if (action === "find_customer") {
       const query = typeof body?.query === "string" ? body.query.trim().slice(0, 120) : "";
-      // Treat user input as literal text: PostgREST ILIKE wildcards must not
-      // turn a search into a match-all query.
+      // Plain text searches customer names only. Search email addresses when
+      // the user enters an email-style query containing "@", avoiding matches
+      // where a name search happens to appear inside an unrelated email.
       const safeQuery = query.replace(/[%,_()]/g, "").trim();
-      if (safeQuery.length < 3) return json({ error: "Enter at least 3 valid letters or numbers to search." }, 400);
-      const pattern = `%${safeQuery}%`;
-      const [nameSearch, emailSearch] = await Promise.all([
-        serviceClient.from("profiles").select("user_id,full_name,email").ilike("full_name", pattern).limit(50),
-        serviceClient.from("profiles").select("user_id,full_name,email").ilike("email", pattern).limit(50),
-      ]);
-      if (nameSearch.error || emailSearch.error) {
-        console.error("Referral customer search failed:", nameSearch.error?.message || emailSearch.error?.message);
+      if (safeQuery.length < 3) return json({ error: "Enter at least 3 valid characters to search." }, 400);
+      const isEmailSearch = safeQuery.includes("@");
+      const column = isEmailSearch ? "email" : "full_name";
+      const { data: matches, error: searchError } = await serviceClient
+        .from("profiles").select("user_id,full_name,email")
+        .ilike(column, `%${safeQuery}%`).limit(50);
+      if (searchError) {
+        console.error("Referral customer search failed:", searchError.message);
         return json({ error: "Customer search is temporarily unavailable." }, 500);
       }
-      const profileMapById = new Map<string, any>();
-      [...(nameSearch.data || []), ...(emailSearch.data || [])].forEach((profile: any) => profileMapById.set(profile.user_id, profile));
-      const profiles = [...profileMapById.values()].slice(0, 50);
+      const profiles = matches || [];
       const userIds = profiles.map((profile: any) => profile.user_id);
       const { data: controls, error: controlsError } = userIds.length
         ? await serviceClient.from("referral_profiles")
