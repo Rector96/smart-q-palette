@@ -37,6 +37,7 @@ const Dashboard = () => {
   const [streak, setStreak] = useState(0);
   const [progression, setProgression] = useState({ xp: 0, todayQuestions: 0, bestScore: 0 });
   const [focusTopics, setFocusTopics] = useState<Array<{ subject: string; topic: string; correct: number; total: number; accuracy: number }>>([]);
+  const [dueReviewCount, setDueReviewCount] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
   const tour = useOnboardingTour();
   useOnlinePresence("dashboard");
@@ -62,10 +63,12 @@ const Dashboard = () => {
     const fetchData = async () => {
       const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
       if (prof) setProfile(prof);
-      const [{ data: sessions }, { data: masteryRows }] = await Promise.all([
+      const [{ data: sessions }, { data: masteryRows }, { count: dueCount }] = await Promise.all([
         supabase.from("exam_sessions").select("*").eq("user_id", user.id).eq("completed", true).order("completed_at", { ascending: false }),
         supabase.from("student_topic_mastery").select("subject, topic, attempts, correct_answers, last_attempt_at").eq("user_id", user.id).order("last_attempt_at", { ascending: false }),
+        supabase.from("student_question_reviews").select("id", { count: "exact", head: true }).eq("user_id", user.id).lte("due_at", new Date().toISOString()),
       ]);
+      setDueReviewCount(dueCount || 0);
       setFocusTopics((masteryRows || [])
         .filter((item: any) => item.attempts >= 3)
         .map((item: any) => ({
@@ -76,7 +79,7 @@ const Dashboard = () => {
           accuracy: Math.round(item.correct_answers / item.attempts * 100),
         }))
         .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total)
-        .slice(0, 3));
+        .slice(0, 1));
       if (sessions && sessions.length > 0) {
         const avg = sessions.reduce((sum, s) => sum + (Number(s.score_percentage) || 0), 0) / sessions.length;
         const total = sessions.reduce((sum, s) => sum + s.total_questions, 0);
@@ -176,6 +179,23 @@ const Dashboard = () => {
             <ChevronRight className="h-5 w-5" />
           </Button>
         </motion.div>
+
+        {/* Spaced revision: one clear action, with transparent repeat intervals */}
+        <Card className="rounded-2xl border-border/60 shadow-sm">
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Flame className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">Revision due</p>
+              <p className="text-xs text-muted-foreground">{dueReviewCount > 0 ? `${dueReviewCount} question${dueReviewCount === 1 ? "" : "s"} ready to repeat` : "You are up to date. Keep practising to build your revision list."}</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Repeat intervals: 1 → 3 → 7 → 14 → 30 days</p>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 rounded-lg" onClick={() => navigate("/select-subjects?mode=revision")}>
+              Revise <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* AI Tutor Card */}
         <Card data-tour="ai-tutor" className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}>
