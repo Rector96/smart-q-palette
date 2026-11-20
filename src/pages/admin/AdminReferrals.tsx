@@ -170,7 +170,7 @@ const AdminReferrals = () => {
             <Card><CardContent className="space-y-3 p-4">
               <div><h3 className="font-bold">Latest wallet activity</h3><p className="text-xs text-muted-foreground">Credits, reservations, reversals and payout ledger entries.</p></div>
               <div className="space-y-2">{overview.transactions.slice(0, 100).map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0">
-                <div className="min-w-0"><p className="text-sm font-semibold">{item.customer_name} <span className="font-normal text-muted-foreground">· {item.transaction_type.replaceAll("_", " ")}</span></p><p className="text-xs text-muted-foreground">{item.description || item.customer_email} · {new Date(item.created_at).toLocaleString()}</p></div>
+                <div className="min-w-0"><p className="text-sm font-semibold">{item.customer_name} <span className="font-normal text-muted-foreground">· {item.transaction_type.replace(/_/g, " ")}</span></p><p className="text-xs text-muted-foreground">{item.description || item.customer_email} · {new Date(item.created_at).toLocaleString()}</p></div>
                 <div className="text-right"><p className="text-sm font-bold tabular-nums">{money(item.amount)}</p><Badge variant={item.status === "posted" ? "secondary" : "outline"}>{item.status}</Badge></div>
               </div>)}
               {overview.transactions.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No wallet transactions recorded yet.</p>}</div>
@@ -178,7 +178,7 @@ const AdminReferrals = () => {
             <Card><CardContent className="space-y-3 p-4">
               <div><h3 className="font-bold">Confirmed referral subscriptions</h3><p className="text-xs text-muted-foreground">Each row represents a reward record created after a qualifying payment was confirmed. The reward is fixed at ₦500.</p></div>
               <div className="max-h-[320px] space-y-2 overflow-auto">{overview.rewards.slice(0, 100).map((reward) => <div key={reward.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0">
-                <div><p className="text-sm font-semibold">{reward.referrer_name} <span className="font-normal text-muted-foreground">referred</span> {reward.referred_name}</p><p className="text-xs text-muted-foreground">{reward.referrer_email} · {new Date(reward.created_at).toLocaleString()}</p></div>
+                <div><p className="text-sm font-semibold">{reward.referrer_name} <span className="font-normal text-muted-foreground">referred</span> {reward.referred_name}</p><p className="text-xs text-muted-foreground">{reward.referrer_email} · Payment {reward.payment_reference || "—"} · Subscription {money(reward.payment_amount)} · {new Date(reward.created_at).toLocaleString()}</p></div>
                 <div className="text-right"><p className="text-sm font-bold">{money(reward.amount)}</p><Badge variant={reward.status === "available" ? "default" : "secondary"}>{reward.status}</Badge></div>
               </div>)}{overview.rewards.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No qualifying referral subscriptions recorded yet.</p>}</div>
             </CardContent></Card>
