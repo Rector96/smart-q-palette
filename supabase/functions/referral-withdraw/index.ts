@@ -46,6 +46,13 @@ serve(async (req) => {
       .select("id,paystack_recipient_code,account_name,bank_name,account_number_masked")
       .eq("id", bankAccountId).eq("user_id", userId).eq("is_verified", true).maybeSingle();
     if (bankError || !bank) return json({ error: "Choose one of your verified bank accounts." }, 400);
+    if (String(bank.paystack_recipient_code || "").startsWith("TEST:")) {
+      return json({
+        accepted: false,
+        test_account: true,
+        error: "This is a Paystack test account. It lets you test bank setup only; withdrawals are disabled for test accounts. Add a real verified bank account after switching to live mode.",
+      }, 400);
+    }
 
     reservedReference = `SQPRWD-${crypto.randomUUID().replaceAll("-", "").toUpperCase()}`;
     const { data: reservation, error: reserveError } = await serviceClient.rpc("reserve_referral_withdrawal", {
