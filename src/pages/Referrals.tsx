@@ -26,6 +26,8 @@ const Referrals = () => {
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const referralLink = useMemo(
@@ -36,9 +38,10 @@ const Referrals = () => {
   const loadReferralData = useCallback(async () => {
     if (!user) return;
     const db = supabase as any;
-    const [profileResult, referralResult, transactionResult] = await Promise.all([
+    const [profileResult, referralResult, balanceResult, transactionResult] = await Promise.all([
       db.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
       db.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
+      db.from("referral_wallet_balances").select("available_balance, total_earned").eq("user_id", user.id).maybeSingle(),
       db.from("referral_wallet_transactions")
         .select("id, entry_type, amount, description, created_at")
         .eq("user_id", user.id)
@@ -46,13 +49,15 @@ const Referrals = () => {
         .limit(20),
     ]);
 
-    if (profileResult.error || referralResult.error || transactionResult.error) {
+    if (profileResult.error || referralResult.error || balanceResult.error || transactionResult.error) {
       toast({ title: "Could not load referral details", description: "Please refresh and try again.", variant: "destructive" });
       setLoading(false);
       return;
     }
     setReferralCode(profileResult.data?.referral_code || "");
     setReferralCount(referralResult.count || 0);
+    setWalletBalance(Number(balanceResult.data?.available_balance || 0));
+    setTotalEarned(Number(balanceResult.data?.total_earned || 0));
     setTransactions(transactionResult.data || []);
     setLoading(false);
   }, [user, toast]);
@@ -74,11 +79,6 @@ const Referrals = () => {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [user, loadReferralData]);
-
-  const totalEarned = transactions
-    .filter((item) => item.entry_type === "referral_commission")
-    .reduce((sum, item) => sum + Number(item.amount), 0);
-  const availableBalance = transactions.reduce((sum, item) => sum + Number(item.amount), 0);
 
   const copyLink = async () => {
     if (!referralLink) return;
@@ -125,7 +125,7 @@ const Referrals = () => {
               <Gift className="h-4 w-4" /> Your referral earnings
             </div>
             <p className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              {loading ? "—" : money(availableBalance)}
+              {loading ? "—" : money(walletBalance)}
             </p>
             <p className="text-xs text-muted-foreground">Available balance · Minimum withdrawal ₦1,000</p>
             <div className="grid grid-cols-2 gap-3 pt-2">
