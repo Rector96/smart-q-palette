@@ -41,6 +41,7 @@ const AdminReferrals = () => {
   const [customerSearchBusy, setCustomerSearchBusy] = useState(false);
   const [customerActionId, setCustomerActionId] = useState("");
   const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
+  const [verifyingWithdrawalId, setVerifyingWithdrawalId] = useState("");
 
   const loadWithdrawals = useCallback(async () => {
     setLoading(true);
@@ -120,6 +121,21 @@ const AdminReferrals = () => {
       : item));
     setBlockReasons((current) => ({ ...current, [customer.user_id]: "" }));
     toast({ title: blocked ? "Withdrawals blocked" : "Withdrawals restored", description: data.message });
+  };
+
+  const verifyWithdrawal = async (item: Withdrawal) => {
+    setVerifyingWithdrawalId(item.id);
+    const { data, error } = await supabase.functions.invoke("referral-admin", {
+      body: { action: "verify_transfer", withdrawal_id: item.id },
+    });
+    setVerifyingWithdrawalId("");
+    if (error || !data?.verified) {
+      toast({ title: "Could not verify transfer", description: data?.error || error?.message || "Paystack status could not be confirmed. No wallet changes should be assumed.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Paystack status checked", description: data.message || `Transfer status: ${data.status}` });
+    void loadWithdrawals();
+    void loadOverview();
   };
 
   const downloadFinancialReport = () => {
@@ -335,9 +351,15 @@ const AdminReferrals = () => {
                     <div><p className="text-muted-foreground">Requested</p><p className="mt-1 font-medium">{new Date(item.requested_at).toLocaleString()}</p></div>
                     <div><p className="text-muted-foreground">Reference</p><p className="mt-1 break-all font-mono text-[10px]">{item.reference}</p></div>
                   </div>
-                  {item.status === "otp" ? (
-                    <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-5 text-muted-foreground">This is a legacy request created while Paystack OTP approval was enabled. Do not approve it here. Check its status in Paystack before taking any manual action.</p>
-                  ) : <p className="text-xs text-muted-foreground">No action is required. Wait for Paystack to confirm the transfer. Refresh to check the latest status.</p>}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    {item.status === "otp" ? (
+                      <p className="text-xs leading-5 text-muted-foreground">Paystack may still be waiting for business OTP approval. Check its current status before any retry or wallet adjustment.</p>
+                    ) : <p className="text-xs text-muted-foreground">Check Paystack's current status. Funds remain reserved until a final status is confirmed.</p>}
+                    <Button size="sm" variant="outline" onClick={() => void verifyWithdrawal(item)} disabled={verifyingWithdrawalId === item.id}>
+                      {verifyingWithdrawalId === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      Check Paystack status
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
