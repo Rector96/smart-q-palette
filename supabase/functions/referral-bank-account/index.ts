@@ -25,6 +25,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  let requestedAction = "";
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -45,6 +46,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const action = body?.action;
+    requestedAction = typeof action === "string" ? action : "";
 
     if (action === "list_banks") {
       const banks = await paystack("/bank?country=nigeria&use_cursor=false&perPage=100", paystackSecret);
@@ -126,7 +128,15 @@ serve(async (req) => {
     }
     return json({ saved: true, bank_account: saved });
   } catch (error) {
-    console.error("Referral bank operation failed:", error);
-    return json({ error: error instanceof Error ? error.message : "Bank verification failed." }, 502);
+    const message = error instanceof Error ? error.message : "Bank verification failed.";
+    // For account resolution, return expected Paystack failures as a normal
+    // JSON response. Supabase JS otherwise wraps non-2xx responses in an
+    // FunctionsHttpError, which can hide the useful response body in the UI.
+    if (requestedAction === "resolve_account") {
+      console.warn("Referral bank account resolution was rejected:", message);
+      return json({ verified: false, error: message });
+    }
+    console.error("Referral bank operation failed:", message);
+    return json({ error: message }, 502);
   }
 });
