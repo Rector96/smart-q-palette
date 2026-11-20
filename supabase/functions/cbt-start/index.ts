@@ -96,7 +96,7 @@ Deno.serve(async (req: Request) => {
         const masteryByTopic = new Map((masteryRows ?? []).map((row) => [
           String(row.topic ?? "").trim().toLowerCase(),
           { attempts: Number(row.attempts) || 0, accuracy: Number(row.attempts) > 0 ? Number(row.correct_answers) / Number(row.attempts) : 0 },
-        ]));
+        ] as const));
         const topicGroups = new Map<string, any[]>();
         for (const question of pool) {
           const topicKey = String(question.topic ?? "").trim().toLowerCase() || "__general__";
