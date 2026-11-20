@@ -24,7 +24,7 @@ serve(async (req) => {
     }
 
     const authorization = req.headers.get("Authorization") || "";
-    const token = authorization.replace(/^Bearer\\s+/i, "");
+    const token = authorization.replace(/^Bearer\s+/i, "");
     if (!token || token === authorization) return json({ error: "Please sign in first." }, 401);
 
     const authClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
@@ -65,7 +65,7 @@ serve(async (req) => {
     if (action === "finalize_otp") {
       const withdrawalId = typeof body?.withdrawal_id === "string" ? body.withdrawal_id : "";
       const otp = typeof body?.otp === "string" ? body.otp.trim() : "";
-      if (!withdrawalId || !/^\\d{4,8}$/.test(otp)) {
+      if (!withdrawalId || !/^\d{4,8}$/.test(otp)) {
         return json({ error: "Enter the transfer authorisation code Paystack sent to the business contact." }, 400);
       }
 
