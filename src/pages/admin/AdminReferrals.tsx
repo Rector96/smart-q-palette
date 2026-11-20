@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, RefreshCw, ShieldCheck, Loader2, Banknote, Activity, Users, Wallet, TrendingUp } from "lucide-react";
+import { ArrowLeft, RefreshCw, ShieldCheck, Loader2, Banknote, Activity, Users, Wallet, TrendingUp, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type CustomerControl = { user_id: string; full_name: string | null; email: string | null; withdrawals_blocked: boolean; withdrawals_block_reason: string | null; has_referral_profile: boolean };
@@ -122,6 +122,12 @@ const AdminReferrals = () => {
     toast({ title: blocked ? "Withdrawals blocked" : "Withdrawals restored", description: data.message });
   };
 
+  const downloadFinancialReport = () => {
+    // The browser print dialog lets the administrator save a properly paginated PDF.
+    // The print stylesheet below isolates the report from the interactive dashboard.
+    window.print();
+  };
+
   const statusLabel = (status: string) => status === "otp" ? "Legacy OTP — needs review" : status === "processing" ? "Processing" : status;
   const legacyOtpCount = withdrawals.filter((item) => item.status === "otp").length;
 
@@ -135,6 +141,72 @@ const AdminReferrals = () => {
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => { void loadWithdrawals(); void loadOverview(); }} disabled={loading || overviewLoading}><RefreshCw className={"mr-2 h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} />Refresh</Button>
         </div>
       </header>
+      <style>{`
+        @page { size: A4; margin: 16mm 14mm; }
+        @media print {
+          body * { visibility: hidden !important; }
+          #referral-financial-pdf, #referral-financial-pdf * { visibility: visible !important; }
+          #referral-financial-pdf { display: block !important; position: absolute; inset: 0; width: 100%; color: #111827; background: #fff; font-family: Arial, sans-serif; }
+          #referral-financial-pdf table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+          #referral-financial-pdf th, #referral-financial-pdf td { border: 1px solid #d1d5db; padding: 7px; text-align: left; }
+          #referral-financial-pdf th { background: #eef2f7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          #referral-financial-pdf .pdf-card { border: 1px solid #d1d5db; padding: 12px; margin: 8px 0; break-inside: avoid; }
+          #referral-financial-pdf .pdf-muted { color: #4b5563; }
+          #referral-financial-pdf h1 { font-size: 22pt; margin: 0 0 4px; }
+          #referral-financial-pdf h2 { font-size: 13pt; margin: 18px 0 8px; border-bottom: 2px solid #1e3a8a; padding-bottom: 5px; }
+          #referral-financial-pdf .pdf-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+          #referral-financial-pdf .pdf-value { font-size: 15pt; font-weight: 700; margin-top: 5px; }
+          #referral-financial-pdf tr { break-inside: avoid; }
+        }
+      `}</style>
+      <section id="referral-financial-pdf" style={{ display: "none" }}>
+        <div style={{ borderBottom: "4px solid #1e3a8a", paddingBottom: 14 }}>
+          <p style={{ color: "#1e3a8a", fontWeight: 700, letterSpacing: 2, fontSize: 10 }}>SMART Q PALETTE</p>
+          <h1>Referral Programme Financial Report</h1>
+          <p className="pdf-muted">Official administrative report · Generated {new Date().toLocaleString("en-NG")}</p>
+          <p className="pdf-muted">Reporting scope: verified ₦2,500 lifetime-access subscriptions with recorded referral attribution. Currency: Nigerian Naira (NGN).</p>
+        </div>
+        {overview && <>
+          <h2>Financial summary</h2>
+          <div className="pdf-grid">
+            <div className="pdf-card"><span className="pdf-muted">Confirmed referral revenue</span><div className="pdf-value">{money(overview.summary.referral_subscription_revenue)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Verified subscriptions</span><div className="pdf-value">{overview.summary.referral_subscription_count}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Referral reward cost</span><div className="pdf-value">{money(overview.summary.referral_reward_cost)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Net before fees</span><div className="pdf-value">{money(overview.summary.referral_net_before_fees)}</div></div>
+          </div>
+          <div className="pdf-grid">
+            <div className="pdf-card"><span className="pdf-muted">Total wallet customers</span><div className="pdf-value">{overview.summary.users}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Available wallet funds</span><div className="pdf-value">{money(overview.summary.available_balance)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Pending wallet funds</span><div className="pdf-value">{money(overview.summary.pending_balance)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Lifetime payouts</span><div className="pdf-value">{money(overview.summary.lifetime_paid)}</div></div>
+          </div>
+          <h2>Monthly referral performance</h2>
+          <table><thead><tr><th>Month</th><th>Subscriptions</th><th>Revenue</th><th>Reward cost</th><th>Net before fees</th></tr></thead>
+            <tbody>{overview.monthly_referral_performance.map((row) => <tr key={row.month}><td>{row.month}</td><td>{row.subscriptions}</td><td>{money(row.revenue)}</td><td>{money(row.rewards)}</td><td>{money(row.net)}</td></tr>)}</tbody>
+          </table>
+          <h2>Referred subscription payment register</h2>
+          <table><thead><tr><th>Subscriber</th><th>Referrer</th><th>Payment reference</th><th>Amount</th><th>Reward status</th><th>Confirmed date</th></tr></thead>
+            <tbody>{overview.referral_payments.map((payment) => <tr key={payment.id}><td>{payment.customer_name}<br/>{payment.customer_email}</td><td>{payment.referrer_name}</td><td>{payment.reference || payment.id}</td><td>{money(payment.amount)}</td><td>{payment.reward_credited ? "Credited" : "Not credited"}</td><td>{payment.verified_at ? new Date(payment.verified_at).toLocaleDateString("en-NG") : "—"}</td></tr>)}</tbody>
+          </table>
+          <h2>Referral reward register</h2>
+          <table><thead><tr><th>Referrer</th><th>Referred customer</th><th>Payment reference</th><th>Reward</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>{overview.rewards.map((reward) => <tr key={reward.id}><td>{reward.referrer_name}</td><td>{reward.referred_name}</td><td>{reward.payment_reference || "—"}</td><td>{money(reward.amount)}</td><td>{reward.status}</td><td>{new Date(reward.created_at).toLocaleDateString("en-NG")}</td></tr>)}</tbody>
+          </table>
+          <h2>Wallet and payout position</h2>
+          <table><thead><tr><th>Customer</th><th>Email</th><th>Available</th><th>Pending</th><th>Earned</th><th>Paid</th><th>Recovery</th><th>Withdrawal status</th></tr></thead>
+            <tbody>{overview.wallets.map((wallet) => <tr key={wallet.user_id}><td>{wallet.customer_name}</td><td>{wallet.customer_email}</td><td>{money(wallet.available_balance)}</td><td>{money(wallet.pending_balance)}</td><td>{money(wallet.lifetime_earned)}</td><td>{money(wallet.lifetime_paid)}</td><td>{money(wallet.recovery_balance)}</td><td>{wallet.withdrawals_blocked ? "Blocked" : "Allowed"}</td></tr>)}</tbody>
+          </table>
+          <h2>Withdrawal register</h2>
+          <table><thead><tr><th>Customer</th><th>Email</th><th>Reference</th><th>Amount</th><th>Status</th><th>Requested</th></tr></thead>
+            <tbody>{overview.withdrawals.map((item) => <tr key={item.id}><td>{item.customer_name}</td><td>{item.customer_email}</td><td>{item.reference}</td><td>{money(item.amount)}</td><td>{item.status}</td><td>{new Date(item.requested_at).toLocaleString("en-NG")}</td></tr>)}</tbody>
+          </table>
+          <h2>Latest wallet ledger activity</h2>
+          <table><thead><tr><th>Customer</th><th>Email</th><th>Activity</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>{overview.transactions.map((item) => <tr key={item.id}><td>{item.customer_name}</td><td>{item.customer_email}</td><td>{item.transaction_type.replace(/_/g, " ")} — {item.description || ""}</td><td>{money(item.amount)}</td><td>{item.status}</td><td>{new Date(item.created_at).toLocaleString("en-NG")}</td></tr>)}</tbody>
+          </table>
+          <p className="pdf-muted" style={{ marginTop: 18, fontSize: 9 }}>Prepared by Smart Q Palette administration. This report reflects records available at generation time. Net figures are before Paystack charges, taxes and other operating expenses. Handle customer financial information confidentially.</p>
+        </>}
+      </section>
       <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-7">
         <section className="grid gap-3 sm:grid-cols-2">
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Legacy OTP requests to review</p><p className="mt-1 text-2xl font-bold">{legacyOtpCount}</p></CardContent></Card>
@@ -151,7 +223,7 @@ const AdminReferrals = () => {
               <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5"/>Lifetime paid out</p><p className="mt-1 text-xl font-bold tabular-nums">{money(overview.summary.lifetime_paid)}</p></CardContent></Card>
             </div>
             <div className="space-y-3">
-              <div><h3 className="font-bold">Referral programme financial report</h3><p className="text-xs text-muted-foreground">Only confirmed subscription payments from users with a recorded referral attribution are counted. This is subscription revenue, not all platform payments.</p></div>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">Referral programme financial report</h3><p className="text-xs text-muted-foreground">Only confirmed subscription payments from users with a recorded referral attribution are counted. This is subscription revenue, not all platform payments.</p></div><Button variant="outline" size="sm" onClick={downloadFinancialReport}><Download className="mr-2 h-4 w-4"/>Download PDF</Button></div>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Confirmed referred-payment revenue</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_subscription_revenue)}</p></CardContent></Card>
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Verified referred payments</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.referral_subscription_count}</p></CardContent></Card>
