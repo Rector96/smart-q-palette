@@ -22,29 +22,52 @@ const AdminUsers = () => {
   const [users, setUsers] = useState<Profile[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
     setLoading(true);
     let query = supabase.from("profiles").select("*").order("created_at", { ascending: false });
     if (search) query = query.ilike("full_name", `%${search}%`);
-    const { data } = await query;
-    setUsers(data || []);
+    const { data, error } = await query;
+    if (error) {
+      setLoadError("Could not load users. Check administrator permissions and try again.");
+      setUsers([]);
+    } else {
+      setLoadError(null);
+      setUsers(data || []);
+    }
     setLoading(false);
   };
 
   useEffect(() => { fetchUsers(); }, [search]);
 
   const toggleSubscription = async (userId: string, current: boolean) => {
-    await supabase.from("profiles").update({ is_subscribed: !current } as any).eq("user_id", userId);
-    toast({ title: !current ? "User upgraded" : "Access revoked" });
-    fetchUsers();
+    const next = !current;
+    if (!window.confirm(next ? "Grant Pro access to this user?" : "Revoke this user's Pro access?")) return;
+    const { error } = await supabase.rpc("admin_set_user_subscription", {
+      _target_user_id: userId,
+      _is_subscribed: next,
+    });
+    if (error) {
+      toast({ title: "Action failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: next ? "User upgraded" : "Access revoked" });
+    await fetchUsers();
   };
 
   const resetTrials = async (userId: string) => {
-    await supabase.from("profiles").update({ trial_count: 0 } as any).eq("user_id", userId);
+    if (!window.confirm("Reset this user's trial counter?")) return;
+    const { error } = await supabase.rpc("admin_reset_user_trials", {
+      _target_user_id: userId,
+    });
+    if (error) {
+      toast({ title: "Action failed", description: error.message, variant: "destructive" });
+      return;
+    }
     toast({ title: "Trials reset" });
-    fetchUsers();
+    await fetchUsers();
   };
 
   return (
@@ -65,6 +88,8 @@ const AdminUsers = () => {
           </div>
         </div>
 
+        {loadError && <p className="text-xs text-destructive" role="alert">{loadError}</p>}
+        {loading && <p className="text-xs text-muted-foreground">Loading users...</p>}
         <Card className="border-border/50">
           <CardContent className="p-0">
             <Table>
