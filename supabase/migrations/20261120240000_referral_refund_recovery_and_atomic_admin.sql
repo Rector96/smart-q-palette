@@ -214,7 +214,8 @@ begin
   if (select recovery_balance from public.referral_wallets where user_id = v_referrer) = 0 then
     update public.referral_profiles
     set withdrawals_blocked = false, withdrawals_block_reason = null,
-        withdrawals_blocked_at = null, withdrawals_blocked_by = null
+        withdrawals_blocked_at = null, withdrawals_blocked_by = null,
+        withdrawals_block_source = null
     where user_id = v_referrer
       and withdrawals_block_source = 'refund_recovery';
   end if;
