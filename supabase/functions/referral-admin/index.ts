@@ -134,10 +134,10 @@ serve(async (req) => {
       const referralPayments = (paymentResult.data || []).filter((payment: any) =>
         (attributionResult.data || []).some((attribution: any) => attribution.referred_user_id === payment.user_id)
       );
-      const referralPaymentIds = new Set(qualifyingRewards.map((reward: any) => reward.payment_id));
       const referralRevenue = referralPayments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
       const qualifyingPaymentIds = new Set(referralPayments.map((payment: any) => payment.id));
       const qualifyingRewards = (rewardResult.data || []).filter((reward: any) => qualifyingPaymentIds.has(reward.payment_id) && reward.status !== "reversed");
+      const referralPaymentIds = new Set(qualifyingRewards.map((reward: any) => reward.payment_id));
       const rewardTotal = qualifyingRewards.reduce((sum: number, reward: any) => sum + Number(reward.amount || 0), 0);
       const successfulPayouts = withdrawals.filter((row: any) => row.status === "success").reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
       const monthly = new Map<string, { subscriptions: number; revenue: number; rewards: number }>();
