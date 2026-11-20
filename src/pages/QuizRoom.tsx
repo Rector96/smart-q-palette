@@ -236,6 +236,70 @@ const QuizRoom = () => {
     await supabase.from("quiz_rooms").update({ status: "live", current_question_index: 0 }).eq("id", room.id);
   };
 
+  const [rematchLoading, setRematchLoading] = useState(false);
+
+  const handleRematch = async () => {
+    if (!room || !user || !isHost || rematchLoading) return;
+    setRematchLoading(true);
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("is_subscribed, free_live_quiz_used")
+        .eq("user_id", user.id)
+        .single();
+      if (profileError) throw profileError;
+      if (!profile?.is_subscribed && (profile?.free_live_quiz_used || 0) >= 2) {
+        toast({ title: "Free sessions used", description: "Subscribe to host another live quiz." });
+        navigate("/live-quiz");
+        return;
+      }
+
+      let nextCode = "";
+      let newRoom: { id: string; room_code: string } | null = null;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        nextCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const { data, error } = await supabase.from("quiz_rooms").insert({
+          host_id: user.id,
+          subject: room.subject,
+          num_questions: questions.length,
+          time_per_question: room.time_per_question,
+          room_code: nextCode,
+          questions: questions as any,
+          expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        }).select("id, room_code").single();
+        if (!error && data) {
+          newRoom = data;
+          break;
+        }
+        if (!error || !/duplicate|unique/i.test(error.message)) throw error;
+      }
+      if (!newRoom) throw new Error("Could not create a new room code. Please try again.");
+
+      const returningPlayers = participants.map((participant) => ({
+        room_id: newRoom!.id,
+        user_id: participant.user_id,
+        display_name: participant.display_name,
+        score: 0,
+      }));
+      const { error: participantsError } = await supabase.from("quiz_participants").insert(returningPlayers);
+      if (participantsError) throw participantsError;
+
+      if (!profile?.is_subscribed) {
+        const { error: usageError } = await supabase.from("profiles")
+          .update({ free_live_quiz_used: (profile?.free_live_quiz_used || 0) + 1 } as any)
+          .eq("user_id", user.id);
+        if (usageError) throw usageError;
+      }
+
+      toast({ title: "Rematch room created", description: "The same players have been invited into a fresh room." });
+      navigate(`/quiz-room/${newRoom.room_code}`);
+    } catch (error: any) {
+      toast({ title: "Could not start rematch", description: error.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setRematchLoading(false);
+    }
+  };
+
   const copyRoomCode = async () => {
     try {
       await navigator.clipboard.writeText(roomCode || "");
@@ -312,7 +376,10 @@ const QuizRoom = () => {
             ))}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Button className="h-12 w-full rounded-xl text-base font-bold shadow-md" onClick={() => navigate("/live-quiz")}>Create another quiz</Button>
+            {isHost && <Button className="h-12 w-full rounded-xl text-base font-bold shadow-md sm:col-span-2" onClick={handleRematch} disabled={rematchLoading || participants.length === 0}>
+              {rematchLoading ? "Preparing rematch..." : "Rematch with same players"}
+            </Button>}
+            <Button variant="outline" className="h-12 w-full rounded-xl text-base font-bold" onClick={() => navigate("/live-quiz")}>Create another quiz</Button>
             <Button variant="outline" className="h-12 w-full rounded-xl text-base font-bold" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
           </div>
         </div>
