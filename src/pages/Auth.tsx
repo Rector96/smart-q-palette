@@ -14,6 +14,10 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [referralCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get("ref") || params.get("referral") || "").trim().toUpperCase();
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
@@ -46,7 +50,7 @@ const Auth = () => {
         navigate("/dashboard");
       }
     } else {
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email, password, fullName, referralCode || undefined);
       if (error) {
         toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
       } else {

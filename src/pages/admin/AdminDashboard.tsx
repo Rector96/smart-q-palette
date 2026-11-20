@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles } from "lucide-react";
+import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles, Banknote } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
 
@@ -61,6 +61,7 @@ const AdminDashboard = () => {
   const sections = [
     { icon: Users, title: "Customers", description: "Find accounts, check access and help students.", to: "/admin/users", action: "Manage customers" },
     { icon: CreditCard, title: "Payments & access", description: "Review payments and activate verified transfers.", to: "/admin/payments", action: "Open payments" },
+    { icon: Banknote, title: "Referral payouts", description: "Approve Paystack transfer codes and track referral withdrawals.", to: "/admin/referrals", action: "Manage referral payouts" },
     { icon: BookOpen, title: "Question bank", description: "Manage subjects, questions and learning content.", to: "/admin/content", action: "Manage content" },
     { icon: Library, title: "Digital library", description: "Manage books and learning resources.", to: "/admin/library", action: "Open library" },
     { icon: Mail, title: "Communication", description: "Send important updates to your users.", to: "/admin/email", action: "Send message" },

@@ -14,6 +14,7 @@ import AppLayout from "@/components/AppLayout";
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Referral = lazy(() => import("./pages/Referral"));
 const SelectSubjects = lazy(() => import("./pages/SelectSubjects"));
 const Exam = lazy(() => import("./pages/Exam"));
 const Results = lazy(() => import("./pages/Results"));
@@ -41,6 +42,7 @@ const AdminContent = lazy(() => import("./pages/admin/AdminContent"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminLibrary = lazy(() => import("./pages/admin/AdminLibrary"));
 const AdminEmail = lazy(() => import("./pages/admin/AdminEmail"));
+const AdminReferrals = lazy(() => import("./pages/admin/AdminReferrals"));
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,7 @@ const App = () => (
 
               {/* Private pages with bottom nav */}
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+              <Route path="/referrals" element={<ProtectedRoute><AppLayout><Referral /></AppLayout></ProtectedRoute>} />
               <Route path="/ai-tutor" element={<ProtectedRoute><AppLayout><AITutor /></AppLayout></ProtectedRoute>} />
               <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
               <Route path="/select-subjects" element={<ProtectedRoute><AppLayout><SelectSubjects /></AppLayout></ProtectedRoute>} />
@@ -89,6 +92,7 @@ const App = () => (
               <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
               <Route path="/admin/library" element={<AdminRoute><AdminLibrary /></AdminRoute>} />
               <Route path="/admin/email" element={<AdminRoute><AdminEmail /></AdminRoute>} />
+              <Route path="/admin/referrals" element={<AdminRoute><AdminReferrals /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

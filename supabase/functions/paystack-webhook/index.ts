@@ -50,6 +50,61 @@ serve(async (req) => {
     if (!(await verifySignature(rawBody, req))) return json({ error: "Invalid or missing Paystack signature." }, 401);
 
     const event = JSON.parse(rawBody);
+
+    // Reconcile outbound referral transfers from Paystack's signed webhook.
+    const transferEvents: Record<string, "success" | "failed" | "reversed"> = {
+      "transfer.success": "success",
+      "transfer.failed": "failed",
+      "transfer.reversed": "reversed",
+    };
+    const transferOutcome = transferEvents[event?.event];
+    if (transferOutcome) {
+      const transfer = event?.data || {};
+      const transferReference = typeof transfer.reference === "string" ? transfer.reference : "";
+      if (!transferReference) return json({ error: "Transfer reference is missing." }, 400);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
+      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
+        p_reference: transferReference,
+        p_outcome: transferOutcome,
+        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
+        p_failure_reason: typeof transfer.reason === "string" ? transfer.reason : null,
+      });
+      if (settlementError) {
+        console.error("Referral transfer settlement failed:", settlementError.message);
+        return json({ error: "Transfer outcome could not be recorded." }, 500);
+      }
+      console.info("Referral transfer webhook processed:", transferReference, settlement);
+      return json({ received: true });
+    }
+
+
+    if (event?.event === "refund.processed") {
+      const refund = event?.data || {};
+      const paymentReference = typeof refund.transaction_reference === "string" ? refund.transaction_reference : "";
+      const refundAmount = Number(refund.amount);
+      if (!paymentReference || !Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refund.currency !== "NGN") {
+        return json({ error: "Refund details are incomplete or invalid." }, 400);
+      }
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
+      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data: reversal, error: reversalError } = await serviceClient.rpc("reverse_referral_reward", {
+        p_payment_reference: paymentReference,
+        p_refund_amount_kobo: refundAmount,
+      });
+      if (reversalError) {
+        console.error("Referral reward refund recovery failed:", reversalError.message);
+        return json({ error: "Refund was received but referral recovery could not be recorded." }, 500);
+      }
+      console.info("Referral refund event processed:", paymentReference, reversal);
+      return json({ received: true, referral_reversal: reversal });
+    }
+
     if (event?.event !== "charge.success") return json({ received: true });
 
     const transaction = event?.data;
@@ -94,6 +149,20 @@ serve(async (req) => {
         console.error("Webhook could not update payment:", paymentUpdateError.message);
         return json({ error: "Could not record payment." }, 500);
       }
+    }
+
+    // Credit a referral commission only after the matching payment is verified.
+    // The database RPC is idempotent, so repeated Paystack webhooks cannot double-credit.
+    const { data: referralResult, error: referralError } = await serviceClient.rpc(
+      "credit_referral_reward",
+      { p_payment_id: payment.id },
+    );
+    if (referralError) {
+      console.error("Referral reward processing failed:", referralError.message);
+      return json({ error: "Payment recorded; referral reward processing will retry." }, 500);
+    }
+    if (referralResult?.credited) {
+      console.info("Referral reward credited:", referralResult.reward_id);
     }
 
     const { error: profileError } = await serviceClient.from("profiles")
