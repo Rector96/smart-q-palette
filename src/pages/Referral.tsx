@@ -38,6 +38,7 @@ const Referral = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [bankName, setBankName] = useState("");
@@ -91,6 +92,7 @@ const Referral = () => {
         return;
       }
       setBanks(data?.banks || []);
+      setTestModeEnabled(data?.test_mode_enabled === true);
     });
     return () => { active = false; };
   }, []);
@@ -149,6 +151,28 @@ const Referral = () => {
     }
     setVerifiedAccountName(data.account_name);
     toast({ title: "Account verified", description: "Confirm the account name before saving." });
+  };
+
+  const saveTestBank = async () => {
+    setBankBusy(true);
+    const { data, error } = await supabase.functions.invoke("referral-bank-account", {
+      body: { action: "save_test_account" },
+    });
+    setBankBusy(false);
+    if (error || !data?.saved) {
+      toast({
+        title: "Test bank setup failed",
+        description: data?.error || error?.message || "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowBankSetup(false);
+    await loadReferralData();
+    toast({
+      title: "Test bank account added",
+      description: "This is a simulated Paystack test recipient. Withdrawals are disabled for it.",
+    });
   };
 
   const saveBank = async () => {
@@ -264,6 +288,13 @@ const Referral = () => {
                 ))}
                 {showBankSetup && <>
                 <p className="text-xs text-muted-foreground">The verified bank account holder name must match your Smart Q Palette signup name: <span className="font-semibold text-foreground">{user?.user_metadata?.full_name || "your registered full name"}</span>.</p>
+                {testModeEnabled && <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+                  <p className="text-sm font-semibold">Paystack test mode</p>
+                  <p className="text-xs text-muted-foreground">Add a clearly marked test recipient to check the bank-setup screen without using your real account. No payout can be made to this test recipient.</p>
+                  <Button type="button" variant="outline" className="w-full" disabled={bankBusy} onClick={() => void saveTestBank()}>
+                    {bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Add Paystack test bank account
+                  </Button>
+                </div>}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5"><Label htmlFor="referral-bank">Bank</Label>
                     <select id="referral-bank" value={bankCode} onChange={(event) => { const selected = banks.find((item) => item.code === event.target.value); setBankCode(event.target.value); setBankName(selected?.name || ""); setVerifiedAccountName(""); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
