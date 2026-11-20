@@ -34,7 +34,7 @@ const AdminReferrals = () => {
   const [customers, setCustomers] = useState<CustomerControl[]>([]);
   const [customerSearchBusy, setCustomerSearchBusy] = useState(false);
   const [customerActionId, setCustomerActionId] = useState("");
-  const [blockReason, setBlockReason] = useState("");
+  const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
 
   const loadWithdrawals = useCallback(async () => {
     setLoading(true);
@@ -73,6 +73,7 @@ const AdminReferrals = () => {
   };
 
   const setCustomerWithdrawalBlock = async (customer: CustomerControl, blocked: boolean) => {
+    const blockReason = blockReasons[customer.user_id] ?? "";
     if (blocked && blockReason.trim().length < 5) {
       toast({ title: "Reason required", description: "Enter a clear reason before blocking this customer's withdrawals.", variant: "destructive" });
       return;
@@ -89,7 +90,7 @@ const AdminReferrals = () => {
     setCustomers((current) => current.map((item) => item.user_id === customer.user_id
       ? { ...item, withdrawals_blocked: blocked, withdrawals_block_reason: blocked ? blockReason.trim() : null }
       : item));
-    setBlockReason("");
+    setBlockReasons((current) => ({ ...current, [customer.user_id]: "" }));
     toast({ title: blocked ? "Withdrawals blocked" : "Withdrawals restored", description: data.message });
   };
 
@@ -129,7 +130,7 @@ const AdminReferrals = () => {
                 <Button size="sm" variant="outline" onClick={() => void setCustomerWithdrawalBlock(customer, false)} disabled={customerActionId === customer.user_id}>{customerActionId === customer.user_id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Restore withdrawals</Button>
               ) : (
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input value={blockReason} onChange={(event) => setBlockReason(event.target.value)} placeholder="Reason for temporary block" maxLength={500} className="min-w-0 flex-1" />
+                  <Input value={blockReasons[customer.user_id] ?? ""} onChange={(event) => setBlockReasons((current) => ({ ...current, [customer.user_id]: event.target.value }))} placeholder="Reason for temporary block" maxLength={500} className="min-w-0 flex-1" />
                   <Button size="sm" variant="destructive" onClick={() => void setCustomerWithdrawalBlock(customer, true)} disabled={customerActionId === customer.user_id}>{customerActionId === customer.user_id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Block withdrawals</Button>
                 </div>
               )}
