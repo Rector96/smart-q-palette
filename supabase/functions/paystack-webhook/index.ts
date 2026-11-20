@@ -50,6 +50,37 @@ serve(async (req) => {
     if (!(await verifySignature(rawBody, req))) return json({ error: "Invalid or missing Paystack signature." }, 401);
 
     const event = JSON.parse(rawBody);
+
+    // Reconcile outbound referral transfers from Paystack's signed webhook.
+    const transferEvents: Record<string, "success" | "failed" | "reversed"> = {
+      "transfer.success": "success",
+      "transfer.failed": "failed",
+      "transfer.reversed": "reversed",
+    };
+    const transferOutcome = transferEvents[event?.event];
+    if (transferOutcome) {
+      const transfer = event?.data || {};
+      const transferReference = typeof transfer.reference === "string" ? transfer.reference : "";
+      if (!transferReference) return json({ error: "Transfer reference is missing." }, 400);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
+      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
+        p_reference: transferReference,
+        p_outcome: transferOutcome,
+        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
+        p_failure_reason: typeof transfer.reason === "string" ? transfer.reason : null,
+      });
+      if (settlementError) {
+        console.error("Referral transfer settlement failed:", settlementError.message);
+        return json({ error: "Transfer outcome could not be recorded." }, 500);
+      }
+      console.info("Referral transfer webhook processed:", transferReference, settlement);
+      return json({ received: true });
+    }
+
     if (event?.event !== "charge.success") return json({ received: true });
 
     const transaction = event?.data;
