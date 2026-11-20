@@ -32,8 +32,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       manifest: {
-        name: "Weblines CBT",
-        short_name: "Weblines",
+        name: "WeblineCBT",
+        short_name: "WeblineCBT",
         description: "Practice JAMB, WAEC, NECO CBT exams online with instant results",
         start_url: "/dashboard",
         display: "standalone",
