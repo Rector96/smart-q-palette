@@ -153,12 +153,13 @@ const AdminReferrals = () => {
             <div className="space-y-3">
               <div><h3 className="font-bold">Referral programme financial report</h3><p className="text-xs text-muted-foreground">Only confirmed subscription payments from users with a recorded referral attribution are counted. This is subscription revenue, not all platform payments.</p></div>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral subscription revenue</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_subscription_revenue)}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Successful referred subscriptions</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.referral_subscription_count}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral reward cost</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_reward_cost)}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Net before fees / other costs</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_net_before_fees)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Confirmed referred-payment revenue</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_subscription_revenue)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Verified referred payments</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.referral_subscription_count}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral reward credits</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_reward_cost)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Net after rewards, before fees</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_net_before_fees)}</p></CardContent></Card>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Rewarded referrals</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.rewards.length}</p></CardContent></Card>
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral rewards already paid out</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_payouts_paid)}</p></CardContent></Card>
                 <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral rewards earned (including unpaid)</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_reward_cost)}</p></CardContent></Card>
               </div>
