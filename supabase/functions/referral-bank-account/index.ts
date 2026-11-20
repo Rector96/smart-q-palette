@@ -64,6 +64,19 @@ serve(async (req) => {
     const accountName = String(resolved?.account_name || "").trim();
     if (!accountName) return json({ error: "Paystack could not verify this bank account." }, 422);
 
+    // Compare against the name recorded at signup. This check is performed on
+    // the server for both verification and saving; a browser cannot bypass it.
+    const registeredName = String(authData.user.user_metadata?.full_name || "").trim();
+    const normalizeName = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!registeredName) {
+      return json({ error: "Your Smart Q Palette account has no registered full name. Please contact support before adding a withdrawal account." }, 400);
+    }
+    if (normalizeName(accountName) !== normalizeName(registeredName)) {
+      return json({
+        error: `The bank account name ( ${accountName} ) does not match your Smart Q Palette signup name ( ${registeredName} ). For security, use a bank account registered in your name.`,
+      }, 422);
+    }
+
     if (action === "resolve_account") {
       return json({ verified: true, account_name: accountName });
     }
