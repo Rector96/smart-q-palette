@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,7 +74,7 @@ const AdminPayments = () => {
     return () => { active = false; window.clearTimeout(handle); };
   }, [customerSearch]);
 
-  const submitManualPayment = async (event: React.FormEvent) => {
+  const submitManualPayment = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected) {
       toast({ title: "Choose a customer", description: "Search by the customer's email or name first.", variant: "destructive" });
