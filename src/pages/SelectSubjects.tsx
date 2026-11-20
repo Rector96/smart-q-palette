@@ -59,7 +59,10 @@ const SelectSubjects = () => {
         setCatalog(data.catalog as CatalogItem[]);
         if (preselected) {
           const match = (data.catalog as CatalogItem[]).find((item) => item.subject.toLowerCase() === preselected.toLowerCase());
-          if (match) setExamination(match.examination);
+          if (match) {
+            setExamination(match.examination);
+            setSelected([match.subject]);
+          }
         }
       }
       setCatalogLoading(false);
