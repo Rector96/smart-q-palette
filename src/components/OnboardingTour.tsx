@@ -17,8 +17,8 @@ const DASHBOARD_STEPS: TourStep[] = [
   { selector: '[data-tour="ai-tutor"]', title: "AI Tutor", message: "Stuck on a question? Your AI Tutor is always online to guide you instantly.", icon: Brain },
   { selector: '[data-tour="exam-modes"]', title: "Exam Modes", message: "Choose how you want to practice — CBT, Mock Exam, Revision, or Practice Mode.", icon: Clock },
   { selector: '[data-tour="library"]', title: "Library", message: "Access all your recommended literature texts and reading materials in one place.", icon: BookOpen },
-  { selector: '[data-tour="set-quiz"]', title: "Set Quiz", message: "Create custom quizzes and simulate real test conditions to track your readiness.", icon: FileEdit },
-  { selector: '[data-tour="subjects"]', title: "Subjects", message: "Select a subject and focus your preparation.", icon: BookOpenCheck },
+  { selector: '[data-tour="live-quiz"]', title: "Live Quiz", message: "Challenge yourself with live quiz sessions and practise alongside others.", icon: FileEdit },
+  { selector: '[data-tour="subjects"]', title: "Subjects", message: "Choose a subject and focus your practice. Your progress is tracked as you improve.", icon: BookOpenCheck },
 ];
 
 const STORAGE_KEY = "weblines_tour_completed";
@@ -173,7 +173,7 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100dvh - 32px)" }}
             >
               {/* Close btn */}
-              <button onClick={skip} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
+              <button onClick={skip} className="absolute top-3 right-3 h-11 w-11 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
 
@@ -187,7 +187,7 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
                 </div>
               </div>
 
-              <p className="text-xs text-muted-foreground leading-relaxed mb-4">{currentStep.message}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-4">{currentStep.message}</p>
 
               {/* Progress dots */}
               <div className="flex items-center gap-1 mb-3">
@@ -200,14 +200,14 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               <div className="flex items-center gap-2">
                 {step === 0 ? (
                   <>
-                    <Button variant="ghost" size="sm" className="h-11 text-xs flex-1" onClick={skip}>Skip</Button>
-                    <Button size="sm" className="h-11 text-xs flex-1 gap-1" onClick={next}>Start Tour <ChevronRight className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="sm" className="h-12 text-sm flex-1" onClick={skip}>Skip</Button>
+                    <Button size="sm" className="h-12 text-sm flex-1 gap-1" onClick={next}>Start Tour <ChevronRight className="h-3.5 w-3.5" /></Button>
                   </>
                 ) : (
                   <>
                     <Button variant="ghost" size="sm" className="h-11 min-w-11 text-xs" onClick={prev}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={skip}>Skip</Button>
-                    <Button size="sm" className="h-8 text-xs flex-1 gap-1" onClick={next}>
+                    <Button variant="ghost" size="sm" className="h-11 text-sm" onClick={skip}>Skip</Button>
+                    <Button size="sm" className="h-11 text-sm flex-1 gap-1" onClick={next}>
                       {isLast ? "Finish 🎉" : "Next"} {!isLast && <ChevronRight className="h-3.5 w-3.5" />}
                     </Button>
                   </>
