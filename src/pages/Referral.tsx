@@ -86,12 +86,16 @@ const Referral = () => {
 
   useEffect(() => {
     if (!user) return;
-    const channel = supabase.channel(`referral-withdrawals-${user.id}`)
+    const channel = supabase.channel(`referral-financial-updates-${user.id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "referral_withdrawals", filter: `user_id=eq.${user.id}` }, (payload) => {
         const updated = payload.new as WithdrawalRow;
         setWithdrawalConfirmation((current) => current && current.reference === updated.reference ? { ...current, status: updated.status } : current);
         void loadReferralData();
-      }).subscribe();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_wallets", filter: `user_id=eq.${user.id}` }, () => { void loadReferralData(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_rewards", filter: `referrer_user_id=eq.${user.id}` }, () => { void loadReferralData(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "referral_wallet_transactions", filter: `user_id=eq.${user.id}` }, () => { void loadReferralData(); })
+      .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [user, loadReferralData]);
 
@@ -238,10 +242,10 @@ const Referral = () => {
     });
     setWithdrawAmount("1000");
     await loadReferralData();
-    toast({ title: "Withdrawal submitted", description: "Your payout is being processed. ROCKCBT will update the result when Paystack confirms it." });
+    toast({ title: "Withdrawal submitted", description: "Your payout is being processed. Smart Q Palette will update the result when Paystack confirms it." });
   };
 
-  const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
+  const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);\n  const enteredWithdrawalAmount = Number(withdrawAmount);\n  const withdrawalAmountError = withdrawAmount.trim() === "" ? "Enter the amount you want to withdraw." : !Number.isSafeInteger(enteredWithdrawalAmount) || enteredWithdrawalAmount <= 0 ? "Enter a valid whole-naira amount." : enteredWithdrawalAmount < 1000 ? "Minimum withdrawal is ₦1,000." : enteredWithdrawalAmount > Number(wallet.available_balance) ? `You only have ${money(wallet.available_balance)} available to withdraw.` : "";
   const withdrawalStatusLabel = (status: string) => status === "otp" ? "Contact support" : status === "processing" || status === "queued" || status === "pending" ? "Processing payout" : status === "success" ? "Successful" : status === "failed" ? "Failed — balance returned" : status === "reversed" ? "Reversed — balance returned" : status;
   const latestOpenWithdrawal = withdrawals.find((item) => ["otp", "processing", "queued"].includes(item.status));
   const latestWithdrawalBank = latestOpenWithdrawal ? bankAccounts.find((account) => account.id === latestOpenWithdrawal.bank_account_id) : null;
@@ -345,7 +349,7 @@ const Referral = () => {
                 {bankAccounts.length > 0 ? <>
                   <div className="mb-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Withdrawal destination: <span className="font-semibold text-foreground">{bankAccounts.find((account) => account.id === withdrawBankId)?.account_name || "Select a verified bank account"}</span></div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5"><Label htmlFor="withdraw-amount">Amount (₦)</Label><Input id="withdraw-amount" type="number" min="1000" step="1" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} /></div>
+                    <div className="space-y-1.5"><Label htmlFor="withdraw-amount">Amount (₦)</Label><Input id="withdraw-amount" type="number" min="1000" step="1" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} aria-invalid={Boolean(withdrawalAmountError)} />\n                      {withdrawAmount.trim() !== "" && withdrawalAmountError && <p className="text-xs text-destructive">{withdrawalAmountError}</p>}</div>
                     <div className="space-y-1.5"><Label htmlFor="withdraw-bank">Send to</Label>
                       <select id="withdraw-bank" value={withdrawBankId} onChange={(event) => setWithdrawBankId(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                         <option value="">Select saved account</option>{bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.bank_name} · {account.account_number_masked}</option>)}
@@ -354,7 +358,7 @@ const Referral = () => {
                   </div>
                 </> : <p className="text-sm text-muted-foreground">Add a bank account in your name to continue. We will verify it before any withdrawal.</p>}
                 {bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") && <p className="text-xs text-amber-700 dark:text-amber-400">This is a test recipient. Test-mode withdrawals can be simulated; no real money will be sent.</p>}
-                <Button className="w-full" disabled={withdrawBusy || (bankAccounts.length > 0 && Number(wallet.available_balance) < 1000) || !withdrawBankId} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                <Button className="w-full" disabled={withdrawBusy || Boolean(withdrawalAmountError) || !withdrawBankId} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
                   {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Request test withdrawal" : bankAccounts.length ? "Request withdrawal" : "Withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>
@@ -386,7 +390,7 @@ const Referral = () => {
             </Card>
           </>
         )}
-        <p className="pb-2 text-center text-[11px] text-muted-foreground">Referral rewards are credited only after a qualifying payment is verified. Minimum withdrawal is ₦1,000.</p>
+        <p className="pb-2 text-center text-[11px] text-muted-foreground">Referral rewards are credited only after Paystack confirms a referred student’s ₦2,500 subscription. Each successful subscription earns the referrer a fixed ₦500. Minimum withdrawal is ₦1,000.</p>
       </main>
     </div>
   );
