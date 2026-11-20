@@ -120,6 +120,12 @@ create policy referral_wallet_transactions_select_own
   on public.referral_wallet_transactions for select to authenticated
   using ((select auth.uid()) = user_id);
 
+-- Give every account that already exists a referral code as well as new signups.
+insert into public.referral_profiles (user_id, referral_code)
+select u.id, upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12))
+from auth.users u
+on conflict (user_id) do nothing;
+
 -- Create referral identity for every new account. Referral codes supplied through
 -- user metadata are treated only as untrusted input and resolved against server records.
 create or replace function private.create_referral_profile_for_new_user()
