@@ -42,6 +42,7 @@ const SelectSubjects = () => {
   const [selected, setSelected] = useState<string[]>([]);
   const [customMinutes, setCustomMinutes] = useState(60);
   const [questionCount, setQuestionCount] = useState(60);
+  const [adaptivePractice, setAdaptivePractice] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isMock = mode === "mock";
@@ -131,6 +132,7 @@ const SelectSubjects = () => {
       subjects: selected.join(","),
       count: String(questionCount),
       timer: String(customMinutes),
+      adaptive: String(adaptivePractice && (mode === "practice" || mode === "revision")),
     });
     navigate(`/exam?${params.toString()}`);
   };
@@ -239,6 +241,29 @@ const SelectSubjects = () => {
 
         {selected.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            {(mode === "practice" || mode === "revision") && (
+              <Card className={cn("border-2 shadow-sm transition-colors", adaptivePractice ? "border-primary/60 bg-primary/5" : "border-border/50")}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Practice style</Label>
+                      <p className="text-[11px] text-muted-foreground mt-1">Choose how Smart Q Palette selects your questions.</p>
+                    </div>
+                    <span className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-1 font-semibold">Personalised</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" size="sm" variant={!adaptivePractice ? "default" : "outline"} onClick={() => setAdaptivePractice(false)} className="h-auto min-h-10 whitespace-normal text-xs">Standard practice</Button>
+                    <Button type="button" size="sm" variant={adaptivePractice ? "default" : "outline"} onClick={() => setAdaptivePractice(true)} className="h-auto min-h-10 whitespace-normal text-xs">Adaptive practice</Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {adaptivePractice
+                      ? "Questions adjust to your topic performance: extra support for weaker topics and harder questions as your mastery improves."
+                      : "Questions are selected using the normal balanced question mix."}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="border-border/50 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3"><Hash className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Number of Questions</Label></div>
