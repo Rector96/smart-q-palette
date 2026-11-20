@@ -127,7 +127,24 @@ const Referral = () => {
     });
     setBankBusy(false);
     if (error || !data?.verified) {
-      toast({ title: "Account verification failed", description: data?.error || error?.message || "Please check the details and try again.", variant: "destructive" });
+      // Supabase may place a non-2xx Edge Function response body on error.context
+      // instead of returning it as data. Read that body so the user sees the
+      // actual safe validation message (e.g. Paystack or registered-name error).
+      let serverMessage = data?.error as string | undefined;
+      const responseContext = (error as any)?.context;
+      if (!serverMessage && responseContext && typeof responseContext.clone === "function") {
+        try {
+          const responseBody = await responseContext.clone().json();
+          serverMessage = responseBody?.error || responseBody?.message;
+        } catch {
+          // Fall back to the SDK error message if the response is not JSON.
+        }
+      }
+      toast({
+        title: "Account verification failed",
+        description: serverMessage || error?.message || "Please check the bank details and try again.",
+        variant: "destructive",
+      });
       return;
     }
     setVerifiedAccountName(data.account_name);
