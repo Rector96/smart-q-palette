@@ -13,6 +13,8 @@ create table if not exists public.student_question_reviews (
 );
 create index if not exists student_question_reviews_due_idx
   on public.student_question_reviews (user_id, due_at);
+create index if not exists student_question_reviews_question_idx
+  on public.student_question_reviews (question_id);
 alter table public.student_question_reviews enable row level security;
 drop policy if exists "Students can read their own question reviews" on public.student_question_reviews;
 create policy "Students can read their own question reviews"
