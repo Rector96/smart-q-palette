@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.cbt-submit]
 verify_jwt = true
+
+[functions.referral-bank-account]
+verify_jwt = true
+
+[functions.referral-withdraw]
+verify_jwt = true
