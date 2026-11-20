@@ -171,7 +171,7 @@ const Referral = () => {
     await loadReferralData();
     toast({
       title: "Test bank account added",
-      description: "This is a simulated Paystack test recipient. Withdrawals are disabled for it.",
+      description: "This is a simulated Paystack test recipient. You can submit a test withdrawal; no real money will be sent.",
     });
   };
 
@@ -326,9 +326,9 @@ const Referral = () => {
                     </div>
                   </div>
                 </> : <p className="text-sm text-muted-foreground">Add a bank account in your name to continue. We will verify it before any withdrawal.</p>}
-                {bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") && <p className="text-xs text-amber-700 dark:text-amber-400">This test recipient is for setup testing only. Payouts are disabled.</p>}
-                <Button className="w-full" disabled={withdrawBusy || (bankAccounts.length > 0 && Number(wallet.available_balance) < 1000) || Boolean(bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:"))} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
-                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Test account — payouts disabled" : bankAccounts.length ? "Request withdrawal" : "Withdraw"}
+                {bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") && <p className="text-xs text-amber-700 dark:text-amber-400">This is a test recipient. Test-mode withdrawals can be simulated; no real money will be sent.</p>}
+                <Button className="w-full" disabled={withdrawBusy || (bankAccounts.length > 0 && Number(wallet.available_balance) < 1000) || !withdrawBankId} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Request test withdrawal" : bankAccounts.length ? "Request withdrawal" : "Withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>
               </CardContent>
