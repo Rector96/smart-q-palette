@@ -65,6 +65,17 @@ Deno.serve(async (req: Request) => {
       .select("question_id").eq("user_id", user.id);
     if (seenError) return respond({ error: "Could not load your question history." }, 500);
     const seen = new Set((seenRows ?? []).map((row) => row.question_id));
+    const dueReviewIds = new Set<string>();
+    if (mode === "revision") {
+      const { data: dueRows, error: dueError } = await admin.from("student_question_reviews")
+        .select("question_id")
+        .eq("user_id", user.id)
+        .lte("due_at", new Date().toISOString())
+        .order("due_at", { ascending: true })
+        .limit(500);
+      if (dueError) return respond({ error: "Could not load your scheduled revision questions." }, 500);
+      for (const row of dueRows ?? []) dueReviewIds.add(row.question_id);
+    }
 
     const allQuestions: any[] = [];
     for (const subject of subjects) {
@@ -84,7 +95,12 @@ Deno.serve(async (req: Request) => {
         await admin.from("user_seen_questions").delete().eq("user_id", user.id).in("question_id", ids);
         unseen = shuffled;
       }
-      const pool = mode === "revision" ? [...shuffle(previouslySeen), ...shuffle(unseen)] : [...shuffle(unseen), ...shuffle(previouslySeen)];
+      const dueQuestions = shuffled.filter((q) => dueReviewIds.has(q.id));
+      const dueSet = new Set(dueQuestions.map((q) => q.id));
+      const otherPreviouslySeen = previouslySeen.filter((q) => !dueSet.has(q.id));
+      const pool = mode === "revision"
+        ? [...shuffle(dueQuestions), ...shuffle(otherPreviouslySeen), ...shuffle(unseen)]
+        : [...shuffle(unseen), ...shuffle(previouslySeen)];
 
       if (adaptive) {
         const { data: masteryRows, error: masteryError } = await admin.from("student_topic_mastery")
@@ -113,8 +129,14 @@ Deno.serve(async (req: Request) => {
             : attempts >= 5 && accuracy >= 0.75
               ? "hard"
               : "medium";
-          const preferred = shuffle(questions.filter((q) => q.difficulty === targetDifficulty));
-          const fallback = shuffle(questions.filter((q) => q.difficulty !== targetDifficulty));
+          const preferredQuestions = questions.filter((q) => q.difficulty === targetDifficulty);
+          const fallbackQuestions = questions.filter((q) => q.difficulty !== targetDifficulty);
+          const preferred = mode === "revision"
+            ? [...shuffle(preferredQuestions.filter((q) => dueReviewIds.has(q.id))), ...shuffle(preferredQuestions.filter((q) => !dueReviewIds.has(q.id)))]
+            : shuffle(preferredQuestions);
+          const fallback = mode === "revision"
+            ? [...shuffle(fallbackQuestions.filter((q) => dueReviewIds.has(q.id))), ...shuffle(fallbackQuestions.filter((q) => !dueReviewIds.has(q.id)))]
+            : shuffle(fallbackQuestions);
           return {
             questions: [...preferred, ...fallback],
             priority: attempts >= 3 ? accuracy : 0.5,
