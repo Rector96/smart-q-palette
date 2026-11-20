@@ -67,15 +67,19 @@ serve(async (req) => {
     if (action === "find_customer") {
       const query = typeof body?.query === "string" ? body.query.trim().slice(0, 120) : "";
       if (query.length < 3) return json({ error: "Enter at least 3 characters to search." }, 400);
-      const { data: profiles, error: searchError } = await serviceClient.from("profiles")
-        .select("user_id,full_name,email")
-        .or(`full_name.ilike.%${query.replace(/[,%()]/g, "")}%,email.ilike.%${query.replace(/[,%()]/g, "")}%`)
-        .limit(10);
-      if (searchError) {
-        console.error("Referral customer search failed:", searchError.message);
+      const safeQuery = query.replace(/[%,()]/g, "").trim();
+      const [nameSearch, emailSearch] = await Promise.all([
+        serviceClient.from("profiles").select("user_id,full_name,email").ilike("full_name", `%${safeQuery}%`).limit(10),
+        serviceClient.from("profiles").select("user_id,full_name,email").ilike("email", `%${safeQuery}%`).limit(10),
+      ]);
+      if (nameSearch.error || emailSearch.error) {
+        console.error("Referral customer search failed:", nameSearch.error?.message || emailSearch.error?.message);
         return json({ error: "Customer search is temporarily unavailable." }, 500);
       }
-      const userIds = (profiles || []).map((profile: any) => profile.user_id);
+      const profileMapById = new Map<string, any>();
+      [...(nameSearch.data || []), ...(emailSearch.data || [])].forEach((profile: any) => profileMapById.set(profile.user_id, profile));
+      const profiles = [...profileMapById.values()].slice(0, 10);
+      const userIds = profiles.map((profile: any) => profile.user_id);
       const { data: controls, error: controlsError } = userIds.length
         ? await serviceClient.from("referral_profiles")
             .select("user_id,withdrawals_blocked,withdrawals_block_reason")
