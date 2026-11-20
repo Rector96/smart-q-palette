@@ -69,7 +69,7 @@ serve(async (req) => {
         serviceClient.from("referral_wallets").select("user_id,pending_balance,available_balance,lifetime_earned,lifetime_paid,recovery_balance,updated_at").order("updated_at", { ascending: false }).limit(500),
         serviceClient.from("referral_wallet_transactions").select("id,user_id,transaction_type,amount,status,reference_type,reference_id,idempotency_key,description,created_at").order("created_at", { ascending: false }).limit(500),
         serviceClient.from("referral_rewards").select("id,payment_id,referrer_user_id,referred_user_id,amount,status,created_at,available_at,reversed_at").order("created_at", { ascending: false }).limit(500),
-        serviceClient.from("referral_withdrawals").select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at").order("requested_at", { ascending: false }).limit(500),
+        serviceClient.from("referral_withdrawals").select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at,referral_bank_accounts(bank_name,account_name,account_number_masked)").order("requested_at", { ascending: false }).limit(500),
         serviceClient.from("referral_attributions").select("referred_user_id,referrer_user_id,referral_code,created_at").order("created_at", { ascending: false }).limit(500),
       ]);
       const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error;
@@ -92,6 +92,12 @@ serve(async (req) => {
         ? await serviceClient.from("referral_profiles").select("user_id,referral_code,withdrawals_blocked,withdrawals_block_reason,withdrawals_block_source").in("user_id", ids)
         : { data: [], error: null };
       if (referralProfilesError) return json({ error: "Referral account controls could not be loaded." }, 500);
+      const paymentIds = [...new Set((rewardResult.data || []).map((r: any) => r.payment_id).filter(Boolean))];
+      const { data: payments, error: paymentsError } = paymentIds.length
+        ? await serviceClient.from("payments").select("id,reference,amount,status,verified_at").in("id", paymentIds)
+        : { data: [], error: null };
+      if (paymentsError) return json({ error: "Referral subscription payment details could not be loaded." }, 500);
+      const paymentMap = new Map((payments || []).map((r: any) => [r.id, r]));
       const profileMap = new Map((profiles || []).map((r: any) => [r.user_id, r]));
       const referralMap = new Map((referralProfiles || []).map((r: any) => [r.user_id, r]));
       const enrich = (row: any, idField = "user_id") => ({
@@ -113,8 +119,15 @@ serve(async (req) => {
         referrer_email: profileMap.get(row.referrer_user_id)?.email || "",
         referred_name: profileMap.get(row.referred_user_id)?.full_name || "Customer",
         referred_email: profileMap.get(row.referred_user_id)?.email || "",
+        payment_reference: paymentMap.get(row.payment_id)?.reference || "",
+        payment_amount: paymentMap.get(row.payment_id)?.amount || 0,
+        payment_status: paymentMap.get(row.payment_id)?.status || "unknown",
+        payment_verified_at: paymentMap.get(row.payment_id)?.verified_at || null,
       }));
-      const withdrawals = (withdrawalResult.data || []).map((row: any) => enrich(row));
+      const withdrawals = (withdrawalResult.data || []).map((row: any) => ({
+        ...enrich(row),
+        bank: Array.isArray(row.referral_bank_accounts) ? row.referral_bank_accounts[0] : row.referral_bank_accounts,
+      }));
       const total = (key: string) => wallets.reduce((sum: number, row: any) => sum + Number(row[key] || 0), 0);
       return json({
         summary: {
