@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SUBJECTS, EXAM_MODES } from "@/lib/subjects";
 import {
   Trophy, Target, Clock, ChevronRight,
-  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, Users
+  Sparkles, Flame, Brain, Shield, Crown, Lock, Rocket, BookOpen, Users, Gift
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -160,6 +160,8 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
+        <Card className="rounded-2xl border-primary/20 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/referrals")}><CardContent className="flex items-center gap-3 p-3.5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10"><Gift className="h-5 w-5 text-primary" /></div><div className="min-w-0 flex-1"><p className="text-sm font-bold">Refer & Earn ₦500</p><p className="text-xs text-muted-foreground">Invite friends and earn when they become paid members.</p></div><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" /></CardContent></Card>
+
         <motion.div whileTap={{ scale: 0.98 }} data-tour="start-test">
           <Button className="w-full h-12 lg:h-14 text-sm lg:text-base gap-2 rounded-xl shadow-md bg-primary hover:bg-primary/90 justify-between px-5" onClick={handleStartTest}>
             <div className="flex items-center gap-2"><Rocket className="h-5 w-5" /><span className="font-semibold">Start Practice Test</span></div><ChevronRight className="h-5 w-5" />
@@ -200,7 +202,7 @@ const Dashboard = () => {
         </CardContent></Card>}
         {focusTopics.length === 0 && stats.sessions > 0 && <Card className="rounded-2xl border-border/60 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><Target className="h-5 w-5 shrink-0 text-primary" /><div><p className="text-sm font-semibold">Keep building your learning profile</p><p className="text-xs text-muted-foreground">Answer at least three questions in a topic to unlock a targeted practice recommendation.</p></div></CardContent></Card>}
 
-        {!isPro && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => setShowSubscription(true)}><CardContent className="p-3 flex items-center gap-3"><Crown className="h-5 w-5 text-primary shrink-0" /><div className="flex-1"><p className="text-xs font-semibold">Upgrade to Pro — ₦2,000</p><p className="text-[10px] text-muted-foreground">Unlock unlimited exams, AI tutor & more</p></div><ChevronRight className="h-4 w-4 text-muted-foreground" /></CardContent></Card></motion.div>}
+        {!isPro && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => setShowSubscription(true)}><CardContent className="p-3 flex items-center gap-3"><Crown className="h-5 w-5 text-primary shrink-0" /><div className="flex-1"><p className="text-xs font-semibold">Upgrade to Pro — ₦2,500</p><p className="text-[10px] text-muted-foreground">Unlock unlimited exams, AI tutor & more</p></div><ChevronRight className="h-4 w-4 text-muted-foreground" /></CardContent></Card></motion.div>}
 
         <div data-tour="exam-modes"><h2 className="text-base lg:text-lg font-bold mb-3">Exam Modes</h2><div className="grid grid-cols-2 gap-2.5 lg:gap-3">
           {allModeCards.map((mode) => { const Icon = mode.icon; const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz"; return <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-quiz" ? "set-quiz" : mode.id === "live-quiz" ? "live-quiz" : undefined}><Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl h-full" onClick={() => { if (locked) { setShowSubscription(true); return; } mode.action(); }}><CardContent className="p-3 lg:p-4 flex items-center gap-3"><div className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Icon className="h-4 w-4 lg:h-5 lg:w-5 text-primary" /></div><div className="flex-1 min-w-0"><p className="font-bold text-xs lg:text-sm">{mode.name}</p><p className="text-[10px] lg:text-[11px] text-muted-foreground truncate">{mode.description}</p></div>{locked ? <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}</CardContent></Card></motion.div>; })}
