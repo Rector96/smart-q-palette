@@ -57,13 +57,18 @@ const SelectSubjects = () => {
       if (error || !Array.isArray(data?.catalog)) {
         setCatalogError(data?.error || error?.message || "We could not load available examinations.");
       } else {
-        setCatalog(data.catalog as CatalogItem[]);
+        const availableCatalog = data.catalog as CatalogItem[];
+        setCatalog(availableCatalog);
         if (preselected) {
-          const match = (data.catalog as CatalogItem[]).find((item) => item.subject.toLowerCase() === preselected.toLowerCase());
+          const match = availableCatalog.find((item) => item.subject.toLowerCase() === preselected.toLowerCase());
           if (match) {
             setExamination(match.examination);
             setSelected([match.subject]);
           }
+        } else if (mode === "revision" && availableCatalog.length > 0) {
+          // Preselect an available exam source so revision students can choose a subject immediately.
+          const firstAvailableExam = availableCatalog.find((item) => item.examination === "JAMB") || availableCatalog[0];
+          setExamination(firstAvailableExam.examination);
         }
       }
       setCatalogLoading(false);
