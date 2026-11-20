@@ -61,6 +61,7 @@ const AdminReferrals = () => {
       return;
     }
     setCustomerSearchBusy(true);
+    setCustomers([]); // Do not leave previous search results visible under a new query.
     const { data, error } = await supabase.functions.invoke("referral-admin", {
       body: { action: "find_customer", query: customerQuery.trim() },
     });
