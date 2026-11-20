@@ -3,6 +3,10 @@ alter table public.referral_wallets
   add column if not exists recovery_balance numeric(12,2) not null default 0
   check (recovery_balance >= 0);
 
+alter table public.referral_profiles
+  add column if not exists withdrawals_block_source text
+  check (withdrawals_block_source is null or withdrawals_block_source in ('admin','refund_recovery'));
+
 alter table public.referral_wallet_transactions
   drop constraint if exists referral_wallet_transactions_transaction_type_check;
 alter table public.referral_wallet_transactions
@@ -43,12 +47,19 @@ begin
   select * into v_profile from public.referral_profiles
   where user_id = p_target_user_id for update;
   if not found then raise exception 'Referral customer account was not found.'; end if;
+  if not p_blocked and exists (
+    select 1 from public.referral_wallets
+    where user_id = p_target_user_id and recovery_balance > 0
+  ) then
+    raise exception 'This customer still has an outstanding refund recovery balance. Withdrawals cannot be restored yet.';
+  end if;
 
   update public.referral_profiles
   set withdrawals_blocked = p_blocked,
       withdrawals_block_reason = case when p_blocked then v_reason else null end,
       withdrawals_blocked_at = case when p_blocked then now() else null end,
-      withdrawals_blocked_by = case when p_blocked then p_actor_user_id else null end
+      withdrawals_blocked_by = case when p_blocked then p_actor_user_id else null end,
+      withdrawals_block_source = case when p_blocked then 'admin' else null end
   where user_id = p_target_user_id;
 
   insert into public.referral_admin_audit(actor_user_id, target_user_id, action, reason)
@@ -128,7 +139,8 @@ begin
     set withdrawals_blocked = true,
         withdrawals_block_reason = 'A referred payment was refunded after its reward had been used. Future referral earnings will repay the outstanding balance before withdrawals are re-enabled.',
         withdrawals_blocked_at = now(),
-        withdrawals_blocked_by = null
+        withdrawals_blocked_by = null,
+        withdrawals_block_source = 'refund_recovery'
     where user_id = v_reward.referrer_user_id;
   end if;
 
@@ -204,7 +216,7 @@ begin
     set withdrawals_blocked = false, withdrawals_block_reason = null,
         withdrawals_blocked_at = null, withdrawals_blocked_by = null
     where user_id = v_referrer
-      and withdrawals_block_reason like 'A referred payment was refunded%';
+      and withdrawals_block_source = 'refund_recovery';
   end if;
 
   return jsonb_build_object('credited', true, 'reward_id', v_reward_id,
