@@ -58,7 +58,7 @@ serve(async (req) => {
       return json({ error: "The saved bank recipient is invalid. Please add and verify the bank account again." }, 400);
     }
 
-    reservedReference = `SQPRWD-${crypto.randomUUID().replaceAll("-", "").toUpperCase()}`;
+    reservedReference = `SQPRWD-${crypto.randomUUID().replaceAll("-", "").toLowerCase()}`;
     const { data: reservation, error: reserveError } = await serviceClient.rpc("reserve_referral_withdrawal", {
       p_user_id: userId,
       p_bank_account_id: bankAccountId,
