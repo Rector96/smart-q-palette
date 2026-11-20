@@ -229,7 +229,8 @@ const Referral = () => {
     toast({ title: "Withdrawal request received", description: data?.requires_otp ? "Your request is waiting for secure platform approval. You do not need to enter the Paystack code." : "Your payout is being processed. We will update you when Paystack confirms it." });
   };
 
-  const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);\n  const withdrawalStatusLabel = (status: string) => status === "otp" ? "Awaiting platform approval" : status === "processing" || status === "queued" ? "Processing payout" : status === "success" ? "Paid" : status === "failed" ? "Failed — balance returned" : status === "reversed" ? "Reversed — balance returned" : status;
+  const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
+  const withdrawalStatusLabel = (status: string) => status === "otp" ? "Awaiting platform approval" : status === "processing" || status === "queued" ? "Processing payout" : status === "success" ? "Paid" : status === "failed" ? "Failed — balance returned" : status === "reversed" ? "Reversed — balance returned" : status;
 
   return (
     <div className="min-h-[100dvh] bg-background">
