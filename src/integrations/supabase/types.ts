@@ -268,7 +268,6 @@ export type Database = {
           created_at?: string
           free_live_quiz_used?: number
           email?: string | null
-          email?: string | null
           full_name?: string | null
           id?: string
           is_subscribed?: boolean
@@ -282,6 +281,7 @@ export type Database = {
           ai_tutor_usage?: number | null
           created_at?: string
           free_live_quiz_used?: number
+          email?: string | null
           full_name?: string | null
           id?: string
           is_subscribed?: boolean
