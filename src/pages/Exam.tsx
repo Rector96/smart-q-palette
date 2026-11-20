@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,7 @@ const Exam = () => {
   const timerRef = useState<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useState<number>(Date.now());
   const questionStartRef = useState<number>(Date.now());
+  const feedbackRef = useRef<HTMLParagraphElement | null>(null);
 
   const isTimed = mode === "cbt" || mode === "mock";
   const isPractice = mode === "practice" || mode === "revision";
@@ -153,6 +154,14 @@ const Exam = () => {
     setAnswers((prev) => ({ ...prev, [questionId]: label }));
     if (isPractice) setShowResult(true);
   };
+
+  useEffect(() => {
+    if (!isPractice || !showResult || !currentQuestion) return;
+    const frame = window.requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isPractice, showResult, currentQuestion?.id]);
 
   const toggleFlag = () => {
     if (!currentQuestion) return;
@@ -465,7 +474,7 @@ const Exam = () => {
                         {showFeedback && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-destructive shrink-0" />}
                       </motion.button>
                       {showFeedback && (
-                        <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className={cn("text-[10px] mt-1 ml-9 leading-relaxed", isCorrect ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
+                        <motion.p ref={feedbackRef} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className={cn("text-[10px] mt-1 ml-9 leading-relaxed scroll-mt-24", isCorrect ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
                           {isCorrect
                             ? `✅ Correct! ${currentQuestion.exam_hint || "Well done!"}`
                             : `❌ Not quite. ${currentQuestion.exam_hint || "Review this concept."}`}
