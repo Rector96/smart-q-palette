@@ -89,17 +89,20 @@ Deno.serve(async (req: Request) => {
       if (error) return respond({ error: "Could not load the question bank." }, 500);
       const shuffled = shuffle(data ?? []);
       let unseen = shuffled.filter((q) => !seen.has(q.id));
-      const previouslySeen = shuffled.filter((q) => seen.has(q.id));
-      if (unseen.length < count && previouslySeen.length && seen.size >= Math.ceil(shuffled.length * 0.8)) {
+      let previouslySeen = shuffled.filter((q) => seen.has(q.id));
+      // Measure coverage within this subject only; seen also contains other subjects.
+      const subjectSeenRatio = previouslySeen.length / Math.max(shuffled.length, 1);
+      if (unseen.length < count && previouslySeen.length > 0 && subjectSeenRatio >= 0.8) {
         const ids = shuffled.map((q) => q.id);
         await admin.from("user_seen_questions").delete().eq("user_id", user.id).in("question_id", ids);
         unseen = shuffled;
+        previouslySeen = [];
       }
       const dueQuestions = shuffled.filter((q) => dueReviewIds.has(q.id));
       const dueSet = new Set(dueQuestions.map((q) => q.id));
       const otherPreviouslySeen = previouslySeen.filter((q) => !dueSet.has(q.id));
       const pool = mode === "revision"
-        ? [...shuffle(dueQuestions), ...shuffle(otherPreviouslySeen), ...shuffle(unseen)]
+        ? [...shuffle(dueQuestions), ...shuffle(otherPreviouslySeen), ...shuffle(unseen.filter((q) => !dueSet.has(q.id)))]
         : [...shuffle(unseen), ...shuffle(previouslySeen)];
 
       if (adaptive) {
