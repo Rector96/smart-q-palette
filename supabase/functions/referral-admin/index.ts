@@ -63,6 +63,34 @@ serve(async (req) => {
     }
 
 
+
+    if (action === "find_customer") {
+      const query = typeof body?.query === "string" ? body.query.trim().slice(0, 120) : "";
+      if (query.length < 3) return json({ error: "Enter at least 3 characters to search." }, 400);
+      const { data: profiles, error: searchError } = await serviceClient.from("profiles")
+        .select("user_id,full_name,email")
+        .or(`full_name.ilike.%${query.replace(/[,%()]/g, "")}%,email.ilike.%${query.replace(/[,%()]/g, "")}%`)
+        .limit(10);
+      if (searchError) {
+        console.error("Referral customer search failed:", searchError.message);
+        return json({ error: "Customer search is temporarily unavailable." }, 500);
+      }
+      const userIds = (profiles || []).map((profile: any) => profile.user_id);
+      const { data: controls, error: controlsError } = userIds.length
+        ? await serviceClient.from("referral_profiles")
+            .select("user_id,withdrawals_blocked,withdrawals_block_reason")
+            .in("user_id", userIds)
+        : { data: [], error: null };
+      if (controlsError) return json({ error: "Customer withdrawal controls could not be loaded." }, 500);
+      const controlMap = new Map((controls || []).map((control: any) => [control.user_id, control]));
+      return json({ customers: (profiles || []).map((profile: any) => ({
+        ...profile,
+        withdrawals_blocked: controlMap.get(profile.user_id)?.withdrawals_blocked === true,
+        withdrawals_block_reason: controlMap.get(profile.user_id)?.withdrawals_block_reason || null,
+        has_referral_profile: controlMap.has(profile.user_id),
+      })) });
+    }
+
     if (action === "set_withdrawal_block") {
       const targetUserId = typeof body?.user_id === "string" ? body.user_id : "";
       const blocked = body?.blocked === true;
