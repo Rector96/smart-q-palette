@@ -38,6 +38,7 @@ const Dashboard = () => {
   const [progression, setProgression] = useState({ xp: 0, todayQuestions: 0, bestScore: 0 });
   const [focusTopics, setFocusTopics] = useState<Array<{ subject: string; topic: string; correct: number; total: number; accuracy: number }>>([]);
   const [dueReviewCount, setDueReviewCount] = useState(0);
+  const [masteredTopicCount, setMasteredTopicCount] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
   const tour = useOnboardingTour();
   useOnlinePresence("dashboard");
@@ -69,8 +70,11 @@ const Dashboard = () => {
         supabase.from("student_question_reviews").select("id", { count: "exact", head: true }).eq("user_id", user.id).lte("due_at", new Date().toISOString()),
       ]);
       setDueReviewCount(dueCount || 0);
+      setMasteredTopicCount((masteryRows || []).filter((item: any) =>
+        item.attempts >= 5 && item.correct_answers / item.attempts >= 0.8
+      ).length);
       setFocusTopics((masteryRows || [])
-        .filter((item: any) => item.attempts >= 3)
+        .filter((item: any) => item.attempts >= 3 && item.correct_answers / item.attempts < 0.8)
         .map((item: any) => ({
           subject: item.subject,
           topic: item.topic,
@@ -270,12 +274,12 @@ const Dashboard = () => {
         </Card>
 
         {/* Recommendations from the student's real answer history */}
-        {focusTopics.length > 0 && (
+        {(focusTopics.length > 0 || masteredTopicCount > 0) && (
           <Card className="rounded-2xl border-amber-500/20 shadow-sm">
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10"><Brain className="h-5 w-5 text-amber-600" /></div>
-                <div><h2 className="text-sm font-bold">Your focus areas</h2><p className="text-[11px] text-muted-foreground">Based on your recent answers · up to 1,000 attempts</p></div>
+                <div><h2 className="text-sm font-bold">Your learning focus</h2><p className="text-[11px] text-muted-foreground">{masteredTopicCount} topic{masteredTopicCount === 1 ? "" : "s"} mastered · based on your answers</p></div>
               </div>
               {focusTopics.map((item) => (
                 <div key={`${item.subject}::${item.topic}`} className="rounded-xl border border-border/60 p-3">
