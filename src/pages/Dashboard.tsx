@@ -36,6 +36,7 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<{ full_name: string | null; trial_count: number; is_subscribed: boolean }>({ full_name: null, trial_count: 0, is_subscribed: false });
   const [streak, setStreak] = useState(0);
   const [progression, setProgression] = useState({ xp: 0, todayQuestions: 0, bestScore: 0 });
+  const [focusTopics, setFocusTopics] = useState<Array<{ subject: string; topic: string; correct: number; total: number; accuracy: number }>>([]);
   const [showSubscription, setShowSubscription] = useState(false);
   const tour = useOnboardingTour();
   useOnlinePresence("dashboard");
@@ -61,7 +62,25 @@ const Dashboard = () => {
     const fetchData = async () => {
       const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
       if (prof) setProfile(prof);
-      const { data: sessions } = await supabase.from("exam_sessions").select("*").eq("user_id", user.id).eq("completed", true).order("completed_at", { ascending: false });
+      const [{ data: sessions }, { data: answerHistory }] = await Promise.all([
+        supabase.from("exam_sessions").select("*").eq("user_id", user.id).eq("completed", true).order("completed_at", { ascending: false }),
+        supabase.from("user_history").select("is_correct, answered_at, questions(subject, topic)").eq("user_id", user.id).order("answered_at", { ascending: false }).limit(1000),
+      ]);
+      const topicStats: Record<string, { subject: string; topic: string; correct: number; total: number }> = {};
+      (answerHistory || []).forEach((entry: any) => {
+        const subject = entry.questions?.subject;
+        const topic = entry.questions?.topic;
+        if (!subject || !topic) return;
+        const key = `${subject}::${topic}`;
+        if (!topicStats[key]) topicStats[key] = { subject, topic, correct: 0, total: 0 };
+        topicStats[key].total += 1;
+        if (entry.is_correct) topicStats[key].correct += 1;
+      });
+      setFocusTopics(Object.values(topicStats)
+        .filter((item) => item.total >= 3)
+        .map((item) => ({ ...item, accuracy: Math.round(item.correct / item.total * 100) }))
+        .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total)
+        .slice(0, 3));
       if (sessions && sessions.length > 0) {
         const avg = sessions.reduce((sum, s) => sum + (Number(s.score_percentage) || 0), 0) / sessions.length;
         const total = sessions.reduce((sum, s) => sum + s.total_questions, 0);
@@ -233,6 +252,31 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Recommendations from the student's real answer history */}
+        {focusTopics.length > 0 && (
+          <Card className="rounded-2xl border-amber-500/20 shadow-sm">
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10"><Brain className="h-5 w-5 text-amber-600" /></div>
+                <div><h2 className="text-sm font-bold">Your focus areas</h2><p className="text-[11px] text-muted-foreground">Based on your recent answers · up to 1,000 attempts</p></div>
+              </div>
+              {focusTopics.map((item) => (
+                <div key={`${item.subject}::${item.topic}`} className="rounded-xl border border-border/60 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><p className="text-sm font-semibold">{item.topic}</p><p className="text-[11px] text-muted-foreground">{item.subject} · {item.correct}/{item.total} correct</p></div>
+                    <Badge variant={item.accuracy < 40 ? "destructive" : "secondary"}>{item.accuracy}%</Badge>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-amber-500" style={{ width: `${item.accuracy}%` }} /></div>
+                  <Button size="sm" variant="outline" className="mt-3 h-9 w-full rounded-lg text-xs" onClick={() => navigate(`/select-subjects?mode=practice&subject=${encodeURIComponent(item.subject)}`)}>Practise {item.subject}</Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+        {focusTopics.length === 0 && stats.sessions > 0 && (
+          <Card className="rounded-2xl border-border/60 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><Target className="h-5 w-5 shrink-0 text-primary" /><div><p className="text-sm font-semibold">Keep building your learning profile</p><p className="text-xs text-muted-foreground">Answer at least three questions in a topic to unlock a targeted practice recommendation.</p></div></CardContent></Card>
+        )}
 
         {/* Upgrade Banner */}
         {!isPro && (
