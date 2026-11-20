@@ -51,7 +51,7 @@ const AdminReferrals = () => {
   useEffect(() => { void loadWithdrawals(); }, [loadWithdrawals]);
 
   const approveTransfer = async (withdrawalId: string) => {
-    if (!/^\\d{4,8}$/.test(otp.trim())) {
+    if (!/^\d{4,8}$/.test(otp.trim())) {
       toast({ title: "Enter the Paystack code", description: "Use the authorisation code sent to the platform's registered Paystack contact.", variant: "destructive" });
       return;
     }
@@ -119,7 +119,7 @@ const AdminReferrals = () => {
                       <p className="text-xs leading-5 text-muted-foreground">Enter the OTP sent to the platform's registered Paystack phone/email. This approves the transfer for the customer shown above.</p>
                       {selectedId === item.id ? (
                         <div className="flex flex-col gap-2 sm:flex-row">
-                          <Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\\D/g, "").slice(0, 8))} placeholder="Enter Paystack OTP" className="sm:max-w-xs" />
+                          <Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="Enter Paystack OTP" className="sm:max-w-xs" />
                           <Button onClick={() => void approveTransfer(item.id)} disabled={savingId === item.id || otp.length < 4}>{savingId === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}Approve transfer</Button>
                           <Button variant="ghost" onClick={() => { setSelectedId(""); setOtp(""); }}>Cancel</Button>
                         </div>
