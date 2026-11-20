@@ -26,7 +26,7 @@ serve(async (req) => {
     }
 
     const authorization = req.headers.get("Authorization") || "";
-    const token = authorization.replace(/^Bearer\\s+/i, "");
+    const token = authorization.replace(/^Bearer\s+/i, "");
     if (!token || token === authorization) return json({ error: "Please sign in first." }, 401);
 
     const authClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
