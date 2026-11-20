@@ -122,6 +122,18 @@ const Results = () => {
         </motion.div>
       )}
 
+      {/* Learning XP earned from this completed session */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mx-auto max-w-2xl px-3 pb-3 sm:px-4">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white backdrop-blur-md">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/75">Learning rewards</p>
+            <p className="mt-0.5 text-lg font-extrabold">+{(Number(session.correct_answers) || 0) * 10 + 25} XP</p>
+            <p className="text-xs text-white/80">10 XP per correct answer + 25 XP for completing the session</p>
+          </div>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl">⚡</div>
+        </div>
+      </motion.div>
+
       {/* Main Content Card */}
       <div className="mx-auto max-w-2xl px-3 pb-8 sm:px-4">
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
