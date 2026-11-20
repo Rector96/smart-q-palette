@@ -19,6 +19,7 @@ const Exam = lazy(() => import("./pages/Exam"));
 const Results = lazy(() => import("./pages/Results"));
 const AITutor = lazy(() => import("./pages/AITutor"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Referrals = lazy(() => import("./pages/Referrals"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
               <Route path="/ai-tutor" element={<ProtectedRoute><AppLayout><AITutor /></AppLayout></ProtectedRoute>} />
               <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
+              <Route path="/referrals" element={<ProtectedRoute><AppLayout><Referrals /></AppLayout></ProtectedRoute>} />
               <Route path="/select-subjects" element={<ProtectedRoute><AppLayout><SelectSubjects /></AppLayout></ProtectedRoute>} />
               <Route path="/results/:sessionId" element={<ProtectedRoute><AppLayout><Results /></AppLayout></ProtectedRoute>} />
               <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
