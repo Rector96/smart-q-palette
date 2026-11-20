@@ -18,7 +18,7 @@ const referralDb = supabase as any;
 type ReferralProfile = { referral_code: string };
 type WalletRow = { pending_balance: number; available_balance: number; lifetime_earned: number; lifetime_paid: number };
 type RewardRow = { id: string; amount: number; status: string; created_at: string };
-type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
+type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string };
 type Bank = { name: string; code: string };
 type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
 
@@ -63,7 +63,7 @@ const Referral = () => {
       referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
       referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
       referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(10),
-      referralDb.from("referral_withdrawals").select("id,amount,status,requested_at").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(5),
+      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(5),
       referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
       referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
     ]);
@@ -231,6 +231,8 @@ const Referral = () => {
 
   const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
   const withdrawalStatusLabel = (status: string) => status === "otp" ? "Awaiting platform approval" : status === "processing" || status === "queued" ? "Processing payout" : status === "success" ? "Paid" : status === "failed" ? "Failed — balance returned" : status === "reversed" ? "Reversed — balance returned" : status;
+  const latestOpenWithdrawal = withdrawals.find((item) => ["otp", "processing", "queued"].includes(item.status));
+  const latestWithdrawalBank = latestOpenWithdrawal ? bankAccounts.find((account) => account.id === latestOpenWithdrawal.bank_account_id) : null;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -254,6 +256,7 @@ const Referral = () => {
         ) : (
           <>
             {withdrawalConfirmation && <Card className="rounded-2xl border-emerald-500/30 bg-emerald-500/5 shadow-sm"><CardContent className="space-y-3 p-4 sm:p-5"><div className="flex items-start gap-3"><div className="rounded-full bg-emerald-500/10 p-2 text-emerald-600"><CheckCircle2 className="h-6 w-6" /></div><div className="min-w-0 flex-1"><h2 className="font-bold">Withdrawal request received</h2><p className="mt-1 text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(withdrawalConfirmation.amount)}</span> has been submitted.</p></div><button type="button" onClick={() => setWithdrawalConfirmation(null)} className="text-xs text-muted-foreground underline">Dismiss</button></div><div className="rounded-xl bg-background/80 p-3 text-sm"><p className="font-semibold">{withdrawalConfirmation.accountName}</p><p className="text-xs text-muted-foreground">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p></div>{withdrawalConfirmation.testMode ? <p className="text-xs text-amber-700 dark:text-amber-400">This was a Paystack test-mode request. No real money will be sent.</p> : <p className="text-xs text-muted-foreground">{withdrawalConfirmation.requiresOtp ? "Your request is awaiting secure platform authorisation. You do not need to enter any Paystack code. Once approved, Paystack will process the transfer." : "The money will be delivered to the bank account above after Paystack completes processing. You can follow the status under Withdrawal history."}</p>}</CardContent></Card>}
+            {!withdrawalConfirmation && latestOpenWithdrawal && <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]"><CardContent className="space-y-2 p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-primary" /><h2 className="font-bold">Withdrawal request received</h2></div><p className="text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(latestOpenWithdrawal.amount)}</span> has been submitted.</p><p className="text-xs text-muted-foreground">{latestWithdrawalBank?.account_name || "Your saved account"} · {latestWithdrawalBank?.bank_name || "Bank transfer"} · {latestWithdrawalBank?.account_number_masked || ""}</p><p className="text-xs text-muted-foreground">{latestOpenWithdrawal.status === "otp" ? "Your request is awaiting secure platform authorisation. You do not need to enter the Paystack code. Once approved, Paystack will process the transfer." : "Your payout is being processed. The money will be delivered to the bank account above after Paystack confirms the transfer."}</p></CardContent></Card>}
             <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
               <CardContent className="space-y-4 p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3">
