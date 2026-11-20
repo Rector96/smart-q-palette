@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine } from "lucide-react";
+import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, CheckCircle2 } from "lucide-react";
 import DesktopHeader from "@/components/DesktopHeader";
 import SEOHead from "@/components/SEOHead";
 
@@ -48,6 +48,7 @@ const Referral = () => {
   const [withdrawAmount, setWithdrawAmount] = useState("1000");
   const [withdrawBankId, setWithdrawBankId] = useState("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawalConfirmation, setWithdrawalConfirmation] = useState<{ amount: number; bankName: string; accountName: string; accountNumberMasked: string; requiresOtp: boolean; testMode: boolean } | null>(null);
 
   const referralUrl = useMemo(() => {
     if (!profile?.referral_code) return "";
@@ -214,12 +215,21 @@ const Referral = () => {
       toast({ title: "Withdrawal not submitted", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
       return;
     }
+    const selectedBank = bankAccounts.find((account) => account.id === withdrawBankId);
+    setWithdrawalConfirmation({
+      amount,
+      bankName: data?.bank?.bank_name || selectedBank?.bank_name || "Saved bank account",
+      accountName: data?.bank?.account_name || selectedBank?.account_name || "Verified account holder",
+      accountNumberMasked: data?.bank?.account_number_masked || selectedBank?.account_number_masked || "",
+      requiresOtp: data?.requires_otp === true,
+      testMode: data?.test_mode === true,
+    });
     setWithdrawAmount("1000");
     await loadReferralData();
-    toast({ title: "Withdrawal submitted", description: "Paystack is processing your transfer. Your history will update when the transfer is confirmed." });
+    toast({ title: "Withdrawal request received", description: data?.requires_otp ? "Your request is waiting for secure platform approval. You do not need to enter the Paystack code." : "Your payout is being processed. We will update you when Paystack confirms it." });
   };
 
-  const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
+  const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);\n  const withdrawalStatusLabel = (status: string) => status === "otp" ? "Awaiting platform approval" : status === "processing" || status === "queued" ? "Processing payout" : status === "success" ? "Paid" : status === "failed" ? "Failed — balance returned" : status === "reversed" ? "Reversed — balance returned" : status;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -352,7 +362,7 @@ const Referral = () => {
                 {withdrawals.length === 0 ? <p className="py-3 text-center text-sm text-muted-foreground">You have not made a withdrawal yet.</p> : withdrawals.map((item) => (
                   <div key={item.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                     <div><p className="text-sm font-semibold">{money(item.amount)}</p><p className="text-[11px] text-muted-foreground">{new Date(item.requested_at).toLocaleDateString()}</p></div>
-                    <Badge variant={item.status === "success" ? "default" : "secondary"}>{item.status}</Badge>
+                    <Badge variant={item.status === "success" ? "default" : item.status === "failed" || item.status === "reversed" ? "destructive" : "secondary"}>{withdrawalStatusLabel(item.status)}</Badge>
                   </div>
                 ))}
               </CardContent>
