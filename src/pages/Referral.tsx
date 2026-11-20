@@ -272,11 +272,7 @@ const Referral = () => {
                   </div>
                   <div className="space-y-1.5"><Label htmlFor="referral-account-number">10-digit account number</Label><Input id="referral-account-number" inputMode="numeric" maxLength={10} value={accountNumber} onChange={(event) => { setAccountNumber(event.target.value.replace(/\D/g, "").slice(0, 10)); setVerifiedAccountName(""); }} placeholder="Enter account number" /></div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="referral-manual-bank-code">Bank code (only if your test bank is not listed)</Label>
-                  <Input id="referral-manual-bank-code" inputMode="numeric" maxLength={10} value={bankCode} onChange={(event) => { const code = event.target.value.replace(/\D/g, "").slice(0, 10); setBankCode(code); setBankName(banks.find((item) => item.code === code)?.name || (code ? `Test bank (code ${code})` : "")); setVerifiedAccountName(""); }} placeholder="Enter bank code, e.g. 001" />
-                  <p className="text-xs text-muted-foreground">Use this field when Paystack's test bank code does not appear in the bank list.</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Choose a bank from the list. Paystack must verify the account before it can be saved; test-mode verification limits cannot be bypassed by entering a bank code manually.</p>
                 {verifiedAccountName && <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs text-muted-foreground">Paystack verified account name</p><p className="font-semibold">{verifiedAccountName}</p></div>}
                 {!verifiedAccountName ? <Button variant="outline" className="w-full" disabled={bankBusy || !banks.length} onClick={() => void verifyBank()}>{bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Verify account</Button> :
                   <Button className="w-full" disabled={bankBusy} onClick={() => void saveBank()}>{bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Confirm and save bank account</Button>}
