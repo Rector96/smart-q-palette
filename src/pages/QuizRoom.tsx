@@ -275,14 +275,12 @@ const QuizRoom = () => {
       }
       if (!newRoom) throw new Error("Could not create a new room code. Please try again.");
 
-      const returningPlayers = participants.map((participant) => ({
-        room_id: newRoom!.id,
-        user_id: participant.user_id,
-        display_name: participant.display_name,
-        score: 0,
-      }));
-      const { error: participantsError } = await supabase.from("quiz_participants").insert(returningPlayers);
-      if (participantsError) throw participantsError;
+      const { error: hostJoinError } = await supabase.from("quiz_participants").insert({
+        room_id: newRoom.id,
+        user_id: user.id,
+        display_name: participants.find((participant) => participant.user_id === user.id)?.display_name || "Host",
+      });
+      if (hostJoinError) throw hostJoinError;
 
       if (!profile?.is_subscribed) {
         const { error: usageError } = await supabase.from("profiles")
@@ -291,7 +289,11 @@ const QuizRoom = () => {
         if (usageError) throw usageError;
       }
 
-      toast({ title: "Rematch room created", description: "The same players have been invited into a fresh room." });
+      const inviteUrl = `${window.location.origin}/q/${newRoom.room_code}`;
+      toast({ title: "Rematch room created", description: "Share the new room code with everyone from the last game." });
+      if (navigator.share) {
+        try { await navigator.share({ title: "Rematch challenge!", text: `Join our rematch with code ${newRoom.room_code}`, url: inviteUrl }); } catch {}
+      }
       navigate(`/quiz-room/${newRoom.room_code}`);
     } catch (error: any) {
       toast({ title: "Could not start rematch", description: error.message || "Please try again.", variant: "destructive" });
