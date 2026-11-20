@@ -5,12 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 export const useAdmin = () => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSupportAgent, setIsSupportAgent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user?.id) {
       setIsAdmin(false);
+      setIsSupportAgent(false);
       setError(null);
       setLoading(false);
       return;
@@ -18,13 +20,18 @@ export const useAdmin = () => {
 
     setLoading(true);
     setError(null);
-    const { data, error: checkError } = await supabase.rpc("is_current_user_admin");
+    const [{ data, error: checkError }, { data: supportData, error: supportError }] = await Promise.all([
+      supabase.rpc("is_current_user_admin"),
+      supabase.rpc("is_current_user_support_agent"),
+    ]);
 
-    if (checkError) {
+    if (checkError || supportError) {
       setIsAdmin(false);
+      setIsSupportAgent(false);
       setError("We couldn't verify administrator access. Please try again.");
     } else {
       setIsAdmin(data === true);
+      setIsSupportAgent(supportData === true);
     }
     setLoading(false);
   }, [user?.id]);
@@ -33,5 +40,5 @@ export const useAdmin = () => {
     void refresh();
   }, [refresh]);
 
-  return { isAdmin, loading, error, refresh };
+  return { isAdmin, isSupportAgent, loading, error, refresh };
 };
