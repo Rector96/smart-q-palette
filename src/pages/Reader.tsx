@@ -130,7 +130,7 @@ const Reader = () => {
         {fileUrl ? (
           <iframe
             src={fileUrl}
-            className="w-full h-[calc(100vh-60px)]"
+            className="w-full h-[calc(100dvh-60px)]"
             title={title}
             sandbox="allow-same-origin allow-scripts"
             style={{ border: "none" }}
