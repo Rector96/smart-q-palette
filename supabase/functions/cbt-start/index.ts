@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
       id: item.question.id, subject: item.question.subject, topic: item.question.topic,
       year: item.question.year, difficulty: item.question.difficulty,
       question_text: item.question.question_text, options: item.displayOptions,
-      ...(mode === "practice" ? { correct_answer: item.displayedCorrect, explanation: item.question.explanation } : {}),
+      ...((mode === "practice" || mode === "revision") ? { correct_answer: item.displayedCorrect, explanation: item.question.explanation } : {}),
       passage: item.question.passage, question_type: item.question.question_type,
       exam_hint: item.question.exam_hint,
     }));
