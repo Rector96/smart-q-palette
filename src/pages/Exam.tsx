@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ArrowRight, Flag, Clock, CheckCircle2, XCircle,
-  BookOpen, Send, Loader2, Share2, X
+  BookOpen, Send, Loader2, Share2, X, Shuffle
 } from "lucide-react";
 import ScientificCalculator from "@/components/ScientificCalculator";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,7 +58,7 @@ const Exam = () => {
   const questionStartRef = useState<number>(Date.now());
 
   const isTimed = mode === "cbt" || mode === "mock";
-  const isPractice = mode === "practice";
+  const isPractice = mode === "practice" || mode === "revision";
   const hasMultipleSubjects = subjects.length > 1;
   useOnlinePresence("exam", subjects.join(", "));
 
@@ -160,6 +160,21 @@ const Exam = () => {
     if (newFlagged.has(currentQuestion.id)) newFlagged.delete(currentQuestion.id);
     else newFlagged.add(currentQuestion.id);
     setFlagged(newFlagged);
+  };
+
+  const shuffleQuestionSet = () => {
+    if (questions.length < 2) return;
+    const shuffled = [...questions];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    setQuestions(shuffled);
+    setCurrentIndex(0);
+    setShowResult(false);
+    setShowNav(false);
+    questionStartRef[1](Date.now());
+    toast({ title: "Questions shuffled", description: "Your question order has been mixed. Your saved answers are kept." });
   };
 
   const goToQuestion = (index: number) => {
@@ -350,7 +365,12 @@ const Exam = () => {
               <span className="text-[10px] font-mono font-bold">{formatTime(timeLeft)}</span>
             </div>
           )}
-          <Button variant="ghost" size="icon" className="h-9 w-9 ml-auto rounded-xl" onClick={handleShare} title="Share exam">
+          {!isTimed && (
+            <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5" onClick={shuffleQuestionSet} title="Shuffle question order">
+              <Shuffle className="h-3.5 w-3.5" /><span className="text-[10px]">Shuffle</span>
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleShare} title="Share exam">
             <Share2 className="h-3.5 w-3.5" />
           </Button>
           <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full cursor-pointer" onClick={() => setShowNav(!showNav)}>
