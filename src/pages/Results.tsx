@@ -111,6 +111,17 @@ const Results = () => {
         </motion.div>
       </div>
 
+      {/* Session milestone celebration */}
+      {session.total_questions >= 10 && (
+        <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }} className="mx-auto max-w-2xl px-3 pb-3 sm:px-4">
+          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-4 py-3 text-center text-white">
+            <div className="text-2xl mb-1">{session.total_questions >= 50 ? "🏆" : session.total_questions >= 25 ? "🚀" : "✨"}</div>
+            <p className="font-bold">{session.total_questions >= 50 ? "Big practice session!" : session.total_questions >= 25 ? "Great momentum!" : "Practice milestone reached!"}</p>
+            <p className="text-sm text-white/85">You completed {session.total_questions} questions this session. Keep building your skills!</p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Main Content Card */}
       <div className="mx-auto max-w-2xl px-3 pb-8 sm:px-4">
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
