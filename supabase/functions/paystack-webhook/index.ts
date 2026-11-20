@@ -1,71 +1,110 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status, headers: { "Content-Type": "application/json" },
+});
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paystack-signature",
+const constantTimeEqual = (left: string, right: string) => {
+  if (left.length !== right.length) return false;
+  let diff = 0;
+  for (let i = 0; i < left.length; i++) diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  return diff === 0;
+};
+
+const hmacHex = async (secret: string, message: string) => {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(signature)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
+const verifySignature = async (rawBody: string, req: Request) => {
+  const modernHeader = req.headers.get("paystack-signature");
+  if (modernHeader) {
+    const webhookSecret = Deno.env.get("PAYSTACK_WEBHOOK_SECRET");
+    if (!webhookSecret) return false;
+    const fields = modernHeader.split(",").map((part) => part.trim().split("=", 2));
+    const timestampValue = fields.find(([key]) => key === "t")?.[1];
+    const timestamp = Number(timestampValue);
+    if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
+    const signatures = fields.filter(([key]) => key === "v1").map(([, value]) => value || "");
+    const expected = await hmacHex(webhookSecret, `${timestamp}.${rawBody}`);
+    return signatures.some((entry) => {
+      const separator = entry.indexOf(":");
+      const hex = separator >= 0 ? entry.slice(separator + 1) : entry;
+      return /^[0-9a-f]{128}$/.test(hex) && constantTimeEqual(expected, hex);
+    });
+  }
+
+  const legacyHeader = req.headers.get("x-paystack-signature");
+  const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (!legacyHeader || !paystackSecret || !/^[0-9a-f]{128}$/.test(legacyHeader)) return false;
+  const expected = await hmacHex(paystackSecret, rawBody);
+  return constantTimeEqual(expected, legacyHeader);
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
-    const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (!PAYSTACK_SECRET_KEY) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const rawBody = await req.text();
+    if (!(await verifySignature(rawBody, req))) return json({ error: "Invalid or missing Paystack signature." }, 401);
 
-    const body = await req.text();
-    
-    // Verify webhook signature
-    const signature = req.headers.get("x-paystack-signature");
-    if (signature) {
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(PAYSTACK_SECRET_KEY),
-        { name: "HMAC", hash: "SHA-512" },
-        false,
-        ["sign"]
-      );
-      const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
-      const hash = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-      if (hash !== signature) {
-        return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: corsHeaders });
-      }
+    const event = JSON.parse(rawBody);
+    if (event?.event !== "charge.success") return json({ received: true });
+
+    const transaction = event?.data;
+    const reference = typeof transaction?.reference === "string" ? transaction.reference : "";
+    if (!reference || transaction?.status !== "success" || transaction?.currency !== "NGN") {
+      return json({ error: "Invalid successful-payment event." }, 400);
     }
 
-    const event = JSON.parse(body);
-    
-    if (event.event === "charge.success") {
-      const { reference, metadata } = event.data;
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceKey) {
+      console.error("Paystack webhook is missing Supabase service configuration.");
+      return json({ error: "Webhook is temporarily unavailable." }, 503);
+    }
+    const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: payment, error: lookupError } = await serviceClient.from("payments")
+      .select("id, user_id, amount, currency, status")
+      .eq("reference", reference).maybeSingle();
+    if (lookupError) {
+      console.error("Webhook payment lookup failed:", lookupError.message);
+      return json({ error: "Payment lookup failed." }, 500);
+    }
+    if (!payment) {
+      console.error("Webhook reference has no matching pending payment:", reference);
+      return json({ error: "Unknown payment reference." }, 404);
+    }
 
-      // Update payment status
-      await supabase.from("payments").update({
+    const expectedAmount = Math.round(Number(payment.amount) * 100);
+    if (payment.currency !== "NGN" || transaction.amount !== expectedAmount ||
+        (transaction.metadata?.user_id && transaction.metadata.user_id !== payment.user_id)) {
+      console.error("Webhook amount, currency or owner mismatch:", reference);
+      return json({ error: "Payment details did not match the order." }, 400);
+    }
+
+    if (payment.status !== "success") {
+      const { error: paymentUpdateError } = await serviceClient.from("payments").update({
         status: "success",
         paystack_reference: reference,
         verified_at: new Date().toISOString(),
-      }).eq("reference", reference);
-
-      // Auto-upgrade user
-      if (metadata?.user_id) {
-        await supabase.from("profiles").update({
-          is_subscribed: true,
-        }).eq("user_id", metadata.user_id);
+      }).eq("id", payment.id);
+      if (paymentUpdateError) {
+        console.error("Webhook could not update payment:", paymentUpdateError.message);
+        return json({ error: "Could not record payment." }, 500);
       }
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error: unknown) {
-    console.error("Webhook error:", error);
-    return new Response(JSON.stringify({ error: "Webhook processing failed" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const { error: profileError } = await serviceClient.from("profiles")
+      .update({ is_subscribed: true }).eq("user_id", payment.user_id);
+    if (profileError) {
+      console.error("Webhook could not activate customer:", profileError.message);
+      return json({ error: "Could not activate customer access." }, 500);
+    }
+    return json({ received: true });
+  } catch (error) {
+    console.error("Paystack webhook processing failed:", error);
+    return json({ error: "Webhook processing failed." }, 500);
   }
 });
