@@ -102,26 +102,15 @@ serve(async (req) => {
         .from("referral_profiles").select("user_id").eq("user_id", targetUserId).maybeSingle();
       if (targetError || !target) return json({ error: "Referral customer account was not found." }, 404);
 
-      const { error: updateError } = await serviceClient.from("referral_profiles").update({
-        withdrawals_blocked: blocked,
-        withdrawals_block_reason: blocked ? reason : null,
-        withdrawals_blocked_at: blocked ? new Date().toISOString() : null,
-        withdrawals_blocked_by: blocked ? authData.user.id : null,
-      }).eq("user_id", targetUserId);
-      if (updateError) {
-        console.error("Could not update referral withdrawal restriction:", updateError.message);
-        return json({ error: "Could not update this customer's withdrawal access." }, 500);
-      }
-
-      const { error: auditError } = await serviceClient.from("referral_admin_audit").insert({
-        actor_user_id: authData.user.id,
-        target_user_id: targetUserId,
-        action: blocked ? "withdrawals_blocked" : "withdrawals_unblocked",
-        reason: blocked ? reason : null,
+      const { data: controlResult, error: controlError } = await serviceClient.rpc("set_referral_withdrawal_block", {
+        p_actor_user_id: authData.user.id,
+        p_target_user_id: targetUserId,
+        p_blocked: blocked,
+        p_reason: blocked ? reason : null,
       });
-      if (auditError) {
-        console.error("Could not record referral admin action:", auditError.message);
-        return json({ error: "The restriction was changed, but its audit record could not be saved. Contact technical support." }, 500);
+      if (controlError || !controlResult?.updated) {
+        console.error("Could not update referral withdrawal restriction:", controlError?.message || controlResult);
+        return json({ error: controlError?.message || "Could not update this customer's withdrawal access." }, 500);
       }
       return json({ updated: true, blocked, message: blocked
         ? "Withdrawals are now blocked for this customer. Their earned balance remains untouched."
