@@ -12,7 +12,7 @@ type CustomerControl = { user_id: string; full_name: string | null; email: strin
 
 type AdminWallet = { user_id: string; customer_name: string; customer_email: string; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; updated_at: string; is_subscribed: boolean; referral_code: string | null; withdrawals_blocked: boolean; withdrawals_block_reason: string | null };
 type AdminTransaction = { id: string; user_id: string; customer_name: string; customer_email: string; transaction_type: string; amount: number; status: string; description: string | null; created_at: string };
-type AdminOverview = { summary: { users: number; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; rewards: number; withdrawals: number }; wallets: AdminWallet[]; transactions: AdminTransaction[]; rewards: any[]; withdrawals: any[] };
+type AdminOverview = { rewards: any[]; withdrawals: any[]; summary: { users: number; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; rewards: number; withdrawals: number }; wallets: AdminWallet[]; transactions: AdminTransaction[]; rewards: any[]; withdrawals: any[] };
 
 type Withdrawal = {
   id: string;
@@ -174,6 +174,20 @@ const AdminReferrals = () => {
                 <div className="text-right"><p className="text-sm font-bold tabular-nums">{money(item.amount)}</p><Badge variant={item.status === "posted" ? "secondary" : "outline"}>{item.status}</Badge></div>
               </div>)}
               {overview.transactions.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No wallet transactions recorded yet.</p>}</div>
+            </CardContent></Card>
+            <Card><CardContent className="space-y-3 p-4">
+              <div><h3 className="font-bold">Confirmed referral subscriptions</h3><p className="text-xs text-muted-foreground">Each row represents a reward record created after a qualifying payment was confirmed. The reward is fixed at ₦500.</p></div>
+              <div className="max-h-[320px] space-y-2 overflow-auto">{overview.rewards.slice(0, 100).map((reward) => <div key={reward.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0">
+                <div><p className="text-sm font-semibold">{reward.referrer_name} <span className="font-normal text-muted-foreground">referred</span> {reward.referred_name}</p><p className="text-xs text-muted-foreground">{reward.referrer_email} · {new Date(reward.created_at).toLocaleString()}</p></div>
+                <div className="text-right"><p className="text-sm font-bold">{money(reward.amount)}</p><Badge variant={reward.status === "available" ? "default" : "secondary"}>{reward.status}</Badge></div>
+              </div>)}{overview.rewards.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No qualifying referral subscriptions recorded yet.</p>}</div>
+            </CardContent></Card>
+            <Card><CardContent className="space-y-3 p-4">
+              <div><h3 className="font-bold">All payout records</h3><p className="text-xs text-muted-foreground">Includes processing, successful, failed and reversed withdrawals.</p></div>
+              <div className="max-h-[320px] space-y-2 overflow-auto">{overview.withdrawals.slice(0, 100).map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0">
+                <div><p className="text-sm font-semibold">{item.customer_name} · {money(item.amount)}</p><p className="text-xs text-muted-foreground">{item.reference} · {new Date(item.requested_at).toLocaleString()}</p></div>
+                <Badge variant={item.status === "success" ? "default" : item.status === "failed" || item.status === "reversed" ? "destructive" : "secondary"}>{item.status}</Badge>
+              </div>)}{overview.withdrawals.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No payout records yet.</p>}</div>
             </CardContent></Card>
           </> : <p className="text-sm text-muted-foreground">Financial records could not be loaded.</p>}
         </section>
