@@ -96,6 +96,20 @@ serve(async (req) => {
       }
     }
 
+    // Credit a referral commission only after the matching payment is verified.
+    // The database RPC is idempotent, so repeated Paystack webhooks cannot double-credit.
+    const { data: referralResult, error: referralError } = await serviceClient.rpc(
+      "credit_referral_reward",
+      { p_payment_id: payment.id },
+    );
+    if (referralError) {
+      console.error("Referral reward processing failed:", referralError.message);
+      return json({ error: "Payment recorded; referral reward processing will retry." }, 500);
+    }
+    if (referralResult?.credited) {
+      console.info("Referral reward credited:", referralResult.reward_id);
+    }
+
     const { error: profileError } = await serviceClient.from("profiles")
       .update({ is_subscribed: true }).eq("user_id", payment.user_id);
     if (profileError) {
