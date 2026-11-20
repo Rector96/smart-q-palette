@@ -209,6 +209,7 @@ export type Database = {
           currency: string
           id: string
           payment_method: string | null
+          plan_id: string | null
           paystack_reference: string | null
           reference: string | null
           status: string
@@ -222,6 +223,7 @@ export type Database = {
           currency?: string
           id?: string
           payment_method?: string | null
+          plan_id?: string | null
           paystack_reference?: string | null
           reference?: string | null
           status?: string
@@ -235,6 +237,7 @@ export type Database = {
           currency?: string
           id?: string
           payment_method?: string | null
+          plan_id?: string | null
           paystack_reference?: string | null
           reference?: string | null
           status?: string
@@ -250,6 +253,7 @@ export type Database = {
           ai_tutor_usage: number | null
           created_at: string
           free_live_quiz_used: number
+          email: string | null
           full_name: string | null
           id: string
           is_subscribed: boolean
@@ -263,6 +267,7 @@ export type Database = {
           ai_tutor_usage?: number | null
           created_at?: string
           free_live_quiz_used?: number
+          email?: string | null
           full_name?: string | null
           id?: string
           is_subscribed?: boolean
@@ -276,6 +281,7 @@ export type Database = {
           ai_tutor_usage?: number | null
           created_at?: string
           free_live_quiz_used?: number
+          email?: string | null
           full_name?: string | null
           id?: string
           is_subscribed?: boolean
@@ -684,6 +690,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_record_manual_payment: {
+        Args: { _amount: number; _note: string; _plan_id?: string | null; _reference: string; _target_user_id: string }
+        Returns: string
+      }
+      admin_set_support_agent_role: {
+        Args: { _enabled: boolean; _target_user_id: string }
+        Returns: undefined
+      }
+      is_current_user_support_agent: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       admin_reset_user_trials: {
         Args: { _target_user_id: string }
         Returns: undefined

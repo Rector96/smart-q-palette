@@ -1,12 +1,13 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: adminLoading, error: adminError, refresh } = useAdmin();
+  const location = useLocation();
+  const { isAdmin, isSupportAgent, loading: adminLoading, error: adminError, refresh } = useAdmin();
 
   if (authLoading || adminLoading) {
     return (
@@ -31,7 +32,8 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  const supportAllowed = ["/admin", "/admin/users", "/admin/payments"].includes(location.pathname);
+  if (!isAdmin && !(isSupportAgent && supportAllowed)) return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 };
