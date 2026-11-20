@@ -1,4 +1,4 @@
-project_id = "gotqwaqemszscdpgzdxp"
+project_id = "igntxwcitbjnafgrrcot"
 
 [functions.paystack-initialize]
 verify_jwt = false
@@ -10,4 +10,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-tutor]
-verify_jwt = false
+verify_jwt = true
+
+[functions.cbt-start]
+verify_jwt = true
+
+[functions.cbt-submit]
+verify_jwt = true

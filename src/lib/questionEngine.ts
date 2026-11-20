@@ -7,8 +7,8 @@ export interface QuestionWithShuffledOptions {
   year: number | null;
   difficulty: string;
   question_text: string;
-  options: { label: string; text: string; originalLabel: string }[];
-  correct_answer: string;
+  options: { label: string; text: string; originalLabel?: string }[];
+  correct_answer?: string;
   explanation: string | null;
   passage: string | null;
   question_type: string | null;

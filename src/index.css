@@ -110,3 +110,59 @@
     font-family: 'Space Grotesk', sans-serif;
   }
 }
+
+
+/* App-like mobile foundations */
+@layer base {
+  html {
+    min-height: 100%;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+@layer utilities {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .app-card {
+    @apply rounded-2xl border border-border/70 bg-card shadow-sm;
+  }
+
+  .app-tap {
+    @apply transition-transform duration-150 active:scale-[0.98];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

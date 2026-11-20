@@ -1,12 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, Sparkles, User } from "lucide-react";
+import { Home, BookOpenCheck, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const NAV_ITEMS = [
-  { path: "/", label: "Home", icon: Home },
-  { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { path: "/dashboard", label: "Home", icon: Home },
+  { path: "/select-subjects", label: "Practice", icon: BookOpenCheck },
   { path: "/ai-tutor", label: "AI Tutor", icon: Sparkles },
   { path: "/profile", label: "Profile", icon: User },
 ];
@@ -14,87 +13,51 @@ const NAV_ITEMS = [
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [visible, setVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const isAITutor = location.pathname === "/ai-tutor";
-
-  useEffect(() => {
-    if (isAITutor) {
-      // Start hidden on AI tutor page, show only when scrolling up
-      setVisible(false);
-
-      const handleScroll = () => {
-        const currentY = window.scrollY;
-        if (currentY < lastScrollY.current && currentY > 60) setVisible(true);
-        else if (currentY > lastScrollY.current) setVisible(false);
-        lastScrollY.current = currentY;
-      };
-
-      const handleFocusIn = (e: FocusEvent) => {
-        if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") {
-          setVisible(false);
-        }
-      };
-
-      window.addEventListener("scroll", handleScroll, { passive: true });
-      document.addEventListener("focusin", handleFocusIn);
-
-      return () => {
-        window.removeEventListener("scroll", handleScroll);
-        document.removeEventListener("focusin", handleFocusIn);
-      };
-    } else {
-      const handleScroll = () => {
-        const currentY = window.scrollY;
-        if (currentY > lastScrollY.current && currentY > 60) setVisible(false);
-        else setVisible(true);
-        lastScrollY.current = currentY;
-      };
-      window.addEventListener("scroll", handleScroll, { passive: true });
-      return () => window.removeEventListener("scroll", handleScroll);
-    }
-  }, [isAITutor]);
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+    if (path === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(path);
   };
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.nav
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.06)] rounded-t-2xl"
-        >
-          <div className="max-w-lg mx-auto flex items-center justify-around px-2 py-2">
-            {NAV_ITEMS.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className={cn(
-                    "flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors min-w-[60px]",
-                    active ? "text-primary" : "text-muted-foreground"
-                  )}
-                >
-                  <item.icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-                  <span className={cn("text-[10px] font-medium", active && "font-bold")}>{item.label}</span>
-                  {active && (
-                    <motion.div layoutId="bottomNavIndicator" className="h-0.5 w-4 rounded-full bg-primary mt-0.5" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div className="h-[env(safe-area-inset-bottom,0px)]" />
-        </motion.nav>
-      )}
-    </AnimatePresence>
+    <motion.nav
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      aria-label="Main navigation"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/70 bg-card/95 shadow-[0_-8px_28px_rgba(15,23,42,0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/85"
+    >
+      <div className="mx-auto grid max-w-lg grid-cols-4 px-2 pt-2 pb-1">
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.path);
+          return (
+            <button
+              key={item.path}
+              type="button"
+              aria-current={active ? "page" : undefined}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 transition-colors duration-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {active && (
+                <motion.span
+                  layoutId="mobile-nav-active"
+                  className="absolute inset-x-3 inset-y-0 rounded-2xl bg-primary/10"
+                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                />
+              )}
+              <item.icon className={cn("relative z-10 h-5 w-5", active && "stroke-[2.5]")} />
+              <span className={cn("relative z-10 text-[10px] leading-none", active ? "font-bold" : "font-medium")}>
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="h-[env(safe-area-inset-bottom,0px)]" />
+    </motion.nav>
   );
 };
 

@@ -22,6 +22,9 @@ const SharedExamRedirect = () => {
         subjects: data.subjects.join(","),
         share: data.share_code,
       });
+      if (data.examination) params.set("examination", data.examination);
+      if (data.exam_year) params.set("year", String(data.exam_year));
+      else params.set("year", "all");
       if (data.timer_minutes) params.set("timer", String(data.timer_minutes));
       navigate(`/exam?${params.toString()}`, { replace: true });
     };

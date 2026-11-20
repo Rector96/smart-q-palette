@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSmartQuestions, saveSeenQuestions, type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
+import { type QuestionWithShuffledOptions, getMotivationalMessage, getLearningTip, shouldShowTip } from "@/lib/questionEngine";
 import { SUBJECTS } from "@/lib/subjects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,8 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ArrowRight, Flag, Clock, CheckCircle2, XCircle,
-  BookOpen, Send, Loader2, Share2, X
+  BookOpen, Send, Loader2, Share2, X, Shuffle
 } from "lucide-react";
+import ScientificCalculator from "@/components/ScientificCalculator";
 import { motion, AnimatePresence } from "framer-motion";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import Logo from "@/components/Logo";
@@ -22,6 +23,10 @@ import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
+  const adaptivePractice = searchParams.get("adaptive") === "true" && (mode === "practice" || mode === "revision");
+  const examination = searchParams.get("examination") || "";
+  const yearParam = searchParams.get("year") || "all";
+  const selectedYear = yearParam === "all" ? null : Number(yearParam);
   const subjectsParam = searchParams.get("subjects") || "";
   const timerParam = searchParams.get("timer");
   const shareCode = searchParams.get("share");
@@ -53,7 +58,7 @@ const Exam = () => {
   const questionStartRef = useState<number>(Date.now());
 
   const isTimed = mode === "cbt" || mode === "mock";
-  const isPractice = mode === "practice";
+  const isPractice = mode === "practice" || mode === "revision";
   const hasMultipleSubjects = subjects.length > 1;
   useOnlinePresence("exam", subjects.join(", "));
 
@@ -80,22 +85,10 @@ const Exam = () => {
     const checkTrial = async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("trial_count, is_subscribed, full_name")
+        .select("full_name")
         .eq("user_id", user.id)
         .single();
       if (profile?.full_name) setProfileName(profile.full_name);
-      if (profile && !profile.is_subscribed && profile.trial_count >= 3) {
-        setTrialBlocked(true);
-        setShowSubscription(true);
-        setLoading(false);
-        // Send trial expired email
-        try {
-          await supabase.functions.invoke("send-email", {
-            body: { type: "trial_expired", email: user.email, name: profile.full_name || "Student" },
-          });
-        } catch {}
-        return;
-      }
       loadQuestions();
     };
     checkTrial();
@@ -104,24 +97,27 @@ const Exam = () => {
   const loadQuestions = async () => {
     if (!user) return;
     setLoading(true);
-    let allQuestions: QuestionWithShuffledOptions[] = [];
-    for (const subject of subjects) {
-      const qs = await fetchSmartQuestions(subject, user.id, requestedCount, mode);
-      allQuestions = [...allQuestions, ...qs];
+    const { data, error } = await supabase.functions.invoke("cbt-start", {
+      body: { subjects, mode, count: requestedCount, examination, year: selectedYear, adaptive: adaptivePractice },
+    });
+    let responseData = data;
+    if (error && !responseData && error.context instanceof Response) {
+      try { responseData = await error.context.clone().json(); } catch {}
     }
-    setQuestions(allQuestions);
-    const { data: session } = await supabase
-      .from("exam_sessions")
-      .insert({ user_id: user.id, mode, subjects, total_questions: allQuestions.length })
-      .select()
-      .single();
-    if (session) setSessionId(session.id);
-
-    const { data: prof } = await supabase.from("profiles").select("trial_count").eq("user_id", user.id).single();
-    if (prof) {
-      await supabase.from("profiles").update({ trial_count: (prof.trial_count || 0) + 1 } as any).eq("user_id", user.id);
+    if (error || !responseData?.session?.id || !Array.isArray(responseData.questions)) {
+      const message = responseData?.error || error?.message || "We could not prepare your exam. Please try again.";
+      if (message === "TRIAL_LIMIT_REACHED") {
+        setTrialBlocked(true);
+        setShowSubscription(true);
+      } else {
+        toast({ title: "Unable to start exam", description: message, variant: "destructive" });
+      }
+      setQuestions([]);
+      setLoading(false);
+      return;
     }
-
+    setQuestions(data.questions as QuestionWithShuffledOptions[]);
+    setSessionId(data.session.id);
     setLoading(false);
     startTimeRef[1](Date.now());
     questionStartRef[1](Date.now());
@@ -166,6 +162,21 @@ const Exam = () => {
     setFlagged(newFlagged);
   };
 
+  const shuffleQuestionSet = () => {
+    if (questions.length < 2) return;
+    const shuffled = [...questions];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    setQuestions(shuffled);
+    setCurrentIndex(0);
+    setShowResult(false);
+    setShowNav(false);
+    questionStartRef[1](Date.now());
+    toast({ title: "Questions shuffled", description: "Your question order has been mixed. Your saved answers are kept." });
+  };
+
   const goToQuestion = (index: number) => {
     questionStartRef[1](Date.now());
     setCurrentIndex(index);
@@ -183,6 +194,8 @@ const Exam = () => {
       mode,
       subjects,
       timer_minutes: timerParam ? Number(timerParam) : null,
+      examination,
+      exam_year: selectedYear,
     });
     const url = `${window.location.origin}/s/${code}`;
     try {
@@ -210,20 +223,24 @@ const Exam = () => {
     setShowConfirmSubmit(false);
     setSubmitting(true);
     if (timerRef[0]) clearInterval(timerRef[0]);
-    let correct = 0;
-    const historyEntries = questions.map((q) => {
-      const userAnswer = answers[q.id] || "";
-      const isCorrect = userAnswer === q.correct_answer;
-      if (isCorrect) correct++;
-      return { user_id: user.id, question_id: q.id, selected_answer: userAnswer || "X", is_correct: isCorrect, session_id: sessionId, time_spent_seconds: 0 };
+    const submission = questions.map((q) => ({
+      question_id: q.id,
+      selected_answer: answers[q.id] || "X",
+      time_spent_seconds: 0,
+    }));
+    const { data: submitData, error: submitError } = await supabase.functions.invoke("cbt-submit", {
+      body: { session_id: sessionId, answers: submission },
     });
-    await supabase.from("user_history").insert(historyEntries);
-    // Track seen questions for non-repetition
-    await saveSeenQuestions(user.id, questions.map(q => q.id));
-    const duration = Math.round((Date.now() - startTimeRef[0]) / 1000);
-    const scorePercentage = questions.length > 0 ? (correct / questions.length) * 100 : 0;
-    await supabase.from("exam_sessions").update({ correct_answers: correct, score_percentage: scorePercentage, duration_seconds: duration, completed: true, completed_at: new Date().toISOString() }).eq("id", sessionId);
-    
+    if (submitError || !submitData?.result) {
+      setSubmitting(false);
+      toast({
+        title: "Submission not completed",
+        description: submitData?.error || submitError?.message || "Please try submitting again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check if this is user's first completed CBT and send email
     const { count } = await supabase.from("exam_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true);
     if (count === 1) {
@@ -315,34 +332,45 @@ const Exam = () => {
   return (
     <>
       {submitting && <ExamSubmitOverlay />}
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-[100dvh] overflow-x-clip bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2.5 flex items-center justify-between safe-area-top">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Logo size="sm" showText />
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {subjects.some((subject) => ["mathematics", "physics", "chemistry", "economics"].includes(subject.toLowerCase())) && <ScientificCalculator />}
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Mode / Timer / Progress bar */}
-        <div className="max-w-4xl mx-auto px-4 py-1.5 flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2 flex flex-wrap items-center gap-2">
+          <div className="flex min-h-8 items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full">
             <BookOpen className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-semibold capitalize">{mode} Mode</span>
           </div>
+          <div className="min-h-8 px-2.5 py-1 bg-primary/10 text-primary rounded-full">
+            <span className="text-[10px] font-semibold">{examination}{selectedYear ? ` · ${selectedYear}` : " · All years"}</span>
+          </div>
           {isTimed && (
-            <div className={cn("flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full", timeLeft < 300 && "text-destructive")}>
+            <div className={cn("flex min-h-8 items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full", timeLeft < 300 && "text-destructive")}>
               <Clock className="h-3.5 w-3.5" />
               <span className="text-[10px] font-mono font-bold">{formatTime(timeLeft)}</span>
             </div>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={handleShare} title="Share exam">
+          {!isTimed && (
+            <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5" onClick={shuffleQuestionSet} title="Shuffle question order">
+              <Shuffle className="h-3.5 w-3.5" /><span className="text-[10px]">Shuffle</span>
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleShare} title="Share exam">
             <Share2 className="h-3.5 w-3.5" />
           </Button>
           <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full cursor-pointer" onClick={() => setShowNav(!showNav)}>
@@ -376,17 +404,17 @@ const Exam = () => {
           </div>
         )}
 
-        <Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-0.5" />
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 pb-2 flex items-center justify-between text-[10px] text-muted-foreground"><span>{displayedQuestions.filter((question) => answers[question.id]).length} answered</span><span>{Math.max(0, totalQuestions - displayedQuestions.filter((question) => answers[question.id]).length)} remaining</span></div><Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-1.5" />
       </header>
 
       {/* Question Nav Grid */}
       <AnimatePresence>
         {showNav && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-card border-b border-border overflow-hidden">
-            <div className="max-w-4xl mx-auto px-4 py-3">
+            <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-3">
               <div className="flex flex-wrap gap-1.5">
                 {(hasMultipleSubjects ? displayedQuestions : questions).map((q, idx) => (
-                  <button key={q.id} onClick={() => goToQuestion(idx)} className={cn("h-7 w-7 rounded text-[10px] font-medium transition-colors", idx === currentIndex && "ring-2 ring-primary", answers[q.id] ? "bg-primary text-primary-foreground" : flagged.has(q.id) ? "bg-warning text-warning-foreground" : "bg-secondary text-secondary-foreground")}>
+                  <button key={q.id} onClick={() => goToQuestion(idx)} className={cn("h-9 w-9 rounded-xl text-[11px] font-semibold transition-colors", idx === currentIndex && "ring-2 ring-primary", answers[q.id] ? "bg-primary text-primary-foreground" : flagged.has(q.id) ? "bg-warning text-warning-foreground" : "bg-secondary text-secondary-foreground")}>
                     {idx + 1}
                   </button>
                 ))}
@@ -397,7 +425,7 @@ const Exam = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl mx-auto px-4 py-4 w-full">
+      <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full">
         {currentQuestion && (
           <AnimatePresence mode="wait">
             <motion.div key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
@@ -409,14 +437,14 @@ const Exam = () => {
                   </CardContent>
                 </Card>
               )}
-              <div className="mb-4">
+              <div className="mb-5 rounded-2xl border border-border/60 bg-card p-4 sm:mb-4 sm:border-0 sm:bg-transparent sm:p-0">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <span className="text-[10px] text-muted-foreground">Q{currentIndex + 1} · {currentQuestion.topic} · {currentQuestion.difficulty}</span>
                   <button onClick={toggleFlag} className="shrink-0">
                     <Flag className={cn("h-3.5 w-3.5", flagged.has(currentQuestion.id) ? "text-warning fill-warning" : "text-muted-foreground")} />
                   </button>
                 </div>
-                <p className="text-sm font-semibold leading-relaxed">{currentQuestion.question_text}</p>
+                <p className="text-[15px] sm:text-base font-semibold leading-7">{currentQuestion.question_text}</p>
               </div>
               <div className="space-y-2">
                 {currentQuestion.options.map((option) => {
@@ -426,9 +454,9 @@ const Exam = () => {
                   return (
                     <div key={option.label}>
                       <motion.button whileTap={{ scale: 0.99 }} onClick={() => selectAnswer(currentQuestion.id, option.label)}
-                        className={cn("w-full text-left p-3 rounded-xl border-2 transition-all text-xs flex items-center gap-3",
+                        className={cn("w-full min-h-[58px] text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all text-sm leading-relaxed flex items-center gap-3 active:scale-[0.995]",
                           showFeedback && isCorrect ? "border-[hsl(var(--success))] bg-[hsl(var(--success))]/10" : showFeedback && isSelected && !isCorrect ? "border-destructive bg-destructive/10" : isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")}>
-                        <span className={cn("shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
+                        <span className={cn("shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
                         <span className="flex-1">{option.text}</span>
                         {isSelected && !showFeedback && (
                           <X className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -467,13 +495,13 @@ const Exam = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/80 backdrop-blur-sm sticky bottom-0">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+      <footer className="border-t border-border bg-card/95 backdrop-blur-xl sticky bottom-0 z-20 safe-area-bottom shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
           <Button variant="ghost" size="sm" className="h-8 text-xs" disabled={currentIndex === 0} onClick={() => goToQuestion(currentIndex - 1)}>
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Prev
           </Button>
           {currentIndex === totalQuestions - 1 ? (
-            <Button size="sm" className="h-8 text-xs" onClick={confirmAndSubmit} disabled={submitting}>
+            <Button size="sm" className="h-11 min-w-28 rounded-xl text-xs" onClick={confirmAndSubmit} disabled={submitting}>
               {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Submit
             </Button>
           ) : (

@@ -28,6 +28,7 @@ const LiveQuiz = () => {
   const [subject, setSubject] = useState("");
   const [numQuestions, setNumQuestions] = useState(10);
   const [timePerQuestion, setTimePerQuestion] = useState(30);
+  const [gameMode, setGameMode] = useState<"group" | "duel">("group");
 
   // Join form
   const [roomCode, setRoomCode] = useState("");
@@ -68,7 +69,7 @@ const LiveQuiz = () => {
 
       // Shuffle and pick
       const shuffled = questions.sort(() => Math.random() - 0.5).slice(0, numQuestions);
-      const roomCodeGen = Math.floor(1000 + Math.random() * 9000).toString();
+      const roomCodeGen = `${gameMode === "duel" ? "D" : ""}${Math.floor(1000 + Math.random() * 9000)}`;
       const expiresAt = new Date(Date.now() + 2 * 3600000).toISOString();
 
       const { data: room, error } = await supabase.from("quiz_rooms").insert({
@@ -132,6 +133,18 @@ const LiveQuiz = () => {
         return;
       }
 
+      if (room.room_code.startsWith("D")) {
+        const { data: existingPlayers, error: playersError } = await supabase
+          .from("quiz_participants").select("user_id").eq("room_id", room.id);
+        if (playersError) throw playersError;
+        const alreadyJoined = existingPlayers?.some((player) => player.user_id === user.id);
+        if (!alreadyJoined && (existingPlayers?.length || 0) >= 2) {
+          toast({ title: "Battle is full", description: "This 1-vs-1 challenge already has two players.", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+      }
+
       // Increment free usage if not subscribed
       if (!profile.is_subscribed) {
         await supabase.from("profiles").update({ free_live_quiz_used: (profile.free_live_quiz_used || 0) + 1 } as any).eq("user_id", user.id);
@@ -171,37 +184,37 @@ const LiveQuiz = () => {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-lg mx-auto px-3 pb-28 pt-5 sm:px-4 sm:py-8 space-y-5">
         {view === "menu" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            <div className="text-center space-y-2 mb-6">
-              <div className="h-14 w-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+            <div className="text-center space-y-3 mb-6 px-2">
+              <div className="h-16 w-16 bg-gradient-to-br from-primary/15 to-primary/5 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
                 <Users className="h-7 w-7 text-primary" />
               </div>
-              <h2 className="text-lg font-bold">Live Quiz</h2>
-              <p className="text-xs text-muted-foreground">Compete with friends in real-time quiz battles!</p>
+              <h2 className="text-2xl font-extrabold tracking-tight">Play with friends</h2>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">Challenge your friends, join a room and see who knows the most.</p>
             </div>
 
-            <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => setView("create")}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-2xl active:scale-[0.99]" onClick={() => setView("create")}>
+              <CardContent className="p-5 flex items-center gap-4 min-h-[104px]">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
                   <Plus className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-sm">Create Quiz Room</p>
-                  <p className="text-[11px] text-muted-foreground">Host a quiz and invite friends</p>
+                  <p className="font-bold text-base">Create a quiz</p>
+                  <p className="text-sm text-muted-foreground">Choose a subject and invite your friends to play.</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => setView("join")}>
+            <Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-2xl active:scale-[0.99]" onClick={() => setView("join")}>
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <LogIn className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-sm">Join Quiz Room</p>
-                  <p className="text-[11px] text-muted-foreground">Enter a room code to join</p>
+                  <p className="font-bold text-base">Join with a code</p>
+                  <p className="text-sm text-muted-foreground">Got an invite? Enter the quiz code to join.</p>
                 </div>
               </CardContent>
             </Card>
@@ -210,11 +223,22 @@ const LiveQuiz = () => {
 
         {view === "create" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <h2 className="text-base font-bold">Create Quiz Room</h2>
+            <h2 className="text-xl font-extrabold">Set up your quiz</h2>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Battle type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant={gameMode === "duel" ? "default" : "outline"} className="h-auto min-h-16 flex-col gap-1 rounded-xl" onClick={() => setGameMode("duel")}>
+                  <span className="text-sm font-bold">1-vs-1 Battle</span><span className="text-[10px] opacity-80">Challenge one friend</span>
+                </Button>
+                <Button type="button" variant={gameMode === "group" ? "default" : "outline"} className="h-auto min-h-16 flex-col gap-1 rounded-xl" onClick={() => setGameMode("group")}>
+                  <span className="text-sm font-bold">Group Quiz</span><span className="text-[10px] opacity-80">Compete with a group</span>
+                </Button>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Subject</Label>
               <Select value={subject} onValueChange={setSubject}>
-                <SelectTrigger className="h-10"><SelectValue placeholder="Select subject" /></SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
                   {SUBJECTS.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
@@ -223,27 +247,27 @@ const LiveQuiz = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Questions</Label>
-                <Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-10" />
+                <Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-12 rounded-xl text-base" />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Time/Question (s)</Label>
                 <Input type="number" min={10} max={120} value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))} className="h-10" />
               </div>
             </div>
-            <Button className="w-full h-11" onClick={handleCreate} disabled={loading || !subject}>
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : "Create Room"}
+            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject}>
+              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : gameMode === "duel" ? "Create 1-vs-1 Challenge" : "Create Group Room"}
             </Button>
           </motion.div>
         )}
 
         {view === "join" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <h2 className="text-base font-bold">Join Quiz Room</h2>
+            <h2 className="text-xl font-extrabold">Join a quiz</h2>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Room Code</Label>
-              <Input value={roomCode} onChange={e => setRoomCode(e.target.value.toUpperCase())} placeholder="Enter room code" className="h-10 text-center text-lg tracking-widest font-bold" maxLength={6} />
+              <Input value={roomCode} onChange={e => setRoomCode(e.target.value.toUpperCase())} placeholder="Enter room code" className="h-14 rounded-xl text-center text-2xl tracking-[0.3em] font-bold" maxLength={6} />
             </div>
-            <Button className="w-full h-11" onClick={handleJoin} disabled={loading || !roomCode.trim()}>
+            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleJoin} disabled={loading || !roomCode.trim()}>
               {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Joining...</> : "Join Room"}
             </Button>
           </motion.div>

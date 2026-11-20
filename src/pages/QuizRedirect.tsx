@@ -43,13 +43,26 @@ const QuizRedirect = () => {
         return;
       }
 
-      // Try to join
+      // Enforce the two-player limit for friend battles, including shared-link joins.
+      if (data.room_code.startsWith("D")) {
+        const { data: players, error: playersError } = await supabase
+          .from("quiz_participants").select("user_id").eq("room_id", data.id);
+        if (playersError) throw playersError;
+        const alreadyJoined = players?.some((player) => player.user_id === user.id);
+        if (!alreadyJoined && (players?.length || 0) >= 2) {
+          toast({ title: "Battle is full", description: "This friend challenge already has two players.", variant: "destructive" });
+          navigate("/live-quiz");
+          return;
+        }
+      }
+
       const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
-      await supabase.from("quiz_participants").insert({
+      const { error: joinError } = await supabase.from("quiz_participants").insert({
         room_id: data.id,
         user_id: user.id,
         display_name: profile?.full_name?.split(" ")[0] || "Player",
       });
+      if (joinError && !joinError.message.toLowerCase().includes("duplicate")) throw joinError;
 
       navigate(`/quiz-room/${data.room_code}`);
     };
