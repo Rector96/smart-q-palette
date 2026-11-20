@@ -269,8 +269,8 @@ const QuizRoom = () => {
   if (quizEnded) {
     const sorted = [...participants].sort((a, b) => b.score - a.score);
     return (
-      <div className="min-h-screen bg-background px-4 py-8">
-        <div className="max-w-lg mx-auto space-y-6">
+      <div className="min-h-screen bg-background px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="max-w-xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <Trophy className="h-12 w-12 text-primary mx-auto" />
             <h1 className="text-xl font-bold">Quiz Complete!</h1>
@@ -278,8 +278,8 @@ const QuizRoom = () => {
           </div>
           <div className="space-y-2">
             {sorted.map((p, i) => (
-              <Card key={p.id} className={cn("border-border/50 rounded-xl", i === 0 && "border-primary bg-primary/5")}>
-                <CardContent className="p-3 flex items-center gap-3">
+              <Card key={p.id} className={cn("overflow-hidden rounded-2xl border-border/60 shadow-sm transition-transform", i === 0 && "border-primary/50 bg-primary/5 ring-1 ring-primary/20")}>
+                <CardContent className="flex items-center gap-3 p-4">
                   <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0", i === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground")}>
                     {i === 0 ? <Crown className="h-4 w-4" /> : i + 1}
                   </div>
@@ -291,7 +291,7 @@ const QuizRoom = () => {
               </Card>
             ))}
           </div>
-          <Button className="w-full h-11" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          <Button className="h-12 w-full rounded-xl text-base font-bold shadow-md" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
         </div>
       </div>
     );
@@ -300,30 +300,30 @@ const QuizRoom = () => {
   // WAITING ROOM
   if (room.status === "waiting") {
     return (
-      <div className="min-h-screen bg-background px-4 py-6">
-        <div className="max-w-lg mx-auto space-y-5">
+      <div className="min-h-screen bg-background px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="mx-auto max-w-xl space-y-6">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/live-quiz")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
 
           <div className="text-center space-y-3">
-            <div className="h-14 w-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 shadow-inner">
               <Users className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="text-lg font-bold">Waiting Room</h2>
-            <p className="text-xs text-muted-foreground capitalize">{room.subject} · {questions.length} questions · {room.time_per_question}s each</p>
+            <h2 className="text-2xl font-extrabold tracking-tight">Waiting Room</h2>
+            <p className="text-sm text-muted-foreground capitalize">{room.subject} <span className="mx-1">·</span> {questions.length} questions <span className="mx-1">·</span> {room.time_per_question}s per question</p>
           </div>
 
           {/* Room Code */}
-          <Card className="border-primary/20 bg-primary/5 rounded-xl">
-            <CardContent className="p-4 text-center space-y-2">
+          <Card className="overflow-hidden rounded-3xl border-primary/20 bg-gradient-to-br from-primary/10 to-card shadow-sm">
+            <CardContent className="space-y-3 p-6 text-center">
               <p className="text-xs text-muted-foreground font-medium">Room Code</p>
-              <p className="text-3xl font-bold tracking-[0.3em] text-primary">{roomCode}</p>
+              <p className="text-4xl font-black tracking-[0.35em] text-primary sm:text-5xl">{roomCode}</p>
               <div className="flex items-center justify-center gap-2 pt-1">
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={copyRoomCode}>
+                <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl px-4 text-xs" onClick={copyRoomCode}>
                   <Copy className="h-3 w-3" /> {copied ? "Copied!" : "Copy Code"}
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={shareLink}>
+                <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl px-4 text-xs" onClick={shareLink}>
                   <Share2 className="h-3 w-3" /> Share Link
                 </Button>
               </div>
@@ -332,12 +332,12 @@ const QuizRoom = () => {
 
           {/* Participants */}
           <div>
-            <p className="text-sm font-semibold mb-2">Participants ({participants.length})</p>
+            <div className="mb-3 flex items-center justify-between"><p className="text-sm font-bold">Players in the room</p><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{participants.length} joined</span></div>
             <div className="space-y-1.5">
               {participants.map(p => (
-                <Card key={p.id} className="border-border/50 rounded-lg">
-                  <CardContent className="p-2.5 flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                <Card key={p.id} className="rounded-xl border-border/60 shadow-sm">
+                  <CardContent className="flex items-center gap-3 p-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-sm font-extrabold text-primary">
                       {p.display_name[0]}
                     </div>
                     <p className="text-sm font-medium flex-1">{p.display_name}</p>
@@ -349,7 +349,7 @@ const QuizRoom = () => {
           </div>
 
           {isHost && (
-            <Button className="w-full h-11 gap-2" onClick={handleStart} disabled={participants.length < 1}>
+            <Button className="h-12 w-full gap-2 rounded-xl text-base font-bold shadow-md" onClick={handleStart} disabled={participants.length < 1}>
               <Play className="h-4 w-4" /> Start Quiz
             </Button>
           )}
@@ -366,7 +366,7 @@ const QuizRoom = () => {
   const sorted = [...participants].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-[env(safe-area-inset-bottom)]">
       {/* Tab warning */}
       <AnimatePresence>
         {tabWarning && (
@@ -378,11 +378,11 @@ const QuizRoom = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="border-b border-border bg-card/80 px-4 py-2">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+      <div className="sticky top-0 z-30 border-b border-border/70 bg-card/95 px-4 py-3 shadow-sm backdrop-blur-xl">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground">Q{currentQ + 1}/{questions.length}</span>
-            <div className="h-1.5 w-20 bg-secondary rounded-full overflow-hidden">
+            <span className="text-xs font-extrabold tracking-wide text-foreground">QUESTION {currentQ + 1}<span className="font-medium text-muted-foreground"> / {questions.length}</span></span>
+            <div className="h-2 w-24 overflow-hidden rounded-full bg-secondary sm:w-32">
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
@@ -392,7 +392,7 @@ const QuizRoom = () => {
           </div>
         </div>
         {/* Timer bar */}
-        <div className="max-w-2xl mx-auto mt-1">
+        <div className="mx-auto mt-2 max-w-2xl">
           <div className="h-1 w-full bg-secondary rounded-full overflow-hidden">
             <motion.div className={cn("h-full rounded-full", timeLeft <= 5 ? "bg-destructive" : "bg-primary")} animate={{ width: `${timerPercent}%` }} transition={{ duration: 0.5 }} />
           </div>
@@ -400,9 +400,9 @@ const QuizRoom = () => {
       </div>
 
       {/* Question */}
-      <div className="flex-1 px-4 py-5 max-w-2xl mx-auto w-full space-y-4">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col space-y-5 px-4 py-6 sm:py-8">
         <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-          <p className="text-sm font-semibold leading-relaxed">{currentQuestion.question_text}</p>
+          <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:rounded-3xl sm:p-7"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><p className="text-base font-semibold leading-relaxed sm:text-lg">{currentQuestion.question_text}</p></div>
         </motion.div>
 
         <div className="space-y-2">
@@ -420,12 +420,12 @@ const QuizRoom = () => {
             }
 
             return (
-              <Card key={opt} className={cn("cursor-pointer transition-all rounded-xl", optionClass, answered && "pointer-events-none")} onClick={() => handleAnswer(opt)}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0", showResult && isCorrect ? "bg-[hsl(var(--success))] text-white" : showResult && isSelected ? "bg-destructive text-white" : "bg-secondary")}>
+              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("cursor-pointer rounded-2xl transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none")} onClick={() => handleAnswer(opt)}>
+                <CardContent className="flex min-h-[64px] items-center gap-4 p-4 sm:p-5">
+                  <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold", showResult && isCorrect ? "bg-[hsl(var(--success))] text-white" : showResult && isSelected ? "bg-destructive text-white" : "bg-secondary")}>
                     {showResult && isCorrect ? <CheckCircle2 className="h-4 w-4" /> : showResult && isSelected ? <XCircle className="h-4 w-4" /> : opt}
                   </div>
-                  <p className="text-xs font-medium">{text}</p>
+                  <p className="text-sm font-medium leading-relaxed">{text}</p>
                 </CardContent>
               </Card>
             );
@@ -437,11 +437,11 @@ const QuizRoom = () => {
           {showResult && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
               {selectedOption === currentQuestion.correct_answer ? (
-                <div className="p-3 rounded-xl bg-[hsl(var(--success))]/10 border border-[hsl(var(--success))]/20">
+                <div className="rounded-2xl border border-[hsl(var(--success))]/20 bg-[hsl(var(--success))]/10 p-4">
                   <p className="text-xs font-semibold text-[hsl(var(--success))]">✅ Correct! {currentQuestion.exam_hint || MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)]}</p>
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
                   <p className="text-xs font-semibold text-destructive">❌ Not quite. {currentQuestion.exam_hint || `The correct answer is ${currentQuestion.correct_answer}.`}</p>
                 </div>
               )}
