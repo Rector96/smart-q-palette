@@ -84,7 +84,7 @@ serve(async (req) => {
     const { error: updateError } = await serviceClient.from("referral_withdrawals").update({
       status: "processing",
       paystack_transfer_code: transfer.transfer_code || null,
-    }).eq("id", reservation.withdrawal_id);
+    }).eq("id", reservation.withdrawal_id).eq("status", "queued");
 
     if (updateError) {
       // Paystack has accepted the transfer. Do not release funds here: the webhook
