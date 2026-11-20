@@ -93,8 +93,22 @@ serve(async (req) => {
 
     const transfer = transferPayload.data || {};
     const paystackStatus = String(transfer.status || "").toLowerCase();
-    const needsOtp = paystackStatus === "otp";
-    const nextStatus = needsOtp ? "otp" : "processing";
+
+    // OTP approval has been disabled in the Paystack dashboard. If Paystack
+    // still returns an OTP-required transfer, do not leave customer funds
+    // reserved in an unattended approval queue. Fail safely and restore balance.
+    if (paystackStatus === "otp") {
+      await serviceClient.rpc("settle_referral_withdrawal", {
+        p_reference: reservedReference,
+        p_outcome: "failed",
+        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
+        p_failure_reason: "Paystack still requires transfer OTP approval. Check Paystack transfer approval preferences.",
+      });
+      return json({ accepted: false, otp_required: true,
+        error: "Paystack is still requesting approval for this transfer. Your withdrawal balance has been restored. Please contact support; do not submit repeated requests." }, 409);
+    }
+
+    const nextStatus = "processing";
     const { error: updateError } = await serviceClient.from("referral_withdrawals").update({
       status: nextStatus,
       paystack_transfer_code: transfer.transfer_code || null,
@@ -102,23 +116,20 @@ serve(async (req) => {
 
     if (updateError) {
       console.error("Transfer accepted but withdrawal status update failed:", updateError.message);
-      return json({ accepted: true, status: nextStatus, requires_otp: needsOtp, reference: reservedReference,
+      return json({ accepted: true, status: nextStatus, reference: reservedReference,
         warning: "Paystack accepted the request, but its status could not be saved. Contact platform support before retrying." });
     }
 
     return json({
       accepted: true,
       status: nextStatus,
-      requires_otp: needsOtp,
       test_mode: isTestSecret,
       reference: reservedReference,
       amount,
       bank: { bank_name: bank.bank_name, account_name: bank.account_name, account_number_masked: bank.account_number_masked },
-      message: needsOtp
-        ? "Your withdrawal request has been received. It is waiting for platform transfer authorisation; you do not need to enter the Paystack code."
-        : isTestSecret
-          ? "Your test withdrawal was accepted. This is a simulation; no real money will be sent."
-          : "Your withdrawal request has been sent to Paystack. We will update its status when the transfer is confirmed.",
+      message: isTestSecret
+        ? "Your test withdrawal was accepted. This is a simulation; no real money will be sent."
+        : "Your withdrawal request has been sent to Paystack. We will update its status when the transfer is confirmed.",
     });
   } catch (error) {
     console.error("Referral withdrawal failed:", error);
