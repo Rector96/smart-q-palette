@@ -120,6 +120,20 @@ create policy referral_wallet_transactions_select_own
   on public.referral_wallet_transactions for select to authenticated
   using ((select auth.uid()) = user_id);
 
+-- Aggregate balances across the complete immutable ledger, not just recent activity.
+create or replace view public.referral_wallet_balances
+with (security_invoker = true)
+as
+select
+  user_id,
+  coalesce(sum(amount), 0)::numeric(12,2) as available_balance,
+  coalesce(sum(amount) filter (where entry_type = 'referral_commission'), 0)::numeric(12,2) as total_earned
+from public.referral_wallet_transactions
+group by user_id;
+
+revoke all on public.referral_wallet_balances from anon, authenticated;
+grant select on public.referral_wallet_balances to authenticated;
+
 -- Give every account that already exists a referral code as well as new signups.
 insert into public.referral_profiles (user_id, referral_code)
 select u.id, upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12))
