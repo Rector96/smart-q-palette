@@ -257,7 +257,7 @@ const QuizRoom = () => {
       let nextCode = "";
       let newRoom: { id: string; room_code: string } | null = null;
       for (let attempt = 0; attempt < 5; attempt += 1) {
-        nextCode = Math.floor(1000 + Math.random() * 9000).toString();
+        nextCode = `${room.room_code?.startsWith("D") ? "D" : ""}${Math.floor(1000 + Math.random() * 9000)}`;
         const { data, error } = await supabase.from("quiz_rooms").insert({
           host_id: user.id,
           subject: room.subject,
