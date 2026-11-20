@@ -35,6 +35,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ sessions: 0, avgScore: 0, totalQuestions: 0 });
   const [profile, setProfile] = useState<{ full_name: string | null; trial_count: number; is_subscribed: boolean }>({ full_name: null, trial_count: 0, is_subscribed: false });
   const [streak, setStreak] = useState(0);
+  const [progression, setProgression] = useState({ xp: 0, todayQuestions: 0, bestScore: 0 });
   const [showSubscription, setShowSubscription] = useState(false);
   const tour = useOnboardingTour();
   useOnlinePresence("dashboard");
@@ -65,6 +66,18 @@ const Dashboard = () => {
         const avg = sessions.reduce((sum, s) => sum + (Number(s.score_percentage) || 0), 0) / sessions.length;
         const total = sessions.reduce((sum, s) => sum + s.total_questions, 0);
         setStats({ sessions: sessions.length, avgScore: Math.round(avg), totalQuestions: total });
+        const correctAnswers = sessions.reduce((sum, session) => sum + (Number(session.correct_answers) || 0), 0);
+        const xp = correctAnswers * 10 + sessions.length * 25;
+        const todayKey = new Date().toLocaleDateString("en-CA");
+        const todayQuestions = sessions.reduce((sum, session) => {
+          const sessionDay = session.completed_at ? new Date(session.completed_at).toLocaleDateString("en-CA") : "";
+          return sum + (sessionDay === todayKey ? Number(session.total_questions) || 0 : 0);
+        }, 0);
+        setProgression({
+          xp,
+          todayQuestions,
+          bestScore: Math.round(Math.max(...sessions.map((session) => Number(session.score_percentage) || 0))),
+        });
         let s = 0;
         const today = new Date(); today.setHours(0, 0, 0, 0);
         for (let i = 0; i < 30; i++) {
@@ -174,6 +187,49 @@ const Dashboard = () => {
                   <p className="text-[10px] text-muted-foreground">{stat.label}</p>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Student progression: earned from completed exam activity */}
+        <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Your learning journey</p>
+                <h2 className="mt-1 text-lg font-extrabold">Level {Math.floor(progression.xp / 500) + 1} learner</h2>
+                <p className="text-xs text-muted-foreground">{progression.xp.toLocaleString()} XP earned · {Math.max(0, 500 - (progression.xp % 500))} XP to next level</p>
+              </div>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15">
+                <Trophy className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-secondary">
+              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progression.xp % 500 / 5}%` }} />
+            </div>
+            <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm font-bold"><Target className="h-4 w-4 text-primary" /> Daily mission</div>
+                <Badge variant="secondary">{Math.min(20, progression.todayQuestions)}/20 questions</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">Complete 20 questions today to build your learning consistency.</p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
+                <div className="h-full rounded-full bg-[hsl(var(--success))] transition-all" style={{ width: `${Math.min(100, progression.todayQuestions / 20 * 100)}%` }} />
+              </div>
+              {progression.todayQuestions >= 20 && <p className="mt-2 text-xs font-semibold text-[hsl(var(--success))]">Mission complete — excellent work!</p>}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "First session", earned: stats.sessions >= 1, icon: "🎯" },
+                { label: "100 questions", earned: stats.totalQuestions >= 100, icon: "📚" },
+                { label: "80% best score", earned: progression.bestScore >= 80, icon: "⭐" },
+                { label: "3-day streak", earned: streak >= 3, icon: "🔥" },
+              ].filter((badge) => badge.earned).map((badge) => (
+                <Badge key={badge.label} variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px]">
+                  <span>{badge.icon}</span>{badge.label}
+                </Badge>
+              ))}
+              {stats.sessions === 0 && <span className="text-[11px] text-muted-foreground">Complete your first practice session to unlock your first badge.</span>}
             </div>
           </CardContent>
         </Card>
