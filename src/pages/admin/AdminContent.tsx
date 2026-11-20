@@ -74,11 +74,12 @@ const AdminContent = () => {
   useEffect(() => { fetchCounts(); }, []);
 
   const handleAdd = async () => {
-    if (!form.subject || !form.examination || !form.year || !form.question_text || !form.option_a) {
+    const questionYear = Number(form.year);
+    if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a) {
       toast({ title: "Fill required fields", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("questions").insert({ ...form, year: Number(form.year), examination: form.examination } as any);
+    const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination } as any);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
@@ -152,6 +153,10 @@ const AdminContent = () => {
       const examination = (colMap.examination >= 0 ? vals[colMap.examination]?.trim().toUpperCase() : csvExamination) || csvExamination;
       const year = Number((colMap.year >= 0 ? vals[colMap.year]?.trim() : csvYear) || 0);
 
+      if (!(subj || csvSubject)) {
+        errors.push(`Row ${i + 1}: Select or provide a subject`);
+        continue;
+      }
       if (!question || !optA || !optB || !optC || !optD || !correct) {
         errors.push(`Row ${i + 1}: Missing required fields`);
         continue;
