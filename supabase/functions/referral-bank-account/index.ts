@@ -56,7 +56,7 @@ serve(async (req) => {
     const accountNumber = typeof body?.account_number === "string" ? body.account_number.trim() : "";
     const bankCode = typeof body?.bank_code === "string" ? body.bank_code.trim() : "";
     if (!/^\d{10}$/.test(accountNumber) || !/^\d{2,10}$/.test(bankCode)) {
-      return json({ error: "Enter a valid 10-digit account number and select a bank." }, 400);
+      return json({ verified: false, error: "Enter a valid 10-digit account number and select a bank." }, action === "resolve_account" ? 200 : 400);
     }
 
     const resolved = await paystack(
@@ -64,7 +64,7 @@ serve(async (req) => {
       paystackSecret,
     );
     const accountName = String(resolved?.account_name || "").trim();
-    if (!accountName) return json({ error: "Paystack could not verify this bank account." }, 422);
+    if (!accountName) return json({ verified: false, error: "Paystack could not verify this bank account." }, action === "resolve_account" ? 200 : 422);
 
     // Compare against the name recorded at signup. This check is performed on
     // the server for both verification and saving; a browser cannot bypass it.
@@ -78,17 +78,17 @@ serve(async (req) => {
       .maybeSingle();
     if (profileError) {
       console.error("Could not load the protected signup name:", profileError.message);
-      return json({ error: "We could not confirm your registered name. Please try again." }, 500);
+      return json({ verified: false, error: "We could not confirm your registered name. Please try again." }, action === "resolve_account" ? 200 : 500);
     }
     const registeredName = String(referralProfile?.signup_full_name || "").trim();
     const normalizeName = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!registeredName) {
-      return json({ error: "Your Smart Q Palette account has no saved signup name. Please contact support before adding a withdrawal account." }, 400);
+      return json({ verified: false, error: "Your Smart Q Palette account has no saved signup name. Please contact support before adding a withdrawal account." }, action === "resolve_account" ? 200 : 400);
     }
     if (normalizeName(accountName) !== normalizeName(registeredName)) {
       return json({
         error: `The bank account name ( ${accountName} ) does not match your Smart Q Palette signup name ( ${registeredName} ). For security, use a bank account registered in your name.`,
-      }, 422);
+      }, action === "resolve_account" ? 200 : 422);
     }
 
     if (action === "resolve_account") {
