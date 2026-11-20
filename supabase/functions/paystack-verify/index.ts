@@ -97,6 +97,11 @@ serve(async (req) => {
     }
 
     if (!(await activateAccount())) return json({ error: "Payment is confirmed, but account activation is still processing. Refresh shortly." }, 500);
+    const { error: referralError } = await serviceClient.rpc("credit_referral_reward", { p_payment_id: payment.id });
+    if (referralError) {
+      console.error("Referral reward processing failed:", referralError.message);
+      return json({ error: "Payment confirmed; referral reward processing is still pending. Please refresh shortly." }, 500);
+    }
     return json({ status: "success", message: "Payment verified and Pro access activated." });
   } catch (error: unknown) {
     console.error("Payment verification error:", error);
