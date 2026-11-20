@@ -66,10 +66,22 @@ serve(async (req) => {
 
     // Compare against the name recorded at signup. This check is performed on
     // the server for both verification and saving; a browser cannot bypass it.
-    const registeredName = String(authData.user.user_metadata?.full_name || "").trim();
+    const serviceClient = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: referralProfile, error: profileError } = await serviceClient
+      .from("referral_profiles")
+      .select("signup_full_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileError) {
+      console.error("Could not load the protected signup name:", profileError.message);
+      return json({ error: "We could not confirm your registered name. Please try again." }, 500);
+    }
+    const registeredName = String(referralProfile?.signup_full_name || "").trim();
     const normalizeName = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!registeredName) {
-      return json({ error: "Your Smart Q Palette account has no registered full name. Please contact support before adding a withdrawal account." }, 400);
+      return json({ error: "Your Smart Q Palette account has no saved signup name. Please contact support before adding a withdrawal account." }, 400);
     }
     if (normalizeName(accountName) !== normalizeName(registeredName)) {
       return json({
@@ -98,9 +110,7 @@ serve(async (req) => {
     });
 
     const bankName = typeof body?.bank_name === "string" ? body.bank_name.trim().slice(0, 100) : "Nigerian bank";
-    const { data: saved, error: saveError } = await createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    }).from("referral_bank_accounts").insert({
+    const { data: saved, error: saveError } = await serviceClient.from("referral_bank_accounts").insert({
       user_id: userId,
       bank_code: bankCode,
       bank_name: bankName,
