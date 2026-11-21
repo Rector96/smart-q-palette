@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import DesktopHeader from "@/components/DesktopHeader";
 import logoImg from "@/assets/logo.png";
 import { shareTransactionReceipt } from "@/lib/transactionReceipt";
+import { useToast } from "@/hooks/use-toast";
 
 type Activity = {
   id: string; title: string; description: string; amount: number; status: string;
@@ -21,6 +22,7 @@ const readKey = (id: string) => `sqp-notifications-read-${id}`;
 
 const Notifications = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +41,9 @@ const Notifications = () => {
         description: item.description + " · " + item.detail,
         logoSrc: logoImg,
       });
-      if (result === "downloaded") window.dispatchEvent(new CustomEvent("rockcbt:receipt-downloaded"));
+      if (result === "downloaded") toast({ title: "Receipt image ready", description: "Your ROCKCBT receipt has been downloaded and is ready to share." });
     } catch (error) {
-      if ((error as Error).name !== "AbortError") window.dispatchEvent(new CustomEvent("rockcbt:receipt-error", { detail: (error as Error).message }));
+      if ((error as Error).name !== "AbortError") toast({ title: "Could not share receipt", description: (error as Error).message || "Please try again.", variant: "destructive" });
     }
   };
 
