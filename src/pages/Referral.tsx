@@ -322,7 +322,7 @@ const Referral = () => {
             </div>
             </Card>
 
-            {(bankAccounts.length > 0 || showBankSetup) && <Card className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">
                 <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Bank account</h2><p className="text-xs text-muted-foreground">Verify the account name before saving your payout account.</p></div></div>
                 {bankAccounts.map((account) => (
@@ -353,9 +353,9 @@ const Referral = () => {
                 {!verifiedAccountName ? <Button variant="outline" className="w-full" disabled={bankBusy || !banks.length} onClick={() => void verifyBank()}>{bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Verify account</Button> :
                   <Button className="w-full" disabled={bankBusy} onClick={() => void saveBank()}>{bankBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Confirm and save bank account</Button>}
                 </>}
-                {!showBankSetup && <Button variant="outline" className="w-full" onClick={() => setShowBankSetup(true)}>Add another bank account</Button>}
+                {!showBankSetup && <Button variant="outline" className="w-full" onClick={() => setShowBankSetup(true)}>{bankAccounts.length ? "Add another bank account" : "Add bank account"}</Button>}
               </CardContent>
-            </Card>}
+            </Card>
 
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-4">
