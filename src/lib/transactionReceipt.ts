@@ -11,6 +11,18 @@ export type ShareReceiptInput = {
   logoSrc: string;
 };
 
+const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+  ctx.fill();
+};
+
 const wrapText = (ctx: CanvasRenderingContext2D, value: string, maxWidth: number, maxLines = 2) => {
   const words = String(value || "").split(/\s+/);
   const lines: string[] = [];
@@ -45,14 +57,10 @@ export async function createTransactionReceipt(input: ShareReceiptInput): Promis
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1200, 1500);
   ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.roundRect(52, 52, 1096, 1396, 38);
-  ctx.fill();
+  drawRoundedRect(ctx, 52, 52, 1096, 1396, 38);
 
   ctx.fillStyle = "#0b2034";
-  ctx.beginPath();
-  ctx.roundRect(52, 52, 1096, 390, [38, 38, 0, 0]);
-  ctx.fill();
+  ctx.fillRect(52, 52, 1096, 390);
 
   const logo = new Image();
   logo.src = input.logoSrc;
@@ -76,7 +84,12 @@ export async function createTransactionReceipt(input: ShareReceiptInput): Promis
   ctx.font = "25px Arial";
   ctx.fillText("TRANSACTION AMOUNT", 112, 620);
   ctx.fillStyle = "#0b2034";
-  ctx.font = "700 88px Arial";
+  let amountFontSize = 88;
+  ctx.font = "700 " + amountFontSize + "px Arial";
+  while (ctx.measureText(money(input.amount)).width > 970 && amountFontSize > 48) {
+    amountFontSize -= 4;
+    ctx.font = "700 " + amountFontSize + "px Arial";
+  }
   ctx.fillText(money(input.amount), 112, 735);
 
   const normalizedStatus = input.status.toLowerCase();
@@ -84,9 +97,7 @@ export async function createTransactionReceipt(input: ShareReceiptInput): Promis
   const failed = ["failed", "reversed", "cancelled", "canceled"].includes(normalizedStatus);
   const statusLabel = success ? "SUCCESSFUL" : failed ? normalizedStatus.toUpperCase() : normalizedStatus.replace(/[_-]/g, " ").toUpperCase();
   ctx.fillStyle = success ? "#dcfce7" : failed ? "#fee2e2" : "#fef3c7";
-  ctx.beginPath();
-  ctx.roundRect(112, 785, 280, 62, 30);
-  ctx.fill();
+  drawRoundedRect(ctx, 112, 785, 280, 62, 30);
   ctx.fillStyle = success ? "#166534" : failed ? "#991b1b" : "#92400e";
   ctx.font = "700 24px Arial";
   ctx.fillText(statusLabel, 142, 825);
