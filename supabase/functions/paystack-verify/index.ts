@@ -82,8 +82,24 @@ serve(async (req) => {
     const transaction = verifyData.data;
     if (transaction?.status !== "success") return json({ status: "failed", message: "Paystack has not confirmed a successful payment." });
     const expectedAmount = Math.round(Number(payment.amount) * 100);
-    if (transaction.reference !== reference || transaction.amount !== expectedAmount || transaction.currency !== "NGN") {
-      console.error("Payment verification mismatch for reference:", reference);
+    // Paystack may add processing fees to the amount charged to the cardholder.
+    // requested_amount is the original merchant order amount; amount can include
+    // those additional fees. Only the requested order amount should be compared
+    // with the amount stored for this subscription.
+    const verifiedRequestedAmount = Number(transaction.requested_amount ?? transaction.amount);
+    if (
+      transaction.reference !== reference ||
+      !Number.isSafeInteger(expectedAmount) ||
+      !Number.isSafeInteger(verifiedRequestedAmount) ||
+      verifiedRequestedAmount !== expectedAmount ||
+      String(transaction.currency || "").toUpperCase() !== String(payment.currency || "").toUpperCase() ||
+      String(payment.currency || "").toUpperCase() !== "NGN"
+    ) {
+      console.error("Payment verification mismatch for reference:", reference, {
+        expectedAmount,
+        verifiedRequestedAmount,
+        currency: transaction.currency,
+      });
       return json({ status: "failed", message: "The payment details do not match this order. Please contact support." }, 400);
     }
     const paidEmail = String(transaction.customer?.email || "").toLowerCase();
