@@ -16,10 +16,17 @@ const BLOCKED_ALOC_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "SVG",
 function renderAlocFormattedText(value: unknown): ReactNode {
   if (typeof value !== "string" || !value) return value == null ? "" : String(value);
 
-  // Parse the API's limited inline markup, then rebuild it using React elements.
-  // No source attributes are copied, and unsupported elements cannot execute code.
-  const parsed = new DOMParser().parseFromString(value, "text/html");
-  const renderNode = (node: Node, key: number): React.ReactNode => {
+  // ALOC may return either real inline tags or HTML-escaped tags such as
+  // &lt;sup&gt;. Decode the escaped form once before parsing it.
+  const hasRealFormattingTags = /<\\/?(?:sup|sub|strong|b|em|i|u|br)\\b[^>]*>/i.test(value);
+  const hasEscapedFormattingTags = /&lt;\\/?(?:sup|sub|strong|b|em|i|u|br)\\b/i.test(value);
+  const source = !hasRealFormattingTags && hasEscapedFormattingTags
+    ? (new DOMParser().parseFromString(value, "text/html").documentElement.textContent || value)
+    : value;
+
+  // Rebuild only the small allow-list of formatting tags. Never copy attributes.
+  const parsed = new DOMParser().parseFromString(source, "text/html");
+  const renderNode = (node: Node, key: number): ReactNode => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (node.nodeType !== Node.ELEMENT_NODE) return null;
 
