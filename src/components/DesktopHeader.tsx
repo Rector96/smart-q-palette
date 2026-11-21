@@ -19,7 +19,7 @@ const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
   const { signOut } = useAuth();
 
   return (
-    <header className="safe-area-top sticky top-0 z-50 flex w-full items-center justify-between border-b border-border bg-background/95 px-3 py-2.5 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 sm:px-5 lg:px-6">
+    <header className="safe-area-top sticky top-0 z-50 flex w-full items-center justify-between border-b border-border bg-background/95 px-3 pt-3 pb-2.5 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 sm:px-5 lg:px-6">
       <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         <Logo size="sm" showText />
         <span className="hidden text-xs font-medium text-muted-foreground sm:inline">Learn · Practise · Earn</span>
