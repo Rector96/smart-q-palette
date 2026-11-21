@@ -21,7 +21,7 @@ const referralDb = supabase as any;
 type ReferralProfile = { referral_code: string };
 type WalletRow = { pending_balance: number; available_balance: number; lifetime_earned: number; lifetime_paid: number };
 type RewardRow = { id: string; amount: number; status: string; created_at: string; available_at?: string; reversed_at?: string };
-type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
+type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; completed_at?: string; reference?: string };
 type Bank = { name: string; code: string };
 type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
 type WithdrawalConfirmation = { amount: number; bankName: string; accountName: string; accountNumberMasked: string; reference: string; status: string; testMode: boolean; createdAt: string };
@@ -54,7 +54,6 @@ const Referral = () => {
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawalConfirmation, setWithdrawalConfirmation] = useState<WithdrawalConfirmation | null>(null);
 
-  type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; completed_at?: string; reference?: string };
   const referralUrl = useMemo(() => {
     if (!profile?.referral_code) return "";
     return `${window.location.origin}/auth?ref=${encodeURIComponent(profile.referral_code)}`;
