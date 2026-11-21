@@ -20,7 +20,7 @@ const referralDb = supabase as any;
 
 type ReferralProfile = { referral_code: string };
 type WalletRow = { pending_balance: number; available_balance: number; lifetime_earned: number; lifetime_paid: number };
-type RewardRow = { id: string; amount: number; status: string; created_at: string };
+type RewardRow = { id: string; amount: number; status: string; created_at: string; available_at?: string; reversed_at?: string };
 type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
 type Bank = { name: string; code: string };
 type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
@@ -72,7 +72,7 @@ const Referral = () => {
     const [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult] = await Promise.all([
       referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
       referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
-      referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
+      referralDb.from("referral_rewards").select("id,amount,status,created_at,available_at,reversed_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
       referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,completed_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
       referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
       referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
@@ -338,7 +338,7 @@ const Referral = () => {
                   {withdrawalConfirmation.status !== "success" && <div className="sm:col-span-2"><p className="text-xs text-white/60">Destination</p><p className="mt-1 font-semibold">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p></div>}
                 </div>
                 {withdrawalConfirmation.testMode && <p className="text-xs text-amber-200">Paystack test mode: no real money is sent.</p>}
-                {withdrawalConfirmation.status === "success" ? <div className="space-y-3"><Button className="w-full rounded-xl bg-white text-emerald-950 hover:bg-emerald-50" onClick={() => void shareReceipt({ type: "Referral earnings withdrawal", amount: withdrawalConfirmation.amount, status: withdrawalConfirmation.status, date: withdrawalConfirmation.createdAt, reference: withdrawalConfirmation.reference, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-2 h-4 w-4" />Share receipt image</Button><p className="text-center text-xs text-white/65">Practise for exams and still earn. Thank you for growing with us.</p></div> : <p className="text-xs text-muted-foreground">Your withdrawal status updates automatically when Paystack confirms the transfer.</p>}
+                <div className="space-y-3"><Button className="w-full rounded-xl bg-white text-emerald-950 hover:bg-emerald-50" onClick={() => void shareReceipt({ type: "Referral earnings withdrawal", amount: withdrawalConfirmation.amount, status: withdrawalConfirmation.status, date: withdrawalConfirmation.createdAt, reference: withdrawalConfirmation.reference, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-2 h-4 w-4" />Share transaction receipt</Button><p className="text-center text-xs text-white/65">Practise for exams and still earn. Thank you for growing with us.</p></div>
                 <Button variant="ghost" className="w-full text-white/70 hover:bg-white/10 hover:text-white" onClick={() => setWithdrawalConfirmation(null)}>Back to referral wallet</Button>
               </CardContent>
             </Card>}
@@ -427,8 +427,8 @@ const Referral = () => {
                 <div className="flex items-center justify-between"><h2 className="font-bold">Referral earnings history</h2><Badge variant="secondary">₦500 each</Badge></div>
                 {rewards.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Your successful referrals and rewards will appear here.</p> : rewards.map((reward) => (
                   <div key={reward.id} className="flex flex-col gap-3 border-b pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0"><p className="text-sm font-semibold">Referral reward</p><p className="text-[11px] text-muted-foreground">{new Date(reward.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={reward.status === "available" ? "default" : reward.status === "reversed" ? "destructive" : "secondary"}>{reward.status}</Badge></div>
-                    <div className="flex items-center justify-between gap-3 sm:justify-end"><p className="text-sm font-bold">+{money(reward.amount)}</p><Button size="sm" variant="outline" className="h-9 rounded-xl" onClick={() => void shareReceipt({ type: "Referral earnings", amount: reward.amount, status: reward.status, date: reward.created_at, reference: reward.id, description: "ROCKCBT referral reward" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button></div>
+                    <div className="min-w-0"><p className="text-sm font-semibold">Referral reward</p><p className="text-[11px] text-muted-foreground">{new Date(reward.reversed_at || reward.available_at || reward.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={reward.status === "available" ? "default" : reward.status === "reversed" ? "destructive" : "secondary"}>{reward.status}</Badge></div>
+                    <div className="flex items-center justify-between gap-3 sm:justify-end"><p className="text-sm font-bold">+{money(reward.amount)}</p><Button size="sm" variant="outline" className="h-9 rounded-xl" onClick={() => void shareReceipt({ type: "Referral earnings", amount: reward.amount, status: reward.status, date: reward.reversed_at || reward.available_at || reward.created_at, reference: reward.id, description: "ROCKCBT referral reward" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button></div>
                   </div>
                 ))}
               </CardContent>
