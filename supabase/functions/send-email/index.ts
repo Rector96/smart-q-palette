@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const BRAND = {
-  name: "Weblines CBT",
+  name: "ROCKCBT",
   url: "https://www.weblines.org",
   email: "weblinescbt@gmail.com",
   color: "#3b82f6",
@@ -44,10 +44,10 @@ ${body}
 
 const TEMPLATES: Record<string, (name: string) => { subject: string; html: string }> = {
   welcome: (name: string) => ({
-    subject: "Welcome to Weblines CBT! 🎓 Your Exam Success Starts Here",
+    subject: "Welcome to ROCKCBT! 🎓 Your Exam Success Starts Here",
     html: emailTemplate(
       `Welcome, ${name}! 🎉`,
-      `<p style="color:#555;font-size:14px;line-height:1.7;">We're thrilled to have you join the Weblines CBT family!</p>
+      `<p style="color:#555;font-size:14px;line-height:1.7;">We're thrilled to have you join the ROCKCBT family!</p>
 <ul style="color:#555;font-size:14px;line-height:2;">
 <li>📝 Practice JAMB, WAEC & NECO with real CBT simulations</li>
 <li>📊 Track your performance with detailed analytics</li>
@@ -143,7 +143,7 @@ serve(async (req) => {
         line.trim() ? `<p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 8px;">${line}</p>` : '<br/>'
       ).join('');
 
-      const html = emailTemplate(subject, htmlBody, "Visit Weblines CBT", BRAND.url + "/dashboard");
+      const html = emailTemplate(subject, htmlBody, "Visit ROCKCBT", BRAND.url + "/dashboard");
 
       let sentCount = 0;
       let failedCount = 0;
@@ -158,7 +158,7 @@ serve(async (req) => {
               method: "POST",
               headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                from: `Weblines CBT <no-reply@weblines.org>`,
+                from: `ROCKCBT <no-reply@weblines.org>`,
                 to: [email],
                 subject,
                 html,
@@ -210,7 +210,7 @@ serve(async (req) => {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: `Weblines CBT <no-reply@weblines.org>`, to: [email], subject, html }),
+      body: JSON.stringify({ from: `ROCKCBT <no-reply@weblines.org>`, to: [email], subject, html }),
     });
 
     const data = await res.json();
