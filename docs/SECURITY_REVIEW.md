@@ -154,9 +154,9 @@ Reviewed source files: `supabase/functions/paystack-initialize/index.ts`, `payst
 - **Admin payment controls are client-side:** `AdminPayments.tsx` directly updates payment status and profile subscription fields from the browser. Approval/rejection must move behind a server-side admin authorization check; UI route protection alone is insufficient.
 - **Profile edits:** `Profile.tsx` only updates `full_name`, which is appropriate, but the database policy must explicitly prevent users from changing subscription and usage-control columns.
 
-### Existing price behavior to preserve pending product confirmation
+### Approved subscription price (updated 2026-11-21)
 
-The current subscription modal describes a one-time lifetime plan priced at **₦2,000** and sends **200,000 kobo** to Paystack. Do not silently convert this into a recurring subscription or alter the price during migration. The backend should map a fixed server-side plan ID to this amount until the product owner approves a pricing change.
+The product owner has approved a one-time lifetime-access price of **₦2,500**. The current client subscription modal displays ₦2,500 and the payment initialization function uses the server-side amount of **250,000 kobo**. Keep the backend amount authoritative; do not trust a browser-supplied amount or change the plan to recurring billing without explicit product approval.
 
 ### Required implementation order
 

@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const AdminSettings = () => {
   const { toast } = useToast();
-  const [pricing, setPricing] = useState("2000");
+  const [pricing, setPricing] = useState("2500");
   const [trialLimit, setTrialLimit] = useState("2");
 
   const handleSave = () => {
