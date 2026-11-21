@@ -12,7 +12,7 @@ const PageLoader = () => {
       >
         <motion.img
           src={logoImg}
-          alt="Weblines CBT"
+          alt="ROCKCBT"
           className="h-20 sm:h-24 md:h-28 w-auto object-contain"
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
