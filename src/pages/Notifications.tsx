@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Bell, CheckCheck, CreditCard, Gift, Wallet, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, CreditCard, Gift, Wallet, ExternalLink, RefreshCw, Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import DesktopHeader from "@/components/DesktopHeader";
+import logoImg from "@/assets/logo.png";
+import { shareTransactionReceipt } from "@/lib/transactionReceipt";
 
 type Activity = {
   id: string; title: string; description: string; amount: number; status: string;
@@ -25,6 +27,23 @@ const Notifications = () => {
   const [error, setError] = useState("");
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const storageKey = user ? readKey(user.id) : "";
+  const shareReceipt = async (item: Activity) => {
+    try {
+      const result = await shareTransactionReceipt({
+        brand: "ROCKCBT",
+        type: item.kind === "payment" ? "Subscription payment" : item.kind === "reward" ? "Referral earnings" : "Referral withdrawal",
+        amount: item.amount,
+        status: item.status,
+        date: item.date,
+        reference: item.reference,
+        description: item.description + " · " + item.detail,
+        logoSrc: logoImg,
+      });
+      if (result === "downloaded") window.dispatchEvent(new CustomEvent("rockcbt:receipt-downloaded"));
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") window.dispatchEvent(new CustomEvent("rockcbt:receipt-error", { detail: (error as Error).message }));
+    }
+  };
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -92,10 +111,10 @@ const Notifications = () => {
   return (
     <div className="min-h-[100dvh] bg-background">
       <DesktopHeader profileName={user?.user_metadata?.full_name || null} isPro={false} />
-      <main className="mx-auto max-w-3xl space-y-4 px-3 py-5 pb-8 sm:px-5 lg:px-6">
+      <main className="mx-auto max-w-5xl space-y-4 px-3 py-5 pb-8 sm:px-5 lg:px-8 lg:py-8">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => window.history.back()} aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button>
-          <div className="min-w-0 flex-1"><h1 className="text-xl font-bold">Notifications & account history</h1><p className="text-xs text-muted-foreground">Payments, referral earnings and withdrawals in one place.</p><p className={`mt-1 text-[11px] font-medium ${realtimeConnected ? "text-emerald-600" : "text-muted-foreground"}`}>{realtimeConnected ? "● Live updates connected" : "○ Connecting to live updates…"}</p></div>
+          <div className="min-w-0 flex-1"><h1 className="text-xl font-bold">ROCKCBT activity</h1><p className="text-xs text-muted-foreground">Your payments, referral earnings and withdrawals in one place.</p><p className={`mt-1 text-[11px] font-medium ${realtimeConnected ? "text-emerald-600" : "text-muted-foreground"}`}>{realtimeConnected ? "● Live updates connected" : "○ Connecting to live updates…"}</p></div>
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />Refresh</Button>
         </div>
         <Card className="rounded-2xl"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -104,7 +123,7 @@ const Notifications = () => {
         </CardContent></Card>
         {error && <Card><CardContent className="space-y-2 p-4"><p className="text-sm font-semibold">Could not load history</p><p className="text-xs text-muted-foreground">{error}</p><Button size="sm" variant="outline" onClick={() => void load()}>Try again</Button></CardContent></Card>}
         {loading ? <div className="py-12 text-center text-sm text-muted-foreground">Loading your full account history…</div> : !error && activities.length === 0 ? (
-          <Card className="rounded-2xl"><CardContent className="p-8 text-center"><Bell className="mx-auto mb-2 h-7 w-7 text-muted-foreground" /><p className="font-semibold">No activity yet</p><p className="mt-1 text-xs text-muted-foreground">Your successful payments, referral rewards and withdrawal updates will appear here.</p></CardContent></Card>
+          <Card className="rounded-2xl"><CardContent className="p-8 text-center"><Bell className="mx-auto mb-2 h-7 w-7 text-muted-foreground" /><p className="font-semibold">No activity yet</p><p className="mt-1 text-xs text-muted-foreground">Your payments, referral earnings and withdrawal updates will appear here.</p></CardContent></Card>
         ) : (
           <div className="space-y-3">
             {activities.map((item) => {
@@ -128,6 +147,7 @@ const Notifications = () => {
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Link to={item.href} onClick={() => markRead(item.id)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">Open {item.kind === "payment" ? "account" : "referral"} page <ExternalLink className="h-3.5 w-3.5" /></Link>
+                    <Button variant="outline" size="sm" className="h-9 rounded-xl" onClick={() => void shareReceipt(item)}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button>
                     {!isUnread && <span className="text-[11px] text-muted-foreground">Read</span>}
                     {isUnread && <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => markRead(item.id)}>Mark as read</Button>}
                   </div>
