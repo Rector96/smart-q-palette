@@ -78,7 +78,7 @@ const Index = () => {
 
       {/* Nav */}
       <header className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-20">
-        <Link to="/"><Logo size="sm" /></Link>
+        <Link to="/"><Logo size="sm" showText /></Link>
         <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
