@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Crown, ChevronDown } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 import { Badge } from "@/components/ui/badge";
 import Logo from "@/components/Logo";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -24,6 +25,7 @@ const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
         <span className="hidden text-sm text-muted-foreground sm:inline">Dashboard</span>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
+        <NotificationBell />
         {isPro && <Badge variant="default" className="hidden h-6 gap-1 border-primary/20 bg-primary/10 text-xs text-primary sm:inline-flex"><Crown className="h-3 w-3" /> Pro</Badge>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
