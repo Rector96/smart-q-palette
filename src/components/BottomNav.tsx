@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, BookOpenCheck, Sparkles, User } from "lucide-react";
+import { Home, BookOpenCheck, Sparkles, User, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Home", icon: Home },
   { path: "/select-subjects", label: "Practice", icon: BookOpenCheck },
+  { path: "/referrals", label: "Earn", icon: Gift },
   { path: "/ai-tutor", label: "AI Tutor", icon: Sparkles },
   { path: "/profile", label: "Profile", icon: User },
 ];
@@ -25,9 +26,9 @@ const BottomNav = () => {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       aria-label="Main navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/70 bg-card/95 shadow-[0_-8px_28px_rgba(15,23,42,0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/85"
+      className="safe-area-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-border/70 bg-card/95 shadow-[0_-8px_28px_rgba(15,23,42,0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/85"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-4 px-2 pt-2 pb-1">
+      <div className="mx-auto grid max-w-xl grid-cols-5 px-1.5 pt-2 pb-1">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.path);
           return (
@@ -49,7 +50,7 @@ const BottomNav = () => {
                 />
               )}
               <item.icon className={cn("relative z-10 h-5 w-5", active && "stroke-[2.5]")} />
-              <span className={cn("relative z-10 text-[10px] leading-none", active ? "font-bold" : "font-medium")}>
+              <span className={cn("relative z-10 text-[9px] leading-none", active ? "font-bold" : "font-medium")}>
                 {item.label}
               </span>
             </button>
