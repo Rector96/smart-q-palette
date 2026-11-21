@@ -7,13 +7,13 @@ import SEOHead from "@/components/SEOHead";
 
 const faqs = [
   { q: "What is Weblines CBT?", a: "Weblines CBT is an AI-powered CBT preparation platform that helps students practice with real exam-style questions for JAMB, WAEC, NECO and more, get instant AI explanations, and track their progress." },
-  { q: "How does the free trial work?", a: "You get 3 free exam sessions to explore the platform. After that, subscribe for just ₦2,000 to unlock unlimited access to all features." },
+  { q: "How does the free trial work?", a: "You get 3 free exam sessions to explore the platform. After that, subscribe for just ₦2,500 to unlock unlimited access to all features." },
   { q: "What subjects are available?", a: "We cover all 14 JAMB subjects: English, Mathematics, Physics, Chemistry, Biology, Economics, Government, Literature, CRS, IRS, Geography, Commerce, Accounting, and Agricultural Science." },
   { q: "How does the AI Tutor work?", a: "Our AI Tutor is available 24/7 to explain concepts, solve problems step-by-step, and provide personalized study guidance based on the Nigerian curriculum." },
   { q: "Can I share exams with friends?", a: "Yes! After completing an exam, you can generate a share link. Your friends can take the same exam and compare results." },
   { q: "Is my data safe?", a: "Absolutely. We use industry-standard encryption, secure authentication, and never share your personal information with third parties." },
   { q: "What exam modes are available?", a: "We offer Practice (untimed with instant feedback), CBT Exam (timed like real JAMB), Mock Exam (full 4-subject simulation), and Revision (focuses on your weak areas)." },
-  { q: "How do I subscribe?", a: "After your 3 free trials, you'll be prompted to subscribe. Pay ₦2,000 via Paystack (card, bank transfer, or USSD). Access is activated instantly!" },
+  { q: "How do I subscribe?", a: "After your 3 free trials, you'll be prompted to subscribe. Pay ₦2,500 via Paystack (card, bank transfer, or USSD). Access is activated instantly!" },
 ];
 
 const FAQ = () => {
