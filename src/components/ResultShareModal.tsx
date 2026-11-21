@@ -30,7 +30,7 @@ const ResultShareModal = ({ open, onOpenChange, profileName, score, grade, corre
           {/* Mini result card preview */}
           <div className="rounded-xl border border-border p-4 mb-5 bg-gradient-to-br from-primary/5 to-primary/10">
             <div className="text-center">
-              <p className="text-[10px] font-bold text-primary tracking-wider uppercase mb-2">Weblines CBT</p>
+              <p className="text-[10px] font-bold text-primary tracking-wider uppercase mb-2">ROCKCBT</p>
               <p className="text-sm font-semibold">{profileName || "Student"}</p>
               <p className={`text-4xl font-extrabold mt-1 ${scoreColor}`}>{score}%</p>
               <p className="text-xs text-muted-foreground mt-1">Grade: <strong>{grade}</strong> · {correct}/{total} correct</p>
