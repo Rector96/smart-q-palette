@@ -27,9 +27,9 @@ const NotificationBell = () => {
       db.from("referral_withdrawals").select("id,amount,status,reference,requested_at,completed_at,failure_reason").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(20),
     ]);
     const next: Notice[] = [];
-    (payments.data || []).filter((r: any) => String(r.status).toLowerCase() === "success").forEach((r: any) => next.push({
-      id: `payment-${r.id}`, title: "Payment confirmed",
-      message: `Your ${money(Number(r.amount))} subscription payment was successful.`,
+    (payments.data || []).forEach((r: any) => next.push({
+      id: `payment-${r.id}`, title: String(r.status).toLowerCase() === "success" ? "Payment confirmed" : String(r.status).toLowerCase() === "failed" ? "Payment failed" : "Payment pending",
+      message: String(r.status).toLowerCase() === "success" ? `Your ${money(Number(r.amount))} subscription payment was successful.` : `Your ${money(Number(r.amount))} subscription payment is ${String(r.status).toLowerCase()}.`,
       createdAt: r.verified_at || r.created_at, kind: "payment",
     }));
     (rewards.data || []).forEach((r: any) => next.push({
@@ -41,7 +41,7 @@ const NotificationBell = () => {
       const status = String(r.status || "").toLowerCase();
       const failed = ["failed", "reversed"].includes(status);
       next.push({
-        id: `withdrawal-${r.id}-${status}`,
+        id: `withdrawal-${r.id}`,
         title: status === "success" ? "Withdrawal successful" : failed ? "Withdrawal update" : "Withdrawal processing",
         message: status === "success" ? `${money(Number(r.amount))} was sent to your bank account.` : failed ? `Your ${money(Number(r.amount))} withdrawal was not completed.` : `Your ${money(Number(r.amount))} withdrawal request is being processed.`,
         createdAt: r.completed_at || r.requested_at, kind: "withdrawal",
