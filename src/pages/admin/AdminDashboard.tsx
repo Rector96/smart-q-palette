@@ -174,7 +174,7 @@ const AdminDashboard = () => {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[11px] text-muted-foreground">Use a subject slug accepted by ALOC, for example mathematics. Free testing is limited to five sample questions per request.</p>
-                <Button onClick={testAlocConnection} disabled={alocTesting || !alocSubject.trim() || !/^\d{4}$/.test(alocYear) || Number(alocYear) < 1990 || Number(alocYear) > 2030} size="sm">
+                <Button onClick={testAlocConnection} disabled={alocTesting} size="sm">
                   {alocTesting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...</> : <><PlugZap className="mr-2 h-4 w-4" /> Test selected filters</>}
                 </Button>
               </div>
