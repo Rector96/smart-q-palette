@@ -62,7 +62,7 @@ const Referral = () => {
 
   const referralShareUrl = useMemo(() => {
     if (!profile?.referral_code) return "";
-    return `${window.location.origin}/.netlify/functions/referral-share?ref=${encodeURIComponent(profile.referral_code)}`;
+    return `${window.location.origin}/r/${encodeURIComponent(profile.referral_code)}`;
   }, [profile?.referral_code]);
 
   const loadReferralData = useCallback(async () => {
