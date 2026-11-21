@@ -21,6 +21,7 @@ type RewardRow = { id: string; amount: number; status: string; created_at: strin
 type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
 type Bank = { name: string; code: string };
 type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
+type WithdrawalConfirmation = { amount: number; bankName: string; accountName: string; accountNumberMasked: string; reference: string; status: string; testMode: boolean };
 
 const money = (value: number) => new Intl.NumberFormat("en-NG", {
   style: "currency", currency: "NGN", maximumFractionDigits: 0,
@@ -48,6 +49,7 @@ const Referral = () => {
   const [withdrawAmount, setWithdrawAmount] = useState("1000");
   const [withdrawBankId, setWithdrawBankId] = useState("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawalConfirmation, setWithdrawalConfirmation] = useState<WithdrawalConfirmation | null>(null);
 
   type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; reference?: string };
   const referralUrl = useMemo(() => {
