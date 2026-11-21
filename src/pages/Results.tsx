@@ -55,12 +55,12 @@ const Results = () => {
     if (!session) return;
     const score = Math.round(Number(session.score_percentage) || 0);
     const grade = getGrade(score);
-    const text = `🎓 *Weblines CBT Result*\n\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\n\nCan you beat me? 🚀\n👉 https://weblines.org`;
+    const text = `🎓 *ROCKCBT Result*\n\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\n\nCan you beat me? 🚀\n👉 https://weblines.org`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   const handleFacebookShare = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://weblines.org")}&quote=${encodeURIComponent(`I scored ${Math.round(Number(session?.score_percentage) || 0)}% on Weblines CBT! Can you beat me? 🚀`)}`, "_blank");
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://weblines.org")}&quote=${encodeURIComponent(`I scored ${Math.round(Number(session?.score_percentage) || 0)}% on ROCKCBT! Can you beat me? 🚀`)}`, "_blank");
   };
 
   const handleCopyLink = async () => {
@@ -77,7 +77,7 @@ const Results = () => {
     } as any);
     const score = Math.round(Number(session.score_percentage) || 0);
     const grade = getGrade(score);
-    const shareText = `🎓 Weblines CBT Result\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\nCan you beat me? 🚀\n👉 ${window.location.origin}/s/${code}`;
+    const shareText = `🎓 ROCKCBT Result\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\nCan you beat me? 🚀\n👉 ${window.location.origin}/s/${code}`;
     try {
       await navigator.clipboard.writeText(shareText);
       toast({ title: "Copied! 🔗", description: "Share text copied to clipboard" });
