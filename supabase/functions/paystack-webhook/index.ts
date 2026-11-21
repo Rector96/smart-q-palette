@@ -20,22 +20,26 @@ const hmacHex = async (secret: string, message: string) => {
 
 const verifySignature = async (rawBody: string, req: Request) => {
   const modernHeader = req.headers.get("paystack-signature");
-  if (modernHeader) {
-    const webhookSecret = Deno.env.get("PAYSTACK_WEBHOOK_SECRET");
-    if (!webhookSecret) return false;
+  const webhookSecret = Deno.env.get("PAYSTACK_WEBHOOK_SECRET");
+  if (modernHeader && webhookSecret) {
     const fields = modernHeader.split(",").map((part) => part.trim().split("=", 2));
     const timestampValue = fields.find(([key]) => key === "t")?.[1];
     const timestamp = Number(timestampValue);
-    if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
-    const signatures = fields.filter(([key]) => key === "v1").map(([, value]) => value || "");
-    const expected = await hmacHex(webhookSecret, `${timestamp}.${rawBody}`);
-    return signatures.some((entry) => {
-      const separator = entry.indexOf(":");
-      const hex = separator >= 0 ? entry.slice(separator + 1) : entry;
-      return /^[0-9a-f]{128}$/.test(hex) && constantTimeEqual(expected, hex);
-    });
+    if (Number.isFinite(timestamp) && Math.abs(Date.now() / 1000 - timestamp) <= 300) {
+      const signatures = fields.filter(([key]) => key === "v1").map(([, value]) => value || "");
+      const expected = await hmacHex(webhookSecret, `${timestamp}.${rawBody}`);
+      const modernValid = signatures.some((entry) => {
+        const separator = entry.indexOf(":");
+        const hex = separator >= 0 ? entry.slice(separator + 1) : entry;
+        return /^[0-9a-f]{128}$/.test(hex) && constantTimeEqual(expected, hex);
+      });
+      if (modernValid) return true;
+    }
   }
 
+  // During Paystack's signature transition, validate the legacy header too.
+  // This keeps existing webhook delivery working if the new whsec_ secret
+  // has not yet been configured or is being rotated.
   const legacyHeader = req.headers.get("x-paystack-signature");
   const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
   if (!legacyHeader || !paystackSecret || !/^[0-9a-f]{128}$/.test(legacyHeader)) return false;
