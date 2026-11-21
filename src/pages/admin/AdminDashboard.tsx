@@ -186,7 +186,25 @@ const AdminDashboard = () => {
                   <div><p className="text-[11px] text-muted-foreground">Test subject</p><p className="text-sm font-semibold">{String(alocResult.test?.examType || alocExamType).toUpperCase()} {alocResult.test?.subject || alocSubject}</p></div>
                   <div><p className="text-[11px] text-muted-foreground">Question year</p><p className="text-sm font-semibold">{alocResult.test?.year ?? alocYear}</p></div>
                 </div>
-                {Array.isArray(alocResult.questions) && alocResult.questions.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Sample response from ALOC</p>{alocResult.questions.map((question: any, index: number) => <details key={question?.id ?? index} className="rounded-md border bg-background p-3"><summary className="cursor-pointer text-xs font-medium">Sample question {index + 1}</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-muted-foreground">{JSON.stringify(question, null, 2)}</pre></details>)}</div>}
+                {Array.isArray(alocResult.questions) && alocResult.questions.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Sample response from ALOC</p>{alocResult.questions.map((question: any, index: number) => {
+                  const options = question?.options && typeof question.options === "object" ? Object.entries(question.options) : [];
+                  const correctAnswer = String(question?.correctAnswer || "").toUpperCase();
+                  const metadata = question?.metadata || {};
+                  const provenance = question?.provenance || {};
+                  return <details key={question?.id ?? index} className="rounded-lg border bg-background p-3 sm:p-4">
+                    <summary className="cursor-pointer list-none text-sm font-semibold">Question {question?.questionNumber ?? index + 1}<span className="ml-2 text-xs font-normal text-muted-foreground">Tap to preview</span></summary>
+                    <div className="mt-3 space-y-3">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground">{question?.text || "Question text was not supplied by ALOC."}</p>
+                      {question?.imageUrl && <img src={question.imageUrl} alt={`Diagram for question ${index + 1}`} loading="lazy" className="max-h-64 max-w-full rounded-md border object-contain" />}
+                      {options.length > 0 && <div className="grid gap-2 sm:grid-cols-2">{options.map(([key, value]) => <div key={key} className={`rounded-md border px-3 py-2 text-sm leading-6 ${String(key).toUpperCase() === correctAnswer ? "border-emerald-500/50 bg-emerald-500/5" : "border-border"}`}><span className="mr-2 font-semibold">{key}.</span><span className="whitespace-pre-wrap break-words">{String(value ?? "")}</span>{String(key).toUpperCase() === correctAnswer && <span className="ml-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Correct answer</span>}</div>)}</div>}
+                      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1">{String(question?.examType || alocExamType).toUpperCase()}</span><span className="rounded-full bg-muted px-2 py-1">{question?.subject || alocSubject}</span><span className="rounded-full bg-muted px-2 py-1">{question?.year || alocYear}</span><span className="rounded-full bg-muted px-2 py-1">{provenance.contentSource || "Source not stated"}</span></div>
+                      {correctAnswer && <p className="text-xs text-muted-foreground">Answer key: <strong className="text-foreground">{correctAnswer}</strong></p>}
+                      {provenance.isLicensed === false && <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-800 dark:text-amber-300">Not licensed for distribution. Keep this sample in evaluation only; do not import into the live student question bank.</p>}
+                      {(metadata.needsReview === true || !metadata.topic || !metadata.learningObjectives?.length) && <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-800 dark:text-amber-300">Metadata needs review before any future use.</p>}
+                      {(metadata.topic || metadata.subtopic || metadata.learningObjectives?.length > 0) && <div className="rounded-md bg-muted/50 p-3 text-xs"><p className="font-semibold">ALOC classification (unverified)</p>{metadata.topic && <p className="mt-1">Topic: {metadata.topic}{metadata.subtopic ? ` · ${metadata.subtopic}` : ""}</p>}{metadata.learningObjectives?.length > 0 && <p className="mt-1">Learning objective: {metadata.learningObjectives.join("; ")}</p>}</div>}
+                    </div>
+                  </details>;
+                })}</div>}
                 <p className="text-[11px] text-muted-foreground">Saved to question bank: No. API key remains on the server and is not displayed here.</p>
               </div>}
             </CardContent>
