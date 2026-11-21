@@ -12,6 +12,7 @@ import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, 
 import DesktopHeader from "@/components/DesktopHeader";
 import SEOHead from "@/components/SEOHead";
 import logoImg from "@/assets/logo.png";
+import { shareTransactionReceipt } from "@/lib/transactionReceipt";
 
 // The referral tables are introduced by the accompanying migration and are not
 // yet present in the generated client types on the default branch.
@@ -137,86 +138,10 @@ const Referral = () => {
     } else await copyLink();
   };
 
-  const shareWithdrawalReceipt = async () => {
-    if (!withdrawalConfirmation || withdrawalConfirmation.status !== "success") return;
+  const shareReceipt = async (receipt: { type: string; amount: number; status: string; date: string; reference: string; description?: string }) => {
     try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1080;
-      canvas.height = 1350;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Image creation is not supported on this device.");
-      const background = ctx.createLinearGradient(0, 0, 1080, 1350);
-      background.addColorStop(0, "#0b1830");
-      background.addColorStop(1, "#123d4b");
-      ctx.fillStyle = background;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(54, 54, 972, 1242);
-      ctx.fillStyle = "#0b1830";
-      ctx.fillRect(54, 54, 972, 330);
-      const logo = new Image();
-      logo.src = logoImg;
-      await new Promise<void>((resolve, reject) => {
-        logo.onload = () => resolve();
-        logo.onerror = () => reject(new Error("Could not load the Weblines CBT logo."));
-      });
-      const logoHeight = 92;
-      const logoWidth = Math.min(280, (logo.naturalWidth / logo.naturalHeight) * logoHeight);
-      ctx.drawImage(logo, 92, 92, logoWidth, logoHeight);
-      ctx.fillStyle = "#d7f6e8";
-      ctx.font = "600 26px Arial";
-      ctx.fillText("WEBLINES CBT · REFERRAL EARNINGS", 92, 245);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 58px Arial";
-      ctx.fillText("Withdrawal successful", 92, 315);
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "500 30px Arial";
-      ctx.fillText("You earned it. Keep learning and keep growing.", 104, 485);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "26px Arial";
-      ctx.fillText("Your referral earnings have been sent successfully.", 104, 535);
-      ctx.fillStyle = "#f0fdf4";
-      ctx.fillRect(96, 600, 888, 250);
-      ctx.fillStyle = "#15803d";
-      ctx.font = "600 26px Arial";
-      ctx.fillText("AMOUNT WITHDRAWN", 140, 665);
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 82px Arial";
-      ctx.fillText(money(withdrawalConfirmation.amount), 140, 770);
-      ctx.fillStyle = "#15803d";
-      ctx.font = "bold 25px Arial";
-      ctx.fillText("SUCCESSFUL", 140, 815);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "24px Arial";
-      ctx.fillText("DATE", 104, 935);
-      ctx.fillText("REFERENCE", 104, 1045);
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "600 28px Arial";
-      ctx.fillText(new Date(withdrawalConfirmation.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }), 104, 980);
-      ctx.font = "600 25px Arial";
-      ctx.fillText(withdrawalConfirmation.reference || "Referral withdrawal", 104, 1090);
-      ctx.fillStyle = "#0b1830";
-      ctx.font = "bold 34px Arial";
-      ctx.fillText("Practise for exams and still earn.", 104, 1190);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "22px Arial";
-      ctx.fillText("Weblines CBT · Referral rewards", 104, 1235);
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Could not prepare the receipt image.")), "image/png");
-      });
-      const file = new File([blob], "weblines-referral-withdrawal.png", { type: "image/png" });
-      const message = "My " + money(withdrawalConfirmation.amount) + " referral earnings withdrawal was successful on Weblines CBT. Practise for exams and still earn!";
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: "Weblines CBT referral withdrawal receipt", text: message });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "weblines-referral-withdrawal.png";
-        link.click();
-        URL.revokeObjectURL(url);
-        toast({ title: "Receipt image ready", description: "Your branded receipt image has been downloaded and is ready to share." });
-      }
+      const result = await shareTransactionReceipt({ brand: "ROCKCBT", ...receipt, logoSrc: logoImg });
+      if (result === "downloaded") toast({ title: "Receipt image ready", description: "Your ROCKCBT receipt was downloaded. You can now attach it to any social app." });
     } catch (error) {
       if ((error as Error).name !== "AbortError") toast({ title: "Could not share receipt", description: (error as Error).message || "Please try again.", variant: "destructive" });
     }
@@ -332,7 +257,7 @@ const Referral = () => {
     });
     setWithdrawAmount("1000");
     await loadReferralData();
-    toast({ title: "Withdrawal submitted", description: "Your payout is being processed. Smart Q Palette will update the result when Paystack confirms it." });
+    toast({ title: "Withdrawal submitted", description: "Your payout is being processed. ROCKCBT will update the result when Paystack confirms it." });
   };
 
   const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
@@ -344,11 +269,11 @@ const Referral = () => {
 
   return (
     <div className="min-h-[100dvh] bg-background">
-      <SEOHead title="Refer & Earn – Smart Q Palette" description="Share Smart Q Palette and earn referral rewards." path="/referrals" />
+      <SEOHead title="ROCKCBT – Referral Wallet" description="Practise for exams and still earn with ROCKCBT referral rewards." path="/referrals" />
       <DesktopHeader profileName={user?.user_metadata?.full_name || null} isPro={false} />
-      <main className="mx-auto max-w-3xl space-y-5 px-3 py-5 sm:px-4 lg:px-6 lg:py-7">
+      <main className="mx-auto max-w-5xl space-y-5 px-3 py-5 sm:px-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0 lg:px-8 lg:py-8">
         {!loading && !loadError && (
-                      <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
+                      <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm lg:col-span-2">
                         <CardContent className="space-y-4 p-4 sm:p-5">
                           <div className="flex items-center justify-between gap-3">
                             <div><p className="text-sm font-semibold text-muted-foreground">Available to withdraw</p><p className="mt-1 text-3xl font-extrabold">{money(wallet.available_balance)}</p></div>
@@ -366,9 +291,9 @@ const Referral = () => {
                         </CardContent>
                       </Card>
         )}
-        <div>
-          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-primary">Smart Q Palette · Refer & Earn</p>
+        <div className="lg:col-span-2">
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">ROCKCBT · Refer & Earn</p>
             <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Why not practise and still get paid?</h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Share your personal link with people preparing for exams. Earn <span className="font-bold text-foreground">₦500</span> for every successful subscription. Sharing is always your choice.</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -389,7 +314,7 @@ const Referral = () => {
           </CardContent></Card>
         ) : (
           <>
-            {withdrawalConfirmation && <Card className={"overflow-hidden rounded-3xl border-0 shadow-xl " + (withdrawalConfirmation.status === "success" ? "bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border border-destructive/40 bg-destructive/5" : "border border-primary/20 bg-card")}>
+            {withdrawalConfirmation && <Card className={"overflow-hidden rounded-3xl border-0 shadow-xl lg:col-span-2 " + (withdrawalConfirmation.status === "success" ? "bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border border-destructive/40 bg-destructive/5" : "border border-primary/20 bg-card")}>
               <CardContent className="space-y-5 p-5 sm:p-7">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2"><img src={logoImg} alt="Weblines CBT" className="h-9 w-auto rounded-md bg-white p-1" /><span className="text-xs font-semibold tracking-wide opacity-80">REFERRAL WALLET</span></div>
@@ -408,7 +333,7 @@ const Referral = () => {
                   {withdrawalConfirmation.status !== "success" && <div className="sm:col-span-2"><p className="text-xs text-white/60">Destination</p><p className="mt-1 font-semibold">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p></div>}
                 </div>
                 {withdrawalConfirmation.testMode && <p className="text-xs text-amber-200">Paystack test mode: no real money is sent.</p>}
-                {withdrawalConfirmation.status === "success" ? <div className="space-y-3"><Button className="w-full rounded-xl bg-white text-emerald-950 hover:bg-emerald-50" onClick={() => void shareWithdrawalReceipt()}><Share2 className="mr-2 h-4 w-4" />Share receipt image</Button><p className="text-center text-xs text-white/65">Practise for exams and still earn. Thank you for growing with us.</p></div> : <p className="text-xs text-muted-foreground">Your withdrawal status updates automatically when Paystack confirms the transfer.</p>}
+                {withdrawalConfirmation.status === "success" ? <div className="space-y-3"><Button className="w-full rounded-xl bg-white text-emerald-950 hover:bg-emerald-50" onClick={() => void shareReceipt({ type: "Referral earnings withdrawal", amount: withdrawalConfirmation.amount, status: withdrawalConfirmation.status, date: withdrawalConfirmation.createdAt, reference: withdrawalConfirmation.reference, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-2 h-4 w-4" />Share receipt image</Button><p className="text-center text-xs text-white/65">Practise for exams and still earn. Thank you for growing with us.</p></div> : <p className="text-xs text-muted-foreground">Your withdrawal status updates automatically when Paystack confirms the transfer.</p>}
                 <Button variant="ghost" className="w-full text-white/70 hover:bg-white/10 hover:text-white" onClick={() => setWithdrawalConfirmation(null)}>Back to referral wallet</Button>
               </CardContent>
             </Card>}
@@ -444,7 +369,7 @@ const Referral = () => {
                   </div>
                 ))}
                 {showBankSetup && <>
-                <p className="text-xs text-muted-foreground">The verified bank account holder name must match your Smart Q Palette signup name: <span className="font-semibold text-foreground">{user?.user_metadata?.full_name || "your registered full name"}</span>.</p>
+                <p className="text-xs text-muted-foreground">The verified bank account holder name must match your ROCKCBT signup name: <span className="font-semibold text-foreground">{user?.user_metadata?.full_name || "your registered full name"}</span>.</p>
                 {testModeEnabled && <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
                   <p className="text-sm font-semibold">Paystack test mode</p>
                   <p className="text-xs text-muted-foreground">Add a clearly marked test recipient to check the bank-setup screen without using your real account. No payout can be made to this test recipient.</p>
@@ -494,11 +419,11 @@ const Referral = () => {
 
             <Card id="rewards-history" className="rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-4">
-                <div className="flex items-center justify-between"><h2 className="font-bold">Referral reward history</h2><Badge variant="secondary">₦500 each</Badge></div>
+                <div className="flex items-center justify-between"><h2 className="font-bold">Referral earnings history</h2><Badge variant="secondary">₦500 each</Badge></div>
                 {rewards.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Your successful referrals and rewards will appear here.</p> : rewards.map((reward) => (
-                  <div key={reward.id} className="flex items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0">
-                    <div><p className="text-sm font-semibold">Referral reward</p><p className="text-[11px] text-muted-foreground">{new Date(reward.created_at).toLocaleDateString()}</p></div>
-                    <div className="text-right"><p className="text-sm font-bold">+{money(reward.amount)}</p><Badge variant={reward.status === "available" ? "default" : "secondary"}>{reward.status}</Badge></div>
+                  <div key={reward.id} className="flex flex-col gap-3 border-b pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0"><p className="text-sm font-semibold">Referral reward</p><p className="text-[11px] text-muted-foreground">{new Date(reward.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={reward.status === "available" ? "default" : reward.status === "reversed" ? "destructive" : "secondary"}>{reward.status}</Badge></div>
+                    <div className="flex items-center justify-between gap-3 sm:justify-end"><p className="text-sm font-bold">+{money(reward.amount)}</p><Button size="sm" variant="outline" className="h-9 rounded-xl" onClick={() => void shareReceipt({ type: "Referral earnings", amount: reward.amount, status: reward.status, date: reward.created_at, reference: reward.id, description: "ROCKCBT referral reward" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button></div>
                   </div>
                 ))}
               </CardContent>
@@ -508,9 +433,9 @@ const Referral = () => {
               <CardContent className="space-y-3 p-4">
                 <div><h2 className="font-bold">Withdrawal history</h2><p className="text-xs text-muted-foreground">Every withdrawal request and its latest status.</p></div>
                 {withdrawals.length === 0 ? <p className="py-3 text-center text-sm text-muted-foreground">You have not made a withdrawal yet.</p> : withdrawals.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
-                    <div><p className="text-sm font-semibold">{money(item.amount)}</p><p className="text-[11px] text-muted-foreground">{new Date(item.requested_at).toLocaleDateString()}</p></div>
-                    <Badge variant={item.status === "success" ? "default" : item.status === "failed" || item.status === "reversed" ? "destructive" : "secondary"}>{withdrawalStatusLabel(item.status)}</Badge>
+                  <div key={item.id} className="flex flex-col gap-3 border-b pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0"><p className="text-sm font-semibold">{money(item.amount)}</p><p className="text-[11px] text-muted-foreground">{new Date(item.completed_at || item.requested_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={item.status === "success" ? "default" : item.status === "failed" || item.status === "reversed" ? "destructive" : "secondary"}>{withdrawalStatusLabel(item.status)}</Badge></div>
+                    <Button size="sm" variant="outline" className="h-9 rounded-xl self-start sm:self-auto" onClick={() => void shareReceipt({ type: "Referral withdrawal", amount: item.amount, status: item.status, date: item.completed_at || item.requested_at, reference: item.reference || item.id, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button>
                   </div>
                 ))}
               </CardContent>
