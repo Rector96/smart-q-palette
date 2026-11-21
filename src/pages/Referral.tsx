@@ -130,7 +130,7 @@ const Referral = () => {
 
   const shareLink = async () => {
     if (!referralUrl) return;
-    const shareData = { title: "Practise for exams and still earn", text: "Prepare smarter with Weblines CBT. Practise for your exams and still earn with my referral link.", url: referralUrl };
+    const shareData = { title: "Practise for exams and still earn", text: "Prepare smarter with ROCKCBT. Practise for your exams and still earn with my referral link.", url: referralUrl };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (error) {
         if ((error as Error).name !== "AbortError") toast({ title: "Sharing unavailable", description: "You can copy your referral link instead." });
@@ -317,7 +317,7 @@ const Referral = () => {
             {withdrawalConfirmation && <Card className={"overflow-hidden rounded-3xl border-0 shadow-xl lg:col-span-2 " + (withdrawalConfirmation.status === "success" ? "bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border border-destructive/40 bg-destructive/5" : "border border-primary/20 bg-card")}>
               <CardContent className="space-y-5 p-5 sm:p-7">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2"><img src={logoImg} alt="Weblines CBT" className="h-9 w-auto rounded-md bg-white p-1" /><span className="text-xs font-semibold tracking-wide opacity-80">REFERRAL WALLET</span></div>
+                  <div className="flex items-center gap-2"><img src={logoImg} alt="ROCKCBT" className="h-9 w-auto rounded-md bg-white p-1" /><span className="text-xs font-semibold tracking-wide opacity-80">REFERRAL WALLET</span></div>
                   <Badge variant={withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "destructive" : "secondary"}>{withdrawalConfirmation.status === "success" ? "Successful" : withdrawalStatusLabel(withdrawalConfirmation.status)}</Badge>
                 </div>
                 <div className="py-3 text-center">
