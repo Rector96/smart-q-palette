@@ -1,6 +1,6 @@
-# Smart Q Palette
+# ROCKCBT
 
-Smart Q Palette is a React, Vite and TypeScript CBT practice platform backed by Supabase.
+ROCKCBT is a React, Vite and TypeScript CBT practice platform backed by Supabase.
 
 ## Run locally
 
