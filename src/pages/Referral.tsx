@@ -446,7 +446,7 @@ const Referral = () => {
             </Card>
           </>
         )}
-        <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-xs"><Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link><span className="text-muted-foreground">Rewards are credited after a successful subscription. Minimum withdrawal: ₦1,000.</span></div>
+        <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-xs lg:col-span-2"><Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link><span className="text-muted-foreground">Rewards are credited after a successful subscription. Minimum withdrawal: ₦1,000.</span></div>
       </main>
     </div>
   );
