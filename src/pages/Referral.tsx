@@ -319,6 +319,7 @@ const Referral = () => {
               <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Users className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] text-muted-foreground">People referred</p></div></CardContent></Card>
               <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] text-muted-foreground">Available rewards</p></div></CardContent></Card>
             </div>
+            </Card>
 
             {(bankAccounts.length > 0 || showBankSetup) && <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">
