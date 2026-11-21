@@ -57,7 +57,7 @@ const Index = () => {
   ];
 
   const quickFaqs = [
-    { q: "How much does Weblines CBT cost?", a: "You get 3 free exam sessions. After that, subscribe for just ₦2,000 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
+    { q: "How much does Weblines CBT cost?", a: "You get 3 free exam sessions. After that, subscribe for just ₦2,500 for lifetime access to all features including unlimited exams, AI tutor, and progress tracking." },
     { q: "Can I share exams with friends?", a: "Yes! Generate a share link after taking an exam. Your friends can take the same exam and compare scores." },
     { q: "How does the AI Tutor work?", a: "Our AI tutor provides 24/7 personalized explanations for any topic, helping you understand complex concepts easily." },
     { q: "What exams does Weblines CBT cover?", a: "Weblines CBT covers JAMB, WAEC, NECO, POST-UTME, and other Nigerian examinations across all subjects." },
@@ -286,7 +286,7 @@ const Index = () => {
                     <h3 className="text-sm font-semibold">Pro — Lifetime</h3>
                   </div>
                   <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-2xl font-bold">₦2,000</span>
+                    <span className="text-2xl font-bold">₦2,500</span>
                     <span className="text-xs text-muted-foreground">/ one-time</span>
                   </div>
                   <ul className="space-y-2 mb-6">

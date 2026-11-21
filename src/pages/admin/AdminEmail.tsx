@@ -155,7 +155,7 @@ const AdminEmail = () => {
             <div className="space-y-2">
               {[
                 { label: "New Feature Announcement", subj: "🚀 New Feature Alert on Weblines CBT!", msg: "Hi there!\n\nWe're excited to announce a brand new feature on Weblines CBT!\n\n📚 Digital Library - Access study materials, textbooks, and past question guides.\n🎯 Custom Exam Builder - Create and share exams with friends.\n🤖 AI Tutor - Get instant help with any subject.\n\nLog in now to explore these features and boost your exam prep!\n\nBest,\nWeblines CBT Team" },
-                { label: "Subscription Reminder", subj: "Unlock Full Access for Just ₦2,000 💰", msg: "Hi there!\n\nYou're missing out on unlimited practice exams, AI tutor access, and the full digital library.\n\nSubscribe now for just ₦2,000 (lifetime access) and take your exam preparation to the next level!\n\nDon't wait - your success starts today.\n\nBest,\nWeblines CBT Team" },
+                { label: "Subscription Reminder", subj: "Unlock Full Access for Just ₦2,500 💰", msg: "Hi there!\n\nYou're missing out on unlimited practice exams, AI tutor access, and the full digital library.\n\nSubscribe now for just ₦2,500 (lifetime access) and take your exam preparation to the next level!\n\nDon't wait - your success starts today.\n\nBest,\nWeblines CBT Team" },
               ].map((t) => (
                 <Button key={t.label} variant="outline" size="sm" className="w-full text-xs justify-start h-8" onClick={() => { setSubject(t.subj); setBody(t.msg); }}>
                   <Mail className="h-3 w-3 mr-2" /> {t.label}

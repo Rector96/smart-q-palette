@@ -153,8 +153,8 @@ const AITutor = () => {
             <Lock className="h-8 w-8 text-primary" />
           </div>
           <h2 className="text-lg font-bold">AI Tutor Limit Reached</h2>
-          <p className="text-sm text-muted-foreground">You've used your {MAX_FREE_USES} free AI Tutor sessions. Subscribe for just <span className="font-bold text-foreground">₦2,000</span> to get unlimited access!</p>
-          <Button className="w-full h-11" onClick={() => setShowSub(true)}>Subscribe Now — ₦2,000</Button>
+          <p className="text-sm text-muted-foreground">You've used your {MAX_FREE_USES} free AI Tutor sessions. Subscribe for just <span className="font-bold text-foreground">₦2,500</span> to get unlimited access!</p>
+          <Button className="w-full h-11" onClick={() => setShowSub(true)}>Subscribe Now — ₦2,500</Button>
           <Button variant="ghost" className="w-full" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
         </motion.div>
         <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
