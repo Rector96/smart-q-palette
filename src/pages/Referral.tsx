@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, CheckCircle2 } from "lucide-react";
 import DesktopHeader from "@/components/DesktopHeader";
 import SEOHead from "@/components/SEOHead";
+import logoImg from "@/assets/logo.png";
 
 // The referral tables are introduced by the accompanying migration and are not
 // yet present in the generated client types on the default branch.
@@ -22,7 +23,7 @@ type RewardRow = { id: string; amount: number; status: string; created_at: strin
 type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
 type Bank = { name: string; code: string };
 type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
-type WithdrawalConfirmation = { amount: number; bankName: string; accountName: string; accountNumberMasked: string; reference: string; status: string; testMode: boolean };
+type WithdrawalConfirmation = { amount: number; bankName: string; accountName: string; accountNumberMasked: string; reference: string; status: string; testMode: boolean; createdAt: string };
 
 const money = (value: number) => new Intl.NumberFormat("en-NG", {
   style: "currency", currency: "NGN", maximumFractionDigits: 0,
@@ -120,7 +121,7 @@ const Referral = () => {
     if (!referralUrl) return;
     try {
       await navigator.clipboard.writeText(referralUrl);
-      toast({ title: "Referral link copied", description: "Send it to a friend. You earn ₦500 when they complete their ₦2,500 subscription." });
+      toast({ title: "Referral link copied", description: "Share it with someone preparing for an exam. Earn ₦500 for every successful subscription." });
     } catch {
       toast({ title: "Could not copy link", description: "Please copy the link manually.", variant: "destructive" });
     }
@@ -128,7 +129,7 @@ const Referral = () => {
 
   const shareLink = async () => {
     if (!referralUrl) return;
-    const shareData = { title: "Join Smart Q Palette", text: "Practise smarter with Smart Q Palette. Join using my referral link.", url: referralUrl };
+    const shareData = { title: "Practise for exams and still earn", text: "Prepare smarter with Weblines CBT. Practise for your exams and still earn with my referral link.", url: referralUrl };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (error) {
         if ((error as Error).name !== "AbortError") toast({ title: "Sharing unavailable", description: "You can copy your referral link instead." });
@@ -242,6 +243,7 @@ const Referral = () => {
       reference: data?.reference || "",
       status: data?.status || "processing",
       testMode: data?.test_mode === true,
+      createdAt: new Date().toISOString(),
     });
     setWithdrawAmount("1000");
     await loadReferralData();
@@ -264,10 +266,10 @@ const Referral = () => {
           <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">Smart Q Palette · Refer & Earn</p>
             <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Why not practise and still get paid?</h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Help your friends practise for their exams. You earn <span className="font-bold text-foreground">₦500</span> when a friend joins and completes the <span className="font-bold text-foreground">₦2,500</span> subscription. Sharing is always your choice.</p>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Share your personal link with people preparing for exams. Earn <span className="font-bold text-foreground">₦500</span> for every successful subscription. Sharing is always your choice.</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">1. Share your link</span>
-              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. Friend joins & pays ₦2,500</span>
+              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. They subscribe</span>
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">3. You earn ₦500</span>
             </div>
           </div>
@@ -405,7 +407,7 @@ const Referral = () => {
             </Card>
           </>
         )}
-        <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-xs"><Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link><span className="text-muted-foreground">Rewards are paid after a successful ₦2,500 subscription. Minimum withdrawal: ₦1,000.</span></div>
+        <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-xs"><Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link><span className="text-muted-foreground">Rewards are credited after a successful subscription. Minimum withdrawal: ₦1,000.</span></div>
       </main>
     </div>
   );
