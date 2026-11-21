@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,8 +65,8 @@ const Referral = () => {
     const [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult] = await Promise.all([
       referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
       referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
-      referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(10),
-      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(5),
+      referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
+      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
       referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
       referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
     ]);
@@ -263,7 +264,7 @@ const Referral = () => {
           <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">Smart Q Palette · Refer & Earn</p>
             <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Why not practise and still get paid?</h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Help your friends practise for their exams, and earn <span className="font-bold text-foreground">₦500 for every successful referral.</span></p>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Help your friends practise for their exams. You earn <span className="font-bold text-foreground">₦500</span> when a friend joins and completes the <span className="font-bold text-foreground">₦2,500</span> subscription. Sharing is always your choice.</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">1. Share your link</span>
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. Friend joins & pays ₦2,500</span>
@@ -404,7 +405,7 @@ const Referral = () => {
             </Card>
           </>
         )}
-        <p className="pb-2 text-center text-[11px] text-muted-foreground">Referral rewards are credited only after Paystack confirms a referred student’s ₦2,500 subscription. Each successful subscription earns the referrer a fixed ₦500. Minimum withdrawal is ₦1,000.</p>
+        <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-xs"><Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link><span className="text-muted-foreground">Rewards are paid after a successful ₦2,500 subscription. Minimum withdrawal: ₦1,000.</span></div>
       </main>
     </div>
   );
