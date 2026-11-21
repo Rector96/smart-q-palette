@@ -119,7 +119,7 @@ const Referral = () => {
     if (!referralUrl) return;
     try {
       await navigator.clipboard.writeText(referralUrl);
-      toast({ title: "Referral link copied", description: "Share it to earn ₦500 when a referred friend makes a qualifying payment." });
+      toast({ title: "Referral link copied", description: "Send it to a friend. You earn ₦500 when they complete their ₦2,500 subscription." });
     } catch {
       toast({ title: "Could not copy link", description: "Please copy the link manually.", variant: "destructive" });
     }
@@ -260,9 +260,16 @@ const Referral = () => {
       <DesktopHeader profileName={user?.user_metadata?.full_name || null} isPro={false} />
       <main className="mx-auto max-w-3xl space-y-5 px-3 py-5 sm:px-4 lg:px-6 lg:py-7">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Smart Q Palette rewards</p>
-          <h1 className="mt-1 text-2xl font-bold">Refer & Earn</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Invite friends. When someone joins through your link and makes a qualifying ₦2,500 payment, you earn ₦500.</p>
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Smart Q Palette · Refer & Earn</p>
+            <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Why not practise and still get paid?</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Help your friends practise for their exams, and earn <span className="font-bold text-foreground">₦500 for every successful referral.</span></p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">1. Share your link</span>
+              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. Friend joins & pays ₦2,500</span>
+              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">3. You earn ₦500</span>
+            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -277,6 +284,18 @@ const Referral = () => {
           <>
             {withdrawalConfirmation && <Card className={`rounded-2xl shadow-sm ${withdrawalConfirmation.status === "success" ? "border-emerald-500/40 bg-emerald-500/5" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border-destructive/40 bg-destructive/5" : "border-primary/20 bg-primary/[0.03]"}`}><CardContent className="space-y-3 p-4 sm:p-5"><div className="flex items-start gap-3"><div className={`rounded-full p-2 ${withdrawalConfirmation.status === "success" ? "bg-emerald-500/10 text-emerald-600" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>{withdrawalConfirmation.status === "success" ? <CheckCircle2 className="h-6 w-6" /> : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? <span className="text-xl font-bold">!</span> : <Loader2 className="h-6 w-6 animate-spin" />}</div><div className="min-w-0 flex-1"><h2 className="font-bold">{withdrawalConfirmation.status === "success" ? "Withdrawal successful" : withdrawalConfirmation.status === "failed" ? "Withdrawal failed" : withdrawalConfirmation.status === "reversed" ? "Transfer reversed" : "Your withdrawal is on its way"}</h2><p className="mt-1 text-sm text-muted-foreground">{withdrawalConfirmation.status === "success" ? `${money(withdrawalConfirmation.amount)} has been sent successfully.` : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "The transfer was not completed. Your available balance will be restored automatically." : `Your request for ${money(withdrawalConfirmation.amount)} has been received and is being processed securely.`}</p></div><button type="button" onClick={() => setWithdrawalConfirmation(null)} className="text-xs text-muted-foreground underline">Dismiss</button></div><div className="rounded-xl bg-background/80 p-3 text-sm"><p className="font-semibold">{withdrawalConfirmation.accountName}</p><p className="text-xs text-muted-foreground">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p><p className="mt-1 text-[11px] text-muted-foreground">Reference: {withdrawalConfirmation.reference}</p></div>{withdrawalConfirmation.testMode && <p className="text-xs text-amber-700 dark:text-amber-400">Paystack test mode: no real money is sent.</p>}{withdrawalConfirmation.status !== "success" && withdrawalConfirmation.status !== "failed" && withdrawalConfirmation.status !== "reversed" && <p className="text-xs text-muted-foreground">No OTP is needed. This status updates automatically when Paystack confirms the transfer.</p>}</CardContent></Card>}
             {!withdrawalConfirmation && latestOpenWithdrawal && <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]"><CardContent className="space-y-2 p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-primary" /><h2 className="font-bold">Withdrawal request received</h2></div><p className="text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(latestOpenWithdrawal.amount)}</span> has been submitted.</p><p className="text-xs text-muted-foreground">{latestWithdrawalBank?.account_name || "Your saved account"} · {latestWithdrawalBank?.bank_name || "Bank transfer"} · {latestWithdrawalBank?.account_number_masked || ""}</p><p className="text-xs text-muted-foreground">{latestOpenWithdrawal.status === "otp" ? "Your request is awaiting secure platform authorisation. You do not need to enter the Paystack code. Once approved, Paystack will process the transfer." : "Your payout is being processed. The money will be delivered to the bank account above after Paystack confirms the transfer."}</p></CardContent></Card>}
+            <Card className="rounded-2xl shadow-sm">
+              <CardContent className="space-y-3 p-4">
+                <div><h2 className="font-bold">Invite friends to practise</h2><p className="text-xs text-muted-foreground">Send your personal link. Earn ₦500 when a friend pays for access.</p></div>
+                <div className="flex min-w-0 items-center gap-2 rounded-xl border bg-muted/40 p-2">
+                  <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralUrl || "Your link will appear here once your referral profile is created."}</span>
+                  <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => void copyLink()} disabled={!referralUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
+                </div>
+                <Button className="w-full rounded-xl" onClick={() => void shareLink()} disabled={!referralUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
+                {profile?.referral_code && <p className="text-center text-[11px] text-muted-foreground">Your referral code: <span className="font-semibold text-foreground">{profile.referral_code}</span></p>}
+              </CardContent>
+            </Card>
+
             <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
               <CardContent className="space-y-4 p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3">
@@ -296,21 +315,11 @@ const Referral = () => {
             </Card>
 
             <Card className="rounded-2xl shadow-sm">
-              <CardContent className="space-y-3 p-4">
-                <div><h2 className="font-bold">Your referral link</h2><p className="text-xs text-muted-foreground">Share this link with friends and classmates.</p></div>
-                <div className="flex min-w-0 items-center gap-2 rounded-xl border bg-muted/40 p-2">
-                  <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralUrl || "Your link will appear here once your referral profile is created."}</span>
-                  <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => void copyLink()} disabled={!referralUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
-                </div>
-                <Button className="w-full rounded-xl" onClick={() => void shareLink()} disabled={!referralUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
-                {profile?.referral_code && <p className="text-center text-[11px] text-muted-foreground">Your referral code: <span className="font-semibold text-foreground">{profile.referral_code}</span></p>}
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
               <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Users className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] text-muted-foreground">People referred</p></div></CardContent></Card>
               <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] text-muted-foreground">Available rewards</p></div></CardContent></Card>
             </div>
+            </Card>
 
             {(bankAccounts.length > 0 || showBankSetup) && <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">
