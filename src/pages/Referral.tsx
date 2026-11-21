@@ -11,7 +11,8 @@ import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, 
 import DesktopHeader from "@/components/DesktopHeader";
 import SEOHead from "@/components/SEOHead";
 
-const referralDb = supabase;
+// Referral tables are not yet represented in the generated Supabase client types.
+const referralDb = supabase as any;
 
 type ReferralProfile = { referral_code: string };
 type WalletRow = { pending_balance: number; available_balance: number; lifetime_earned: number; lifetime_paid: number };
