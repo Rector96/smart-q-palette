@@ -81,7 +81,7 @@ const AdminDashboard = () => {
           <div className="flex min-w-0 items-center gap-3">
             <Logo size="sm" showText={false} />
             <div className="min-w-0">
-              <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /><span className="truncate text-sm font-bold">Smart Q Palette</span><Badge variant="secondary" className="hidden sm:inline-flex text-[10px]">{isSupportAgent && !isAdmin ? "Customer care" : "Admin centre"}</Badge></div>
+              <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /><span className="truncate text-sm font-bold">ROCKCBT</span><Badge variant="secondary" className="hidden sm:inline-flex text-[10px]">{isSupportAgent && !isAdmin ? "Customer care" : "Admin centre"}</Badge></div>
               <p className="text-[11px] text-muted-foreground">{isSupportAgent && !isAdmin ? "Customer support workspace" : "Platform control centre"}</p>
             </div>
           </div>
@@ -156,7 +156,7 @@ const AdminDashboard = () => {
             {isAdmin && <Card className="border-primary/15 bg-primary/[0.03]"><CardContent className="flex items-start gap-3 p-4"><div className="rounded-lg bg-primary/10 p-2 text-primary"><Headset className="h-4 w-4" /></div><div className="min-w-0"><h3 className="text-sm font-semibold">Customer care shortcut</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Search a customer, check their access and resolve a payment issue.</p><Link to="/admin/users" className="mt-3 inline-flex items-center text-xs font-semibold text-primary">Open customer list <ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link></div></CardContent></Card>}
           </aside>
         </section>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-[11px] text-muted-foreground"><span>Smart Q Palette · Admin workspace</span><span>Administrative actions are logged</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-[11px] text-muted-foreground"><span>ROCKCBT · Admin workspace</span><span>Administrative actions are logged</span></div>
       </main>
     </div>
   );
