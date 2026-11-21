@@ -9,6 +9,34 @@ import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Libra
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
 
+
+const ALLOWED_ALOC_FORMAT_TAGS = new Set(["SUP", "SUB", "STRONG", "B", "EM", "I", "U", "BR"]);
+const BLOCKED_ALOC_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "SVG", "MATH"]);
+
+function renderAlocFormattedText(value: unknown): React.ReactNode {
+  if (typeof value !== "string" || !value) return value == null ? "" : String(value);
+
+  // Parse the API's limited inline markup, then rebuild it using React elements.
+  // No source attributes are copied, and unsupported elements cannot execute code.
+  const parsed = new DOMParser().parseFromString(value, "text/html");
+  const renderNode = (node: Node, key: number): React.ReactNode => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+
+    const element = node as HTMLElement;
+    const tag = element.tagName;
+    if (BLOCKED_ALOC_TAGS.has(tag)) return null;
+
+    const children = Array.from(element.childNodes).map((child, index) => renderNode(child, index));
+    if (!ALLOWED_ALOC_FORMAT_TAGS.has(tag)) return <React.Fragment key={key}>{children}</React.Fragment>;
+    if (tag === "BR") return <br key={key} />;
+    const reactTag = tag.toLowerCase() as "sup" | "sub" | "strong" | "b" | "em" | "i" | "u";
+    return React.createElement(reactTag, { key }, children);
+  };
+
+  return Array.from(parsed.body.childNodes).map((node, index) => renderNode(node, index));
+}
+
 interface OnlineUser { user_id: string; display_name: string; current_page: string; current_subject: string | null; last_seen: string; }
 
 const AdminDashboard = () => {
@@ -194,9 +222,9 @@ const AdminDashboard = () => {
                   return <details key={question?.id ?? index} className="rounded-lg border bg-background p-3 sm:p-4">
                     <summary className="cursor-pointer list-none text-sm font-semibold">Question {question?.questionNumber ?? index + 1}<span className="ml-2 text-xs font-normal text-muted-foreground">Tap to preview</span></summary>
                     <div className="mt-3 space-y-3">
-                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground">{question?.text || "Question text was not supplied by ALOC."}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground">{renderAlocFormattedText(question?.text || "Question text was not supplied by ALOC.")}</p>
                       {question?.imageUrl && <img src={question.imageUrl} alt={`Diagram for question ${index + 1}`} loading="lazy" className="max-h-64 max-w-full rounded-md border object-contain" />}
-                      {options.length > 0 && <div className="grid gap-2 sm:grid-cols-2">{options.map(([key, value]) => <div key={key} className={`rounded-md border px-3 py-2 text-sm leading-6 ${String(key).toUpperCase() === correctAnswer ? "border-emerald-500/50 bg-emerald-500/5" : "border-border"}`}><span className="mr-2 font-semibold">{key}.</span><span className="whitespace-pre-wrap break-words">{String(value ?? "")}</span>{String(key).toUpperCase() === correctAnswer && <span className="ml-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Correct answer</span>}</div>)}</div>}
+                      {options.length > 0 && <div className="grid gap-2 sm:grid-cols-2">{options.map(([key, value]) => <div key={key} className={`rounded-md border px-3 py-2 text-sm leading-6 ${String(key).toUpperCase() === correctAnswer ? "border-emerald-500/50 bg-emerald-500/5" : "border-border"}`}><span className="mr-2 font-semibold">{key}.</span><span className="whitespace-pre-wrap break-words">{renderAlocFormattedText(String(value ?? ""))}</span>{String(key).toUpperCase() === correctAnswer && <span className="ml-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Correct answer</span>}</div>)}</div>}
                       <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1">{String(question?.examType || alocExamType).toUpperCase()}</span><span className="rounded-full bg-muted px-2 py-1">{question?.subject || alocSubject}</span><span className="rounded-full bg-muted px-2 py-1">{question?.year || alocYear}</span><span className="rounded-full bg-muted px-2 py-1">{provenance.contentSource || "Source not stated"}</span></div>
                       {correctAnswer && <p className="text-xs text-muted-foreground">Answer key: <strong className="text-foreground">{correctAnswer}</strong></p>}
                       {provenance.isLicensed === false && <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-800 dark:text-amber-300">Not licensed for distribution. Keep this sample in evaluation only; do not import into the live student question bank.</p>}
