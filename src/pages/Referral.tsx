@@ -293,8 +293,8 @@ const Referral = () => {
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-6">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">ROCKCBT · Refer & Earn</p>
-            <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Why not practise and still get paid?</h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Share your personal link with people preparing for exams. Earn <span className="font-bold text-foreground">₦500</span> for every successful subscription. Sharing is always your choice.</p>
+            <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Practise for exams. Earn by sharing ROCKCBT.</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Invite people preparing for exams. When someone subscribes through your link, you earn <span className="font-bold text-foreground">₦500</span>.</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">1. Share your link</span>
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. They subscribe</span>
