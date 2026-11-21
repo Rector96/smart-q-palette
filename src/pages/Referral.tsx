@@ -54,11 +54,6 @@ const Referral = () => {
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawalConfirmation, setWithdrawalConfirmation] = useState<WithdrawalConfirmation | null>(null);
 
-  const referralUrl = useMemo(() => {
-    if (!profile?.referral_code) return "";
-    return `${window.location.origin}/auth?ref=${encodeURIComponent(profile.referral_code)}`;
-  }, [profile?.referral_code]);
-
   const referralShareUrl = useMemo(() => {
     if (!profile?.referral_code) return "";
     return `${window.location.origin}/r/${encodeURIComponent(profile.referral_code)}`;
@@ -349,7 +344,7 @@ const Referral = () => {
                   <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralShareUrl || "Your ROCKCBT invite link will appear here once your referral profile is ready."}</span>
                   <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => void copyLink()} disabled={!referralShareUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
                 </div>
-                <Button className="w-full rounded-xl" onClick={() => void shareLink()} disabled={!referralUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
+                <Button className="w-full rounded-xl" onClick={() => void shareLink()} disabled={!referralShareUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
                 {profile?.referral_code && <p className="text-center text-[11px] text-muted-foreground">Your referral code: <span className="font-semibold text-foreground">{profile.referral_code}</span></p>}
               </CardContent>
             </Card>
