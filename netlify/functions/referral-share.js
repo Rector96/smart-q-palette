@@ -25,6 +25,6 @@ exports.handler = async (event) => {
 <meta http-equiv="refresh" content="2;url=${esc(authUrl)}"></head>
 <body style="margin:0;background:#071a2d;color:#fff;font:16px Arial,sans-serif;display:grid;min-height:100vh;place-items:center;text-align:center">
 <main style="padding:32px"><img src="${esc(imageUrl)}" alt="ROCKCBT" style="width:min(92vw,560px);border-radius:20px"><h1>Practise for exams and still earn.</h1><p>Opening your ROCKCBT invitation…</p><a href="${esc(authUrl)}" style="color:#b9f4d5">Continue to ROCKCBT</a></main>
-<script>window.location.replace(${JSON.stringify(authUrl)});</script></body></html>`;
+<script>setTimeout(function(){window.location.replace(${JSON.stringify(authUrl)});},1800);</script></body></html>`;
   return { statusCode: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" }, body: html };
 };
