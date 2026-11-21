@@ -108,8 +108,8 @@ const Auth = () => {
           <div className="absolute inset-0 bg-gradient-to-tr from-[#8b4cf0]/35 via-transparent to-transparent" />
         </div>
         <div className="relative z-10 flex items-center gap-2.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#8124f7] text-base font-extrabold">W</span>
-          <span className="text-base font-bold tracking-tight">WeblineCBT</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#8124f7] text-base font-extrabold">R</span>
+          <span className="text-base font-bold tracking-tight">ROCKCBT</span>
         </div>
 
         <div className="relative z-10 max-w-[440px]">
@@ -135,8 +135,8 @@ const Auth = () => {
           className="relative z-10 w-full max-w-[390px] md:max-w-[312px]"
         >
           <div className={`${mode === "signup" ? "mb-1" : "mb-2"} flex items-center gap-2.5 md:hidden`}>
-            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#7225e8] text-base font-extrabold text-white">W</span>
-            <span className="text-sm font-bold tracking-tight text-[#171b2d]">WeblineCBT</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#7225e8] text-base font-extrabold text-white">R</span>
+            <span className="text-sm font-bold tracking-tight text-[#171b2d]">ROCKCBT</span>
           </div>
 
           <h1 className="text-[21px] font-bold tracking-tight text-[#171b2d] sm:text-[23px]">

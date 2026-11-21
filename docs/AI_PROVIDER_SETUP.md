@@ -1,6 +1,6 @@
 # AI provider setup
 
-Smart Q Palette's AI Tutor is independent of the Lovable AI gateway. It calls providers from the Supabase Edge Function, so provider credentials stay server-side and are never shipped to the browser.
+ROCKCBT's AI Tutor is independent of the Lovable AI gateway. It calls providers from the Supabase Edge Function, so provider credentials stay server-side and are never shipped to the browser.
 
 ## Provider order
 
@@ -32,6 +32,6 @@ The `ai-tutor` function is configured with `verify_jwt = true`. The signed-in br
 
 ## Deployment and verification
 
-Deploy the `ai-tutor` function to the same Supabase project configured by `VITE_SUPABASE_URL`. After deployment, sign in to Smart Q Palette and send a short AI Tutor prompt. Confirm that a response streams successfully. To test fallback, temporarily remove or invalidate the Groq secret in a non-production test window and confirm Gemini responds, then restore the correct Groq secret.
+Deploy the `ai-tutor` function to the same Supabase project configured by `VITE_SUPABASE_URL`. After deployment, sign in to ROCKCBT and send a short AI Tutor prompt. Confirm that a response streams successfully. To test fallback, temporarily remove or invalidate the Groq secret in a non-production test window and confirm Gemini responds, then restore the correct Groq secret.
 
 The repository change does not deploy the function or set project secrets automatically. Those steps require access to the correct Supabase project.

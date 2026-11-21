@@ -11,11 +11,10 @@ const Logo = ({ size = "sm", showText = false, className = "" }: LogoProps) => {
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <img src={logoImg} alt="Weblines CBT" className={`${imgSizes[size]} w-auto object-contain`} />
+      <img src={logoImg} alt="ROCKCBT" className={`${imgSizes[size]} w-auto object-contain`} />
       {showText && (
         <span className={`font-bold tracking-tight ${size === "lg" ? "text-xl sm:text-2xl" : "text-sm sm:text-base"}`} style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-          <span className="text-primary">Web</span>
-          <span className="text-[hsl(var(--success))]">lines</span>
+          ROCKCBT
         </span>
       )}
     </div>

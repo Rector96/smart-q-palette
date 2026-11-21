@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#071a2d"/><stop offset="1" stop-color="#14534c"/></linearGradient><radialGradient id="glow"><stop offset="0" stop-color="#48d6a0" stop-opacity=".28"/><stop offset="1" stop-color="#48d6a0" stop-opacity="0"/></radialGradient></defs>
+<rect width="1200" height="630" fill="url(#bg)"/><circle cx="1030" cy="65" r="370" fill="url(#glow)"/><circle cx="90" cy="630" r="330" fill="url(#glow)"/>
+<rect x="58" y="54" width="1084" height="522" rx="34" fill="none" stroke="#ffffff" stroke-opacity=".15" stroke-width="2"/>
+<image href="/logo.png" x="105" y="106" width="118" height="118" preserveAspectRatio="xMidYMid meet"/>
+<text x="250" y="174" fill="#ffffff" font-family="Arial,sans-serif" font-size="64" font-weight="800" letter-spacing="2">ROCKCBT</text>
+<text x="108" y="330" fill="#ffffff" font-family="Arial,sans-serif" font-size="62" font-weight="800">Practise for exams</text>
+<text x="108" y="405" fill="#ffffff" font-family="Arial,sans-serif" font-size="62" font-weight="800">and still earn.</text>
+<text x="110" y="486" fill="#b9f4d5" font-family="Arial,sans-serif" font-size="28" font-weight="600">Smart exam practice · Referral rewards</text>
+<rect x="108" y="516" width="250" height="8" rx="4" fill="#48d6a0"/>
+</svg>

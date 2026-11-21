@@ -12,7 +12,7 @@ interface TourStep {
 }
 
 const DASHBOARD_STEPS: TourStep[] = [
-  { title: "Welcome to Weblines 👋", message: "We're excited to have you! Let's take a quick tour so you can start preparing confidently.", icon: Sparkles, position: "center" },
+  { title: "Welcome to ROCKCBT 👋", message: "We're excited to have you! Let's take a quick tour so you can start preparing confidently.", icon: Sparkles, position: "center" },
   { selector: '[data-tour="start-test"]', title: "Start Practice Test", message: "Jump straight into practice with real exam-style questions.", icon: Rocket },
   { selector: '[data-tour="ai-tutor"]', title: "AI Tutor", message: "Stuck on a question? Your AI Tutor is always online to guide you instantly.", icon: Brain },
   { selector: '[data-tour="exam-modes"]', title: "Exam Modes", message: "Choose how you want to practice — CBT, Mock Exam, Revision, or Practice Mode.", icon: Clock },

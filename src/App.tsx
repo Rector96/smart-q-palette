@@ -15,6 +15,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Referral = lazy(() => import("./pages/Referral"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 const SelectSubjects = lazy(() => import("./pages/SelectSubjects"));
 const Exam = lazy(() => import("./pages/Exam"));
 const Results = lazy(() => import("./pages/Results"));
@@ -71,6 +72,7 @@ const App = () => (
               {/* Private pages with bottom nav */}
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
               <Route path="/referrals" element={<ProtectedRoute><AppLayout><Referral /></AppLayout></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><AppLayout><Notifications /></AppLayout></ProtectedRoute>} />
               <Route path="/ai-tutor" element={<ProtectedRoute><AppLayout><AITutor /></AppLayout></ProtectedRoute>} />
               <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
               <Route path="/select-subjects" element={<ProtectedRoute><AppLayout><SelectSubjects /></AppLayout></ProtectedRoute>} />

@@ -42,7 +42,6 @@ const Dashboard = () => {
   const [streak, setStreak] = useState(0);
   const [progression, setProgression] = useState({ xp: 0, todayQuestions: 0, bestScore: 0 });
   const [focusTopics, setFocusTopics] = useState<Array<{ subject: string; topic: string; correct: number; total: number; accuracy: number }>>([]);
-  const [dueReviewCount, setDueReviewCount] = useState(0);
   const [masteredTopicCount, setMasteredTopicCount] = useState(0);
   const [showSubscription, setShowSubscription] = useState(false);
   const verifiedReferences = useRef(new Set<string>());
@@ -80,13 +79,11 @@ const Dashboard = () => {
     const fetchData = async () => {
       const { data: prof } = await supabase.from("profiles").select("full_name, trial_count, is_subscribed").eq("user_id", user.id).single();
       if (active && prof) setProfile(prof);
-      const [{ data: sessions }, { data: masteryRows }, { count: dueCount }] = await Promise.all([
+      const [{ data: sessions }, { data: masteryRows }] = await Promise.all([
         supabase.from("exam_sessions").select("*").eq("user_id", user.id).eq("completed", true).order("completed_at", { ascending: false }),
         supabase.from("student_topic_mastery").select("subject, topic, attempts, correct_answers, last_attempt_at").eq("user_id", user.id).order("last_attempt_at", { ascending: false }),
-        supabase.from("student_question_reviews").select("id", { count: "exact", head: true }).eq("user_id", user.id).lte("due_at", new Date().toISOString()),
       ]);
       if (!active) return;
-      setDueReviewCount(dueCount || 0);
       setMasteredTopicCount((masteryRows || []).filter((item: any) => item.attempts >= 5 && item.correct_answers / item.attempts >= 0.8).length);
       setFocusTopics((masteryRows || [])
         .filter((item: any) => item.attempts >= 3 && item.correct_answers / item.attempts < 0.8)
@@ -142,9 +139,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-[100dvh] overflow-x-clip bg-background">
-      <SEOHead title="Dashboard – Smart Q Palette" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
+      <SEOHead title="Dashboard – ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
-      <main className="mx-auto max-w-4xl space-y-5 px-3 py-5 sm:px-4 lg:px-6 lg:py-6">
+      <main className="mx-auto max-w-4xl space-y-5 px-3 pt-5 pb-28 sm:px-4 lg:px-6 lg:py-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between">
             <div>
@@ -167,12 +164,6 @@ const Dashboard = () => {
             <div className="flex items-center gap-2"><Rocket className="h-5 w-5" /><span className="font-semibold">Start Practice Test</span></div><ChevronRight className="h-5 w-5" />
           </Button>
         </motion.div>
-
-        <Card className="rounded-2xl border-border/60 shadow-sm"><CardContent className="flex items-center gap-3 p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10"><Flame className="h-5 w-5 text-primary" /></div>
-          <div className="min-w-0 flex-1"><p className="text-sm font-bold">Revision due</p><p className="text-xs text-muted-foreground">{dueReviewCount > 0 ? `${dueReviewCount} question${dueReviewCount === 1 ? "" : "s"} ready to repeat` : "You are up to date. Keep practising to build your revision list."}</p><p className="mt-1 text-[10px] text-muted-foreground">Repeat intervals: 1 → 3 → 7 → 14 → 30 days</p></div>
-          <Button size="sm" variant="outline" className="shrink-0 rounded-lg" onClick={() => navigate("/select-subjects?mode=revision")}>Revise <ChevronRight className="ml-1 h-4 w-4" /></Button>
-        </CardContent></Card>
 
         <Card data-tour="ai-tutor" className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}><CardContent className="p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
           <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0"><Sparkles className="h-5 w-5 lg:h-6 lg:w-6 text-primary" /></div>

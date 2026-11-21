@@ -135,11 +135,11 @@ serve(async (req) => {
     const registeredName = String(referralProfile?.signup_full_name || "").trim();
     const normalizeName = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!registeredName) {
-      return json({ verified: false, error: "Your Smart Q Palette account has no saved signup name. Please contact support before adding a withdrawal account." }, action === "resolve_account" ? 200 : 400);
+      return json({ verified: false, error: "Your ROCKCBT account has no saved signup name. Please contact support before adding a withdrawal account." }, action === "resolve_account" ? 200 : 400);
     }
     if (normalizeName(accountName) !== normalizeName(registeredName)) {
       return json({
-        error: `The bank account name ( ${accountName} ) does not match your Smart Q Palette signup name ( ${registeredName} ). For security, use a bank account registered in your name.`,
+        error: `The bank account name ( ${accountName} ) does not match your ROCKCBT signup name ( ${registeredName} ). For security, use a bank account registered in your name.`,
       }, action === "resolve_account" ? 200 : 422);
     }
 

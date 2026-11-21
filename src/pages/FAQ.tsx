@@ -6,7 +6,7 @@ import Logo from "@/components/Logo";
 import SEOHead from "@/components/SEOHead";
 
 const faqs = [
-  { q: "What is Weblines CBT?", a: "Weblines CBT is an AI-powered CBT preparation platform that helps students practice with real exam-style questions for JAMB, WAEC, NECO and more, get instant AI explanations, and track their progress." },
+  { q: "What is ROCKCBT?", a: "ROCKCBT is an AI-powered CBT preparation platform that helps students practice with real exam-style questions for JAMB, WAEC, NECO and more, get instant AI explanations, and track their progress." },
   { q: "How does the free trial work?", a: "You get 3 free exam sessions to explore the platform. After that, subscribe for just ₦2,500 to unlock unlimited access to all features." },
   { q: "What subjects are available?", a: "We cover all 14 JAMB subjects: English, Mathematics, Physics, Chemistry, Biology, Economics, Government, Literature, CRS, IRS, Geography, Commerce, Accounting, and Agricultural Science." },
   { q: "How does the AI Tutor work?", a: "Our AI Tutor is available 24/7 to explain concepts, solve problems step-by-step, and provide personalized study guidance based on the Nigerian curriculum." },
@@ -20,7 +20,7 @@ const FAQ = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="FAQ – Weblines CBT" description="Frequently asked questions about Weblines CBT. Learn about pricing, subjects, AI tutor, and more." path="/faq" />
+      <SEOHead title="FAQ – ROCKCBT" description="Frequently asked questions about ROCKCBT. Learn about pricing, subjects, AI tutor, and more." path="/faq" />
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
@@ -31,7 +31,7 @@ const FAQ = () => {
       </header>
       <main className="max-w-3xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold mb-2">Frequently Asked Questions</h1>
-        <p className="text-sm text-muted-foreground mb-8">Find answers to common questions about Weblines CBT.</p>
+        <p className="text-sm text-muted-foreground mb-8">Find answers to common questions about ROCKCBT.</p>
         <Accordion type="single" collapsible className="space-y-2">
           {faqs.map((faq, i) => (
             <AccordionItem key={i} value={`faq-${i}`} className="border border-border/50 rounded-lg px-4">

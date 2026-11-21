@@ -175,7 +175,7 @@ const TakeExam = () => {
                   <Zap className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Enjoy more with Weblines CBT!</p>
+                  <p className="text-sm font-bold">Enjoy more with ROCKCBT!</p>
                   <p className="text-[11px] text-muted-foreground">Create a free account to unlock powerful features</p>
                 </div>
               </div>

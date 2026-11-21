@@ -32,9 +32,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       manifest: {
-        name: "WeblineCBT",
-        short_name: "WeblineCBT",
-        description: "Practice JAMB, WAEC, NECO CBT exams online with instant results",
+        name: "ROCKCBT",
+        short_name: "ROCKCBT",
+        description: "Practise for exams and still earn with ROCKCBT.",
         start_url: "/dashboard",
         display: "standalone",
         background_color: "#f8f9fc",

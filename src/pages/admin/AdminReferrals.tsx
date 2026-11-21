@@ -177,7 +177,7 @@ const AdminReferrals = () => {
       `}</style>
       <section id="referral-financial-pdf" style={{ display: "none" }}>
         <div style={{ borderBottom: "4px solid #1e3a8a", paddingBottom: 14 }}>
-          <p style={{ color: "#1e3a8a", fontWeight: 700, letterSpacing: 2, fontSize: 10 }}>SMART Q PALETTE</p>
+          <p style={{ color: "#1e3a8a", fontWeight: 700, letterSpacing: 2, fontSize: 10 }}>ROCKCBT</p>
           <h1>Referral Programme Financial Report</h1>
           <p className="pdf-muted">Official administrative report · Generated {new Date().toLocaleString("en-NG")}</p>
           <p className="pdf-muted">Reporting scope: verified ₦2,500 lifetime-access subscriptions with recorded referral attribution. Currency: Nigerian Naira (NGN).</p>
@@ -220,7 +220,7 @@ const AdminReferrals = () => {
           <table><thead><tr><th>Customer</th><th>Email</th><th>Activity</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
             <tbody>{overview.transactions.map((item) => <tr key={item.id}><td>{item.customer_name}</td><td>{item.customer_email}</td><td>{item.transaction_type.replace(/_/g, " ")} — {item.description || ""}</td><td>{money(item.amount)}</td><td>{item.status}</td><td>{new Date(item.created_at).toLocaleString("en-NG")}</td></tr>)}</tbody>
           </table>
-          <p className="pdf-muted" style={{ marginTop: 18, fontSize: 9 }}>Prepared by Smart Q Palette administration. This report reflects records available at generation time. Net figures are before Paystack charges, taxes and other operating expenses. Handle customer financial information confidentially.</p>
+          <p className="pdf-muted" style={{ marginTop: 18, fontSize: 9 }}>Prepared by ROCKCBT administration. This report reflects records available at generation time. Net figures are before Paystack charges, taxes and other operating expenses. Handle customer financial information confidentially.</p>
         </>}
       </section>
       <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-7">

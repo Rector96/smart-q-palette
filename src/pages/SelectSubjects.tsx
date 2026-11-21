@@ -267,7 +267,7 @@ const SelectSubjects = () => {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <Label className="text-sm font-semibold">Practice style</Label>
-                      <p className="text-[11px] text-muted-foreground mt-1">Choose how Smart Q Palette selects your questions.</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Choose how ROCKCBT selects your questions.</p>
                     </div>
                     <span className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-1 font-semibold">Personalised</span>
                   </div>

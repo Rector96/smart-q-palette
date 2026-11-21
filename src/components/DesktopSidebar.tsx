@@ -25,7 +25,7 @@ const DesktopSidebar = () => {
   };
 
   return (
-    <aside className="hidden lg:flex flex-col w-56 min-h-screen border-r border-border bg-card shrink-0 sticky top-0 h-screen">
+    <aside className="hidden lg:flex flex-col w-64 min-h-screen border-r border-border bg-card shrink-0 sticky top-0 h-screen">
       <div className="p-4 border-b border-border">
         <Logo size="sm" showText className="cursor-pointer" />
       </div>
