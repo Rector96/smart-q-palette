@@ -294,7 +294,7 @@ const LiveQuiz = () => {
               ))}
             </div>
             <Button className="w-full h-11" onClick={() => { setShowPaywall(false); navigate("/dashboard?payment=subscribe"); }}>
-              <CreditCard className="h-4 w-4 mr-2" /> Subscribe Now — ₦2,000
+              <CreditCard className="h-4 w-4 mr-2" /> Subscribe Now — ₦2,500
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setShowPaywall(false)}>Maybe Later</Button>
             <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
