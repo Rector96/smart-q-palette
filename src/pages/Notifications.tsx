@@ -23,6 +23,7 @@ const Notifications = () => {
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const storageKey = user ? readKey(user.id) : "";
 
   const load = useCallback(async () => {
@@ -41,7 +42,7 @@ const Notifications = () => {
       description: `${money(Number(r.amount))} · ${r.payment_method || "Payment"} · ${r.plan_id || "Subscription"}`,
       amount: Number(r.amount), status: String(r.status), date: r.verified_at || r.updated_at || r.created_at,
       reference: r.reference || r.id, kind: "payment", detail: r.status === "success" ? "Your subscription payment has been confirmed and recorded on your account." : r.status === "failed" ? "This payment was not completed. If money was deducted, contact support with the reference below." : "This payment is awaiting confirmation.",
-      href: "/profile",
+      href: `/notifications#payment-${r.id}`,
     }));
     (rewards.data || []).forEach((r: any) => rows.push({
       id: `reward-${r.id}`, title: r.status === "reversed" ? "Referral reward reversed" : "Referral reward earned",
@@ -71,7 +72,7 @@ const Notifications = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "payments", filter: `user_id=eq.${user.id}` }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "referral_rewards", filter: `referrer_user_id=eq.${user.id}` }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "referral_withdrawals", filter: `user_id=eq.${user.id}` }, () => { void load(); })
-      .subscribe();
+      .subscribe((status) => { setRealtimeConnected(status === "SUBSCRIBED"); });
     return () => { void supabase.removeChannel(channel); };
   }, [user, storageKey, load]);
 
@@ -94,7 +95,7 @@ const Notifications = () => {
       <main className="mx-auto max-w-3xl space-y-4 px-3 py-5 pb-8 sm:px-5 lg:px-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => window.history.back()} aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button>
-          <div className="min-w-0 flex-1"><h1 className="text-xl font-bold">Notifications & account history</h1><p className="text-xs text-muted-foreground">Payments, referral earnings and withdrawals in one place.</p></div>
+          <div className="min-w-0 flex-1"><h1 className="text-xl font-bold">Notifications & account history</h1><p className="text-xs text-muted-foreground">Payments, referral earnings and withdrawals in one place.</p><p className={`mt-1 text-[11px] font-medium ${realtimeConnected ? "text-emerald-600" : "text-muted-foreground"}`}>{realtimeConnected ? "● Live updates connected" : "○ Connecting to live updates…"}</p></div>
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />Refresh</Button>
         </div>
         <Card className="rounded-2xl"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -108,7 +109,7 @@ const Notifications = () => {
           <div className="space-y-3">
             {activities.map((item) => {
               const isUnread = !readIds.includes(item.id);
-              return <Card key={item.id} className={`rounded-2xl transition-colors ${isUnread ? "border-primary/30 bg-primary/[0.025]" : ""}`}>
+              return <Card id={item.id} key={item.id} className={`rounded-2xl transition-colors ${isUnread ? "border-primary/30 bg-primary/[0.025]" : ""}`}>
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-primary">{icon(item.kind)}</div>
