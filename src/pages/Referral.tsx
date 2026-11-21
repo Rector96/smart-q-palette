@@ -11,16 +11,24 @@ import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, 
 import DesktopHeader from "@/components/DesktopHeader";
 import SEOHead from "@/components/SEOHead";
 
-// The referral tables are introduced by the accompanying migration and are not
-// yet present in the generated client types on the default branch.
-const referralDb = supabase as any;
+const referralDb = supabase;
 
 type ReferralProfile = { referral_code: string };
 type WalletRow = { pending_balance: number; available_balance: number; lifetime_earned: number; lifetime_paid: number };
 type RewardRow = { id: string; amount: number; status: string; created_at: string };
-type WithdrawalRow = { id: string; amount: number; status: string; requested_at: string };
+type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; reference?: string };
 type Bank = { name: string; code: string };
 type BankAccount = { id: string; bank_name: string; account_name: string; account_number_masked: string; paystack_recipient_code: string };
+type WithdrawalConfirmation = {
+  amount: number;
+  bankName: string;
+  accountName: string;
+  accountNumberMasked: string;
+  reference: string;
+  status: string;
+  testMode: boolean;
+  warning?: string;
+};
 
 const money = (value: number) => new Intl.NumberFormat("en-NG", {
   style: "currency", currency: "NGN", maximumFractionDigits: 0,
@@ -32,12 +40,15 @@ const Referral = () => {
   const [profile, setProfile] = useState<ReferralProfile | null>(null);
   const [wallet, setWallet] = useState<WalletRow>({ pending_balance: 0, available_balance: 0, lifetime_earned: 0, lifetime_paid: 0 });
   const [rewards, setRewards] = useState<RewardRow[]>([]);
+  const [availableRewardCount, setAvailableRewardCount] = useState(0);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
+  const [withdrawalConfirmation, setWithdrawalConfirmation] = useState<WithdrawalConfirmation | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [referralCount, setReferralCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [banksError, setBanksError] = useState("");
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -49,7 +60,6 @@ const Referral = () => {
   const [withdrawBankId, setWithdrawBankId] = useState("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
 
-  type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; reference?: string };
   const referralUrl = useMemo(() => {
     if (!profile?.referral_code) return "";
     return `${window.location.origin}/auth?ref=${encodeURIComponent(profile.referral_code)}`;
@@ -59,27 +69,35 @@ const Referral = () => {
     if (!user) return;
     setLoading(true);
     setLoadError(false);
-    const [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult] = await Promise.all([
-      referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
-      referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
-      referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(10),
-      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(5),
-      referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
-      referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
-    ]);
-    const hasError = [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult].some((result) => result.error);
-    if (hasError) {
+    try {
+      const [profileResult, walletResult, rewardsResult, availableRewardsResult, withdrawalsResult, countResult, banksResult] = await Promise.all([
+        referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
+        referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
+        referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(10),
+        referralDb.from("referral_rewards").select("id", { count: "exact", head: true }).eq("referrer_user_id", user.id).eq("status", "available"),
+        referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(5),
+        referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
+        referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
+      ]);
+      const hasError = [profileResult, walletResult, rewardsResult, availableRewardsResult, withdrawalsResult, countResult, banksResult].some((result) => result.error);
+      if (hasError) {
+        setLoadError(true);
+      } else {
+        setProfile(profileResult.data);
+        if (walletResult.data) setWallet(walletResult.data);
+        setRewards(rewardsResult.data || []);
+        setAvailableRewardCount(availableRewardsResult.count || 0);
+        setWithdrawals(withdrawalsResult.data || []);
+        setReferralCount(countResult.count || 0);
+        setBankAccounts(banksResult.data || []);
+        if (!withdrawBankId && banksResult.data?.[0]?.id) setWithdrawBankId(banksResult.data[0].id);
+      }
+    } catch (error) {
+      console.error("Could not load referral data:", error);
       setLoadError(true);
-    } else {
-      setProfile(profileResult.data);
-      if (walletResult.data) setWallet(walletResult.data);
-      setRewards(rewardsResult.data || []);
-      setWithdrawals(withdrawalsResult.data || []);
-      setReferralCount(countResult.count || 0);
-      setBankAccounts(banksResult.data || []);
-      if (!withdrawBankId && banksResult.data?.[0]?.id) setWithdrawBankId(banksResult.data[0].id);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user, withdrawBankId]);
 
   useEffect(() => { void loadReferralData(); }, [loadReferralData]);
@@ -99,19 +117,26 @@ const Referral = () => {
     return () => { void supabase.removeChannel(channel); };
   }, [user, loadReferralData]);
 
-  useEffect(() => {
-    let active = true;
-    void supabase.functions.invoke("referral-bank-account", { body: { action: "list_banks" } }).then(({ data, error }) => {
-      if (!active) return;
+  const loadBanks = useCallback(async () => {
+    setBanksError("");
+    try {
+      const { data, error } = await supabase.functions.invoke("referral-bank-account", { body: { action: "list_banks" } });
       if (error) {
         console.error("Could not load bank list:", error);
+        setBanksError(error.message || "Could not load the bank list. Please try again.");
         return;
       }
       setBanks(data?.banks || []);
       setTestModeEnabled(data?.test_mode_enabled === true);
-    });
-    return () => { active = false; };
+    } catch (error) {
+      console.error("Could not load bank list:", error);
+      setBanksError(error instanceof Error ? error.message : "Could not load the bank list. Please try again.");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadBanks();
+  }, [loadBanks]);
 
   const copyLink = async () => {
     if (!referralUrl) return;
@@ -140,75 +165,101 @@ const Referral = () => {
     }
     setBankBusy(true);
     setVerifiedAccountName("");
-    const { data, error } = await supabase.functions.invoke("referral-bank-account", {
-      body: { action: "resolve_account", bank_code: bankCode, account_number: accountNumber },
-    });
-    setBankBusy(false);
-    if (error || !data?.verified) {
-      // Supabase may place a non-2xx Edge Function response body on error.context
-      // instead of returning it as data. Read that body so the user sees the
-      // actual safe validation message (e.g. Paystack or registered-name error).
-      let serverMessage = data?.error as string | undefined;
-      const responseContext = (error as any)?.context;
-      if (!serverMessage && responseContext && typeof responseContext.clone === "function") {
-        try {
-          const responseBody = await responseContext.clone().json();
-          serverMessage = responseBody?.error || responseBody?.message;
-        } catch {
-          // Fall back to the SDK error message if the response is not JSON.
+    try {
+      const { data, error } = await supabase.functions.invoke("referral-bank-account", {
+        body: { action: "resolve_account", bank_code: bankCode, account_number: accountNumber },
+      });
+      if (error || !data?.verified) {
+        let serverMessage = data?.error as string | undefined;
+        const responseContext = error && typeof error === "object" && "context" in error
+          ? error.context
+          : null;
+        if (!serverMessage && responseContext instanceof Response) {
+          try {
+            const responseBody = await responseContext.clone().json();
+            serverMessage = responseBody?.error || responseBody?.message;
+          } catch {
+            // Fall back to the SDK error message if the response is not JSON.
+          }
         }
+        toast({
+          title: "Account verification failed",
+          description: serverMessage || error?.message || "Please check the bank details and try again.",
+          variant: "destructive",
+        });
+        return;
       }
+      setVerifiedAccountName(data.account_name);
+      toast({ title: "Account verified", description: "Confirm the account name before saving." });
+    } catch (error) {
       toast({
         title: "Account verification failed",
-        description: serverMessage || error?.message || "Please check the bank details and try again.",
+        description: error instanceof Error ? error.message : "Please check the bank details and try again.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setBankBusy(false);
     }
-    setVerifiedAccountName(data.account_name);
-    toast({ title: "Account verified", description: "Confirm the account name before saving." });
   };
 
   const saveTestBank = async () => {
     setBankBusy(true);
-    const { data, error } = await supabase.functions.invoke("referral-bank-account", {
-      body: { action: "save_test_account" },
-    });
-    setBankBusy(false);
-    if (error || !data?.saved) {
+    try {
+      const { data, error } = await supabase.functions.invoke("referral-bank-account", {
+        body: { action: "save_test_account" },
+      });
+      if (error || !data?.saved) {
+        toast({
+          title: "Test bank setup failed",
+          description: data?.error || error?.message || "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setShowBankSetup(false);
+      await loadReferralData();
+      toast({
+        title: "Test bank account added",
+        description: "This is a simulated Paystack test recipient. You can submit a test withdrawal; no real money will be sent.",
+      });
+    } catch (error) {
       toast({
         title: "Test bank setup failed",
-        description: data?.error || error?.message || "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setBankBusy(false);
     }
-    setShowBankSetup(false);
-    await loadReferralData();
-    toast({
-      title: "Test bank account added",
-      description: "This is a simulated Paystack test recipient. You can submit a test withdrawal; no real money will be sent.",
-    });
   };
 
   const saveBank = async () => {
     setBankBusy(true);
-    const { data, error } = await supabase.functions.invoke("referral-bank-account", {
-      body: { action: "save_account", bank_code: bankCode, account_number: accountNumber, bank_name: bankName },
-    });
-    setBankBusy(false);
-    if (error || !data?.saved) {
-      toast({ title: "Could not save bank account", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
-      return;
+    try {
+      const { data, error } = await supabase.functions.invoke("referral-bank-account", {
+        body: { action: "save_account", bank_code: bankCode, account_number: accountNumber, bank_name: bankName },
+      });
+      if (error || !data?.saved) {
+        toast({ title: "Could not save bank account", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
+        return;
+      }
+      setAccountNumber("");
+      setVerifiedAccountName("");
+      setShowBankSetup(false);
+      if (data?.bank_account?.id) setWithdrawBankId(data.bank_account.id);
+      setBankCode("");
+      setBankName("");
+      await loadReferralData();
+      toast({ title: "Bank account saved", description: "Your verified account is ready for referral withdrawals." });
+    } catch (error) {
+      toast({
+        title: "Could not save bank account",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBankBusy(false);
     }
-    setAccountNumber("");
-    setVerifiedAccountName("");
-    setShowBankSetup(false);
-    if (data?.bank_account?.id) setWithdrawBankId(data.bank_account.id);
-    setBankCode("");
-    setBankName("");
-    await loadReferralData();
-    toast({ title: "Bank account saved", description: "Your verified account is ready for referral withdrawals." });
   };
 
   const requestWithdrawal = async () => {
@@ -222,27 +273,48 @@ const Referral = () => {
       return;
     }
     setWithdrawBusy(true);
-    const { data, error } = await supabase.functions.invoke("referral-withdraw", {
-      body: { amount, bank_account_id: withdrawBankId },
-    });
-    setWithdrawBusy(false);
-    if (error || !data?.accepted) {
-      toast({ title: "Withdrawal not submitted", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
-      return;
+    try {
+      const { data, error } = await supabase.functions.invoke("referral-withdraw", {
+        body: { amount, bank_account_id: withdrawBankId },
+      });
+      if (error || !data?.accepted) {
+        await loadReferralData();
+        toast({ title: "Withdrawal not submitted", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
+        return;
+      }
+      const selectedBank = bankAccounts.find((account) => account.id === withdrawBankId);
+      setWithdrawalConfirmation({
+        amount,
+        bankName: data?.bank?.bank_name || selectedBank?.bank_name || "Saved bank account",
+        accountName: data?.bank?.account_name || selectedBank?.account_name || "Verified account holder",
+        accountNumberMasked: data?.bank?.account_number_masked || selectedBank?.account_number_masked || "",
+        reference: data?.reference || "",
+        status: data?.status || "processing",
+        testMode: data?.test_mode === true,
+        warning: data?.warning,
+      });
+      setWithdrawAmount("1000");
+      await loadReferralData();
+      toast({
+        title: data.status === "success"
+          ? "Withdrawal successful"
+          : data.status === "failed" || data.status === "reversed"
+            ? "Withdrawal result confirmed"
+            : "Withdrawal submitted",
+        description: data.message || data.warning || "Your payout is being processed. Smart Q Palette will update the result when Paystack confirms it.",
+      });
+    } catch (error) {
+      toast({
+        title: "Withdrawal status is being checked",
+        description: error instanceof Error
+          ? `${error.message} Do not submit the same withdrawal again until its status is confirmed.`
+          : "Do not submit the same withdrawal again until its status is confirmed.",
+        variant: "destructive",
+      });
+      await loadReferralData();
+    } finally {
+      setWithdrawBusy(false);
     }
-    const selectedBank = bankAccounts.find((account) => account.id === withdrawBankId);
-    setWithdrawalConfirmation({
-      amount,
-      bankName: data?.bank?.bank_name || selectedBank?.bank_name || "Saved bank account",
-      accountName: data?.bank?.account_name || selectedBank?.account_name || "Verified account holder",
-      accountNumberMasked: data?.bank?.account_number_masked || selectedBank?.account_number_masked || "",
-      reference: data?.reference || "",
-      status: data?.status || "processing",
-      testMode: data?.test_mode === true,
-    });
-    setWithdrawAmount("1000");
-    await loadReferralData();
-    toast({ title: "Withdrawal submitted", description: "Your payout is being processed. Smart Q Palette will update the result when Paystack confirms it." });
   };
 
   const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
@@ -273,8 +345,57 @@ const Referral = () => {
           </CardContent></Card>
         ) : (
           <>
-            {withdrawalConfirmation && <Card className={`rounded-2xl shadow-sm ${withdrawalConfirmation.status === "success" ? "border-emerald-500/40 bg-emerald-500/5" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border-destructive/40 bg-destructive/5" : "border-primary/20 bg-primary/[0.03]"}`}><CardContent className="space-y-3 p-4 sm:p-5"><div className="flex items-start gap-3"><div className={`rounded-full p-2 ${withdrawalConfirmation.status === "success" ? "bg-emerald-500/10 text-emerald-600" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>{withdrawalConfirmation.status === "success" ? <CheckCircle2 className="h-6 w-6" /> : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? <span className="text-xl font-bold">!</span> : <Loader2 className="h-6 w-6 animate-spin" />}</div><div className="min-w-0 flex-1"><h2 className="font-bold">{withdrawalConfirmation.status === "success" ? "Withdrawal successful" : withdrawalConfirmation.status === "failed" ? "Withdrawal failed" : withdrawalConfirmation.status === "reversed" ? "Transfer reversed" : "Your withdrawal is on its way"}</h2><p className="mt-1 text-sm text-muted-foreground">{withdrawalConfirmation.status === "success" ? `${money(withdrawalConfirmation.amount)} has been sent successfully.` : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "The transfer was not completed. Your available balance will be restored automatically." : `Your request for ${money(withdrawalConfirmation.amount)} has been received and is being processed securely.`}</p></div><button type="button" onClick={() => setWithdrawalConfirmation(null)} className="text-xs text-muted-foreground underline">Dismiss</button></div><div className="rounded-xl bg-background/80 p-3 text-sm"><p className="font-semibold">{withdrawalConfirmation.accountName}</p><p className="text-xs text-muted-foreground">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p><p className="mt-1 text-[11px] text-muted-foreground">Reference: {withdrawalConfirmation.reference}</p></div>{withdrawalConfirmation.testMode && <p className="text-xs text-amber-700 dark:text-amber-400">Paystack test mode: no real money is sent.</p>}{withdrawalConfirmation.status !== "success" && withdrawalConfirmation.status !== "failed" && withdrawalConfirmation.status !== "reversed" && <p className="text-xs text-muted-foreground">No OTP is needed. This status updates automatically when Paystack confirms the transfer.</p>}</CardContent></Card>}
-            {!withdrawalConfirmation && latestOpenWithdrawal && <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]"><CardContent className="space-y-2 p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-primary" /><h2 className="font-bold">Withdrawal request received</h2></div><p className="text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(latestOpenWithdrawal.amount)}</span> has been submitted.</p><p className="text-xs text-muted-foreground">{latestWithdrawalBank?.account_name || "Your saved account"} · {latestWithdrawalBank?.bank_name || "Bank transfer"} · {latestWithdrawalBank?.account_number_masked || ""}</p><p className="text-xs text-muted-foreground">{latestOpenWithdrawal.status === "otp" ? "Your request is awaiting secure platform authorisation. You do not need to enter the Paystack code. Once approved, Paystack will process the transfer." : "Your payout is being processed. The money will be delivered to the bank account above after Paystack confirms the transfer."}</p></CardContent></Card>}
+            {withdrawalConfirmation && (
+              <Card className={`rounded-2xl shadow-sm ${withdrawalConfirmation.status === "success" ? "border-emerald-500/40 bg-emerald-500/5" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border-destructive/40 bg-destructive/5" : "border-primary/20 bg-primary/[0.03]"}`}>
+                <CardContent className="space-y-3 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <div className={`rounded-full p-2 ${withdrawalConfirmation.status === "success" ? "bg-emerald-500/10 text-emerald-600" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
+                      {withdrawalConfirmation.status === "success"
+                        ? <CheckCircle2 className="h-6 w-6" />
+                        : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed"
+                          ? <span className="text-xl font-bold">!</span>
+                          : <Loader2 className="h-6 w-6 animate-spin" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-bold">
+                        {withdrawalConfirmation.status === "success"
+                          ? "Withdrawal successful"
+                          : withdrawalConfirmation.status === "failed"
+                            ? "Withdrawal failed"
+                            : withdrawalConfirmation.status === "reversed"
+                              ? "Transfer reversed"
+                              : withdrawalConfirmation.status === "otp"
+                                ? "Withdrawal needs attention"
+                                : withdrawalConfirmation.status === "queued"
+                                  ? "Withdrawal status is being checked"
+                                  : "Your withdrawal is on its way"}
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {withdrawalConfirmation.status === "success"
+                          ? `${money(withdrawalConfirmation.amount)} has been sent successfully.`
+                          : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed"
+                            ? "The transfer was not completed. Your available balance has been restored."
+                            : withdrawalConfirmation.status === "otp"
+                              ? "Paystack is requesting business-level OTP approval. You do not need to enter a code; support must check the transfer settings."
+                              : withdrawalConfirmation.status === "queued"
+                                ? "Paystack has not confirmed the outcome yet. Do not submit another withdrawal while this request is being checked."
+                                : `Your request for ${money(withdrawalConfirmation.amount)} has been received and is being processed securely.`}
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => setWithdrawalConfirmation(null)} className="text-xs text-muted-foreground underline">Dismiss</button>
+                  </div>
+                  <div className="rounded-xl bg-background/80 p-3 text-sm">
+                    <p className="font-semibold">{withdrawalConfirmation.accountName}</p>
+                    <p className="text-xs text-muted-foreground">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Reference: {withdrawalConfirmation.reference}</p>
+                  </div>
+                  {withdrawalConfirmation.warning && <p role="alert" className="text-sm font-medium text-amber-700 dark:text-amber-400">{withdrawalConfirmation.warning}</p>}
+                  {withdrawalConfirmation.testMode && <p className="text-xs text-amber-700 dark:text-amber-400">Paystack test mode: no real money is sent.</p>}
+                  {withdrawalConfirmation.status !== "success" && withdrawalConfirmation.status !== "failed" && withdrawalConfirmation.status !== "reversed" && withdrawalConfirmation.status !== "otp" && !withdrawalConfirmation.warning && <p className="text-xs text-muted-foreground">No OTP is needed. This status updates automatically when Paystack confirms the transfer.</p>}
+                </CardContent>
+              </Card>
+            )}
+            {!withdrawalConfirmation && latestOpenWithdrawal && <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]"><CardContent className="space-y-2 p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-primary" /><h2 className="font-bold">{latestOpenWithdrawal.status === "otp" ? "Withdrawal needs support" : "Withdrawal request received"}</h2></div><p className="text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(latestOpenWithdrawal.amount)}</span> has been submitted.</p><p className="text-xs text-muted-foreground">{latestWithdrawalBank?.account_name || "Your saved account"} · {latestWithdrawalBank?.bank_name || "Bank transfer"} · {latestWithdrawalBank?.account_number_masked || ""}</p><p className="text-xs text-muted-foreground">{latestOpenWithdrawal.status === "otp" ? "Paystack is requesting business OTP approval. You do not need to enter a code; support must check the transfer settings. Your balance remains reserved." : "Your payout is being processed. The money will be delivered to the bank account above after Paystack confirms the transfer."}</p></CardContent></Card>}
             <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
               <CardContent className="space-y-4 p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3">
@@ -282,7 +403,7 @@ const Referral = () => {
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Wallet className="h-6 w-6 text-primary" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Pending rewards</p><p className="mt-1 text-lg font-bold">{money(wallet.pending_balance)}</p></div>
+                  <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Lifetime paid</p><p className="mt-1 text-lg font-bold">{money(wallet.lifetime_paid)}</p></div>
                   <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Lifetime earned</p><p className="mt-1 text-lg font-bold">{money(wallet.lifetime_earned)}</p></div>
                 </div>
                 <div className="space-y-2">
@@ -307,12 +428,13 @@ const Referral = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Users className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] text-muted-foreground">People referred</p></div></CardContent></Card>
-              <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] text-muted-foreground">Available rewards</p></div></CardContent></Card>
+              <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{availableRewardCount}</p><p className="text-[11px] text-muted-foreground">Rewards credited</p></div></CardContent></Card>
             </div>
 
             {(bankAccounts.length > 0 || showBankSetup) && <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">
                 <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Bank account</h2><p className="text-xs text-muted-foreground">Verify the account name before saving your payout account.</p></div></div>
+                {banksError && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{banksError}<Button type="button" variant="outline" size="sm" className="ml-3" onClick={() => void loadBanks()}>Retry</Button></div>}
                 {bankAccounts.map((account) => (
                   <div key={account.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
                     <div className="min-w-0"><p className="truncate text-sm font-semibold">{account.account_name}</p><p className="text-xs text-muted-foreground">{account.bank_name} · {account.account_number_masked}</p></div>
@@ -321,6 +443,7 @@ const Referral = () => {
                 ))}
                 {showBankSetup && <>
                 <p className="text-xs text-muted-foreground">The verified bank account holder name must match your Smart Q Palette signup name: <span className="font-semibold text-foreground">{user?.user_metadata?.full_name || "your registered full name"}</span>.</p>
+                <p className="text-xs text-muted-foreground">If your registered name is missing or incorrect, <a className="font-semibold text-primary underline" href="mailto:weblinescbt@gmail.com?subject=Referral%20withdrawal%20name%20help">contact support</a>. Never email your account number or banking password.</p>
                 {testModeEnabled && <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
                   <p className="text-sm font-semibold">Paystack test mode</p>
                   <p className="text-xs text-muted-foreground">Add a clearly marked test recipient to check the bank-setup screen without using your real account. No payout can be made to this test recipient.</p>
@@ -361,8 +484,8 @@ const Referral = () => {
                   </div>
                 </> : <p className="text-sm text-muted-foreground">Add a bank account in your name to continue. We will verify it before any withdrawal.</p>}
                 {bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") && <p className="text-xs text-amber-700 dark:text-amber-400">This is a test recipient. Test-mode withdrawals can be simulated; no real money will be sent.</p>}
-                <Button className="w-full" disabled={withdrawBusy || Boolean(withdrawalAmountError) || (bankAccounts.length > 0 && !withdrawBankId)} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
-                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Request test withdrawal" : bankAccounts.length ? "Request withdrawal" : "Add bank account to withdraw"}
+                <Button className="w-full" disabled={withdrawBusy || Boolean(latestOpenWithdrawal) || Boolean(withdrawalAmountError) || (bankAccounts.length > 0 && !withdrawBankId)} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                  {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{latestOpenWithdrawal ? "Withdrawal processing" : bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Request test withdrawal" : bankAccounts.length ? "Request withdrawal" : "Add bank account to withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>
               </CardContent>
