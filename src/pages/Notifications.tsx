@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Bell, CheckCheck, CreditCard, Gift, Wallet, ExternalLink, RefreshCw, Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ const Notifications = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const initialReadMarked = useRef(false);
   const storageKey = user ? readKey(user.id) : "";
   const shareReceipt = async (item: Activity) => {
     try {
@@ -82,6 +83,18 @@ const Notifications = () => {
       href: "/referrals#withdrawal-history",
     }));
     rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Opening the activity page marks everything already present as read.
+    // Future realtime arrivals remain unread and can show the badge again.
+    if (!initialReadMarked.current) {
+      const existingReadIds = (() => {
+        try { return JSON.parse(localStorage.getItem(storageKey) || "[]") as string[]; }
+        catch { return []; }
+      })();
+      const nextReadIds = Array.from(new Set([...existingReadIds, ...rows.map((row) => row.id)])).slice(-300);
+      setReadIds(nextReadIds);
+      try { localStorage.setItem(storageKey, JSON.stringify(nextReadIds)); } catch {}
+      initialReadMarked.current = true;
+    }
     setActivities(rows); setLoading(false);
   }, [user]);
 
