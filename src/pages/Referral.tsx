@@ -73,7 +73,7 @@ const Referral = () => {
       referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
       referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
       referralDb.from("referral_rewards").select("id,amount,status,created_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
-      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
+      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,completed_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
       referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
       referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
     ]);
