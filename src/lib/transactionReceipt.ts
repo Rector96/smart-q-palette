@@ -1,4 +1,4 @@
-import { money } from "@/lib/format-money";
+const money = (amount: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(amount) || 0);
 
 export type ShareReceiptInput = {
   brand: string;
