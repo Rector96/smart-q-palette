@@ -87,6 +87,7 @@ const NotificationBell = () => {
   return (
     <Button type="button" variant="ghost" size="icon" className="relative h-9 w-9 shrink-0" aria-label={unread ? `${unread} unread notifications` : "Open notifications"} onClick={() => navigate("/notifications")}>
       <Bell className="h-5 w-5" />
+      {realtimeConnected && <span className="absolute bottom-0.5 left-0.5 h-2 w-2 rounded-full border border-background bg-emerald-500" title="Live updates connected" />}
       {!loading && unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">{unread > 9 ? "9+" : unread}</span>}
     </Button>
   );
