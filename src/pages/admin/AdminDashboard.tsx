@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles, Banknote } from "lucide-react";
+import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles, Banknote, PlugZap, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
 
@@ -18,6 +18,35 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ totalUsers: 0, paidUsers: 0, revenue: 0, totalSessions: 0, totalQuestions: 0 });
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alocTesting, setAlocTesting] = useState(false);
+  const [alocResult, setAlocResult] = useState<any>(null);
+  const [alocError, setAlocError] = useState<string | null>(null);
+
+  const testAlocConnection = async () => {
+    setAlocTesting(true);
+    setAlocResult(null);
+    setAlocError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("aloc-connection-test", { body: {} });
+      if (error) {
+        let message = error.message || "The connection test could not be completed.";
+        try {
+          const context = (error as any).context;
+          if (context && typeof context.json === "function") {
+            const details = await context.json();
+            message = details?.error || details?.message || message;
+          }
+        } catch { /* Keep the safe fallback message. */ }
+        throw new Error(message);
+      }
+      if (!data?.ok) throw new Error(data?.error || "ALOC did not confirm the connection.");
+      setAlocResult(data);
+    } catch (error) {
+      setAlocError(error instanceof Error ? error.message : "Connection test failed. Please try again.");
+    } finally {
+      setAlocTesting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -107,6 +136,33 @@ const AdminDashboard = () => {
             </div>
           </div>
         </section>
+
+        {isAdmin && (
+          <Card className="border-border/70">
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-primary/10 p-2.5 text-primary"><PlugZap className="h-5 w-5" /></div>
+                  <div><h2 className="text-sm font-semibold">ALOC Station connection</h2><p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">Check the saved server-side API key and retrieve up to three sample JAMB Mathematics questions. This test does not save or import questions.</p></div>
+                </div>
+                <Button onClick={testAlocConnection} disabled={alocTesting} size="sm">
+                  {alocTesting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...</> : <><PlugZap className="mr-2 h-4 w-4" /> Test connection</>}
+                </Button>
+              </div>
+              {alocError && <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{alocError}</span></div>}
+              {alocResult && <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 sm:p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" /> ALOC API responded successfully</div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div><p className="text-[11px] text-muted-foreground">Questions returned</p><p className="text-xl font-bold">{alocResult.returnedCount ?? 0}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">Test subject</p><p className="text-sm font-semibold">JAMB Mathematics</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">Question year</p><p className="text-sm font-semibold">2019</p></div>
+                </div>
+                {Array.isArray(alocResult.questions) && alocResult.questions.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Sample response from ALOC</p>{alocResult.questions.map((question: any, index: number) => <details key={question?.id ?? index} className="rounded-md border bg-background p-3"><summary className="cursor-pointer text-xs font-medium">Sample question {index + 1}</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-muted-foreground">{JSON.stringify(question, null, 2)}</pre></details>)}</div>}
+                <p className="text-[11px] text-muted-foreground">Saved to question bank: No. API key remains on the server and is not displayed here.</p>
+              </div>}
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {metrics.map((item) => (
