@@ -60,6 +60,11 @@ const Referral = () => {
     return `${window.location.origin}/auth?ref=${encodeURIComponent(profile.referral_code)}`;
   }, [profile?.referral_code]);
 
+  const referralShareUrl = useMemo(() => {
+    if (!profile?.referral_code) return "";
+    return `${window.location.origin}/.netlify/functions/referral-share?ref=${encodeURIComponent(profile.referral_code)}`;
+  }, [profile?.referral_code]);
+
   const loadReferralData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -119,18 +124,18 @@ const Referral = () => {
   }, []);
 
   const copyLink = async () => {
-    if (!referralUrl) return;
+    if (!referralShareUrl) return;
     try {
-      await navigator.clipboard.writeText(referralUrl);
-      toast({ title: "Referral link copied", description: "Share it with someone preparing for an exam. Earn ₦500 for every successful subscription." });
+      await navigator.clipboard.writeText(referralShareUrl);
+      toast({ title: "ROCKCBT invite link copied", description: "Share the branded ROCKCBT card. Practise for exams and still earn." });
     } catch {
       toast({ title: "Could not copy link", description: "Please copy the link manually.", variant: "destructive" });
     }
   };
 
   const shareLink = async () => {
-    if (!referralUrl) return;
-    const shareData = { title: "Practise for exams and still earn", text: "Prepare smarter with ROCKCBT. Practise for your exams and still earn with my referral link.", url: referralUrl };
+    if (!referralShareUrl) return;
+    const shareData = { title: "Practise for exams and still earn | ROCKCBT", text: "Join me on ROCKCBT. Practise for your exams and still earn. Open my invitation:", url: referralShareUrl };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (error) {
         if ((error as Error).name !== "AbortError") toast({ title: "Sharing unavailable", description: "You can copy your referral link instead." });
@@ -342,8 +347,8 @@ const Referral = () => {
               <CardContent className="space-y-3 p-4">
                 <div><h2 className="font-bold">Share your practice link</h2><p className="text-xs text-muted-foreground">Earn ₦500 for every successful subscription through your link.</p></div>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border bg-muted/40 p-2">
-                  <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralUrl || "Your link will appear here once your referral profile is created."}</span>
-                  <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => void copyLink()} disabled={!referralUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
+                  <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralShareUrl || "Your ROCKCBT invite link will appear here once your referral profile is ready."}</span>
+                  <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => void copyLink()} disabled={!referralShareUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
                 </div>
                 <Button className="w-full rounded-xl" onClick={() => void shareLink()} disabled={!referralUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
                 {profile?.referral_code && <p className="text-center text-[11px] text-muted-foreground">Your referral code: <span className="font-semibold text-foreground">{profile.referral_code}</span></p>}
