@@ -23,7 +23,7 @@ const About = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="About Us – Weblines CBT" description="Learn about Weblines CBT, Nigeria's AI-powered exam preparation platform for JAMB, WAEC, and NECO." path="/about" />
+      <SEOHead title="About Us – ROCKCBT" description="Learn about ROCKCBT, Nigeria's AI-powered exam preparation platform for JAMB, WAEC, and NECO." path="/about" />
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
@@ -61,7 +61,7 @@ const About = () => {
           <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-8">
             <h2 className="text-xl font-bold mb-3">Our Story</h2>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              Founded by a team of educators and technologists who understand the challenges students face, Weblines CBT was built to bridge the gap between traditional coaching and modern AI technology.
+              Founded by a team of educators and technologists who understand the challenges students face, ROCKCBT was built to bridge the gap between traditional coaching and modern AI technology.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               We believe that with the right tools, every student can excel in their exams. Our platform combines 25,000+ carefully curated questions with a powerful AI tutor that adapts to each student's unique learning needs.
