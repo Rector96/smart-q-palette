@@ -15,6 +15,7 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   let reservedReference = "";
+  let reservationId = "";
   let serviceClient: ReturnType<typeof createClient> | null = null;
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -58,81 +59,296 @@ serve(async (req) => {
       return json({ error: "The saved bank recipient is invalid. Please add and verify the bank account again." }, 400);
     }
 
-    reservedReference = `SQPRWD-${crypto.randomUUID().replaceAll("-", "").toLowerCase()}`;
+    reservedReference = `sqprwd-${crypto.randomUUID().replaceAll("-", "").toLowerCase()}`;
     const { data: reservation, error: reserveError } = await serviceClient.rpc("reserve_referral_withdrawal", {
       p_user_id: userId,
       p_bank_account_id: bankAccountId,
       p_amount: amount,
       p_reference: reservedReference,
     });
-    if (reserveError || !reservation?.withdrawal_id) {
-      return json({ error: reserveError?.message || "We could not reserve this withdrawal." }, 409);
-    }
 
-    const transferResponse = await fetch("https://api.paystack.co/transfer", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: "balance",
-        amount: amount * 100,
-        recipient: recipientCode,
-        reason: "ROCKCBT referral reward withdrawal",
+    let withdrawalId = reservation?.withdrawal_id;
+    if (reserveError || !withdrawalId) {
+      const { data: existingReservation, error: lookupError } = await serviceClient
+        .from("referral_withdrawals")
+        .select("id,user_id,bank_account_id,amount,reference")
+        .eq("reference", reservedReference)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (lookupError) {
+        console.error("Could not resolve withdrawal reservation:", lookupError.message);
+        return json({
+          error: "We could not confirm whether your balance was reserved. Refresh your withdrawal history before trying again.",
+        }, 503);
+      }
+
+      if (
+        !existingReservation ||
+        existingReservation.bank_account_id !== bankAccountId ||
+        Number(existingReservation.amount) !== amount
+      ) {
+        return json({ error: reserveError?.message || "We could not reserve this withdrawal." }, 409);
+      }
+
+      withdrawalId = existingReservation.id;
+    }
+    reservationId = withdrawalId;
+
+    const { data: withdrawal, error: withdrawalLookupError } = await serviceClient
+      .from("referral_withdrawals")
+      .select("id,amount,currency,reference,status")
+      .eq("id", reservationId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (withdrawalLookupError || !withdrawal) {
+      console.error("Could not verify reserved withdrawal:", withdrawalLookupError?.message);
+      return json({
+        accepted: true,
+        status: "queued",
         reference: reservedReference,
-      }),
-    });
-    const transferPayload = await transferResponse.json().catch(() => ({}));
-    if (!transferResponse.ok || transferPayload?.status !== true) {
-      const reason = String(transferPayload?.message || "Paystack did not accept the transfer.");
-      await serviceClient.rpc("settle_referral_withdrawal", {
-        p_reference: reservedReference,
-        p_outcome: "failed",
-        p_failure_reason: reason,
+        warning: "Your balance is reserved, but the withdrawal record could not be verified. Do not submit another withdrawal; support will check it.",
       });
-      return json({ error: reason }, 502);
     }
 
-    const transfer = transferPayload.data || {};
-    const paystackStatus = String(transfer.status || "").toLowerCase();
-
-    // OTP approval has been disabled in the Paystack dashboard. If Paystack
-    // still returns an OTP-required transfer, do not leave customer funds
-    // reserved in an unattended approval queue. Fail safely and restore balance.
-    if (paystackStatus === "otp") {
-      await serviceClient.rpc("settle_referral_withdrawal", {
-        p_reference: reservedReference,
-        p_outcome: "failed",
-        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
-        p_failure_reason: "Paystack still requires transfer OTP approval. Check Paystack transfer approval preferences.",
+    const expectedAmountKobo = Math.round(Number(withdrawal.amount) * 100);
+    if (
+      withdrawal.reference !== reservedReference ||
+      withdrawal.currency !== "NGN" ||
+      Number(withdrawal.amount) !== amount ||
+      !Number.isSafeInteger(expectedAmountKobo) ||
+      expectedAmountKobo !== amount * 100
+    ) {
+      console.error("Reserved withdrawal details did not match the request:", reservedReference);
+      return json({
+        accepted: true,
+        status: withdrawal.status,
+        reference: reservedReference,
+        warning: "The reserved withdrawal details do not match the request. Your balance remains reserved while support reviews it.",
       });
-      return json({ accepted: false, otp_required: true,
-        error: "Paystack is still requesting approval for this transfer. Your withdrawal balance has been restored. Please contact support; do not submit repeated requests." }, 409);
     }
 
-    const nextStatus = "processing";
-    const { error: updateError } = await serviceClient.from("referral_withdrawals").update({
-      status: nextStatus,
-      paystack_transfer_code: transfer.transfer_code || null,
-    }).eq("id", reservation.withdrawal_id).eq("status", "queued");
-
-    if (updateError) {
-      console.error("Transfer accepted but withdrawal status update failed:", updateError.message);
-      return json({ accepted: true, status: nextStatus, reference: reservedReference,
-        warning: "Paystack accepted the request, but its status could not be saved. Contact platform support before retrying." });
-    }
-
-    return json({
-      accepted: true,
-      status: nextStatus,
-      test_mode: isTestSecret,
+    const responseDetails = {
       reference: reservedReference,
       amount,
-      bank: { bank_name: bank.bank_name, account_name: bank.account_name, account_number_masked: bank.account_number_masked },
-      message: isTestSecret
-        ? "Your test withdrawal was accepted. This is a simulation; no real money will be sent."
-        : "Your withdrawal request has been sent to Paystack. We will update its status when the transfer is confirmed.",
-    });
+      test_mode: isTestSecret,
+      bank: {
+        bank_name: bank.bank_name,
+        account_name: bank.account_name,
+        account_number_masked: bank.account_number_masked,
+      },
+    };
+
+    const respondWithCurrentStatus = async (warning: string, fallbackStatus = "queued") => {
+      const { data: currentWithdrawal, error: currentStatusError } = await serviceClient
+        .from("referral_withdrawals")
+        .select("status")
+        .eq("id", reservationId)
+        .maybeSingle();
+      if (currentStatusError) {
+        console.error("Could not refresh withdrawal status:", currentStatusError.message);
+      }
+      return json({
+        accepted: true,
+        ...responseDetails,
+        status: currentWithdrawal?.status || fallbackStatus,
+        warning,
+      });
+    };
+
+    let transferResponse: Response | null = null;
+    let transferPayload: any = null;
+    try {
+      transferResponse = await fetch("https://api.paystack.co/transfer", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "balance",
+          amount: expectedAmountKobo,
+          recipient: recipientCode,
+          reason: "ROCKCBT referral reward withdrawal",
+          reference: reservedReference,
+        }),
+      });
+      transferPayload = await transferResponse.json().catch(() => null);
+      if (!transferResponse.ok || transferPayload?.status !== true) {
+        console.warn(
+          "Paystack transfer initiation response requires verification:",
+          reservedReference,
+          transferResponse.status,
+        );
+      }
+    } catch (error) {
+      console.error("Paystack transfer initiation response was inconclusive:", reservedReference, error);
+    }
+
+    let verifyResponse: Response;
+    try {
+      verifyResponse = await fetch(
+        `https://api.paystack.co/transfer/verify/${encodeURIComponent(reservedReference)}`,
+        { headers: { Authorization: `Bearer ${paystackSecret}` } },
+      );
+    } catch (error) {
+      console.error("Could not verify transfer after initiation:", reservedReference, error);
+      return await respondWithCurrentStatus(
+        "Paystack's transfer outcome is inconclusive. Your balance remains reserved; do not submit another withdrawal.",
+      );
+    }
+
+    const verifyPayload = await verifyResponse.json().catch(() => null);
+    if (!verifyResponse.ok || verifyPayload?.status !== true || !verifyPayload?.data) {
+      console.warn("Paystack transfer verification is inconclusive:", reservedReference, verifyResponse.status);
+      return await respondWithCurrentStatus(
+        "Paystack could not confirm the transfer outcome. Your balance remains reserved while it is checked; do not submit another withdrawal.",
+      );
+    }
+
+    const verifiedTransfer = verifyPayload.data;
+    const verifiedStatus = String(verifiedTransfer.status || "").toLowerCase();
+    if (
+      verifiedTransfer.reference !== withdrawal.reference ||
+      Number(verifiedTransfer.amount) !== expectedAmountKobo ||
+      verifiedTransfer.currency !== withdrawal.currency
+    ) {
+      console.error("Paystack transfer details did not match the reserved withdrawal:", reservedReference);
+      return await respondWithCurrentStatus(
+        "Paystack's transfer details do not match the reserved withdrawal. Your balance remains reserved while support reviews it.",
+      );
+    }
+
+    if (["success", "failed", "reversed"].includes(verifiedStatus)) {
+      const failureReason = verifiedStatus === "success"
+        ? null
+        : typeof verifiedTransfer.failures === "string"
+          ? verifiedTransfer.failures
+          : typeof verifyPayload.message === "string"
+            ? verifyPayload.message
+            : `Paystack confirmed transfer ${verifiedStatus}.`;
+      const { data: settlement, error: settlementError } = await serviceClient.rpc(
+        "settle_referral_withdrawal",
+        {
+          p_reference: reservedReference,
+          p_outcome: verifiedStatus,
+          p_transfer_code: typeof verifiedTransfer.transfer_code === "string"
+            ? verifiedTransfer.transfer_code
+            : null,
+          p_failure_reason: failureReason,
+        },
+      );
+
+      const { data: currentWithdrawal, error: currentStatusError } = await serviceClient
+        .from("referral_withdrawals")
+        .select("status")
+        .eq("id", reservationId)
+        .maybeSingle();
+      if (currentStatusError) {
+        console.error("Could not confirm settled withdrawal status:", currentStatusError.message);
+      }
+
+      const alreadySettledAsVerified = settlement?.reason === "already_processed" &&
+        currentWithdrawal?.status === verifiedStatus;
+      if (settlementError || (settlement?.updated !== true && !alreadySettledAsVerified)) {
+        console.error(
+          "Verified transfer settlement needs reconciliation:",
+          settlementError?.message || settlement,
+          currentWithdrawal?.status,
+        );
+        return json({
+          accepted: true,
+          ...responseDetails,
+          status: currentWithdrawal?.status || "queued",
+          warning: "Paystack confirmed a final transfer result, but the wallet status needs reconciliation. Do not submit another withdrawal; contact support.",
+        });
+      }
+
+      const finalStatus = currentWithdrawal?.status || verifiedStatus;
+      const statusChangedDuringSettlement = finalStatus !== verifiedStatus;
+      return json({
+        accepted: true,
+        ...responseDetails,
+        status: finalStatus,
+        message: statusChangedDuringSettlement
+          ? `The transfer status changed while it was being reconciled. The current status is ${finalStatus}.`
+          : finalStatus === "success"
+            ? "Paystack confirmed your transfer was successful."
+            : finalStatus === "failed"
+              ? "Paystack confirmed the transfer failed. The reserved balance has been returned."
+              : "Paystack confirmed the transfer was reversed. The reserved balance has been returned.",
+        ...(statusChangedDuringSettlement
+          ? { warning: "Do not submit another withdrawal; support will review the status change." }
+          : {}),
+      });
+    }
+
+    if (verifiedStatus === "otp") {
+      const { error: otpStatusError } = await serviceClient
+        .from("referral_withdrawals")
+        .update({
+          status: "otp",
+          paystack_transfer_code: typeof verifiedTransfer.transfer_code === "string"
+            ? verifiedTransfer.transfer_code
+            : null,
+        })
+        .eq("id", reservationId)
+        .in("status", ["queued", "processing"]);
+      if (otpStatusError) {
+        console.error("Could not record Paystack OTP status:", otpStatusError.message);
+      }
+      return await respondWithCurrentStatus(
+        "Paystack is requesting business OTP approval. You do not need to enter a code. Your balance remains reserved while support checks the transfer settings.",
+        "otp",
+      );
+    }
+
+    if (["queued", "pending", "processing"].includes(verifiedStatus)) {
+      const nextStatus = verifiedStatus === "queued" ? "queued" : "processing";
+      const { error: updateError } = await serviceClient
+        .from("referral_withdrawals")
+        .update({
+          status: nextStatus,
+          paystack_transfer_code: typeof verifiedTransfer.transfer_code === "string"
+            ? verifiedTransfer.transfer_code
+            : null,
+        })
+        .eq("id", reservationId)
+        .in("status", ["queued", "otp", "processing"]);
+
+      if (updateError) {
+        console.error("Could not update pending withdrawal status:", updateError.message);
+      }
+      return await respondWithCurrentStatus(
+        updateError
+          ? "Paystack is processing the transfer, but the latest status could not be saved. Do not submit another withdrawal."
+          : isTestSecret
+            ? "Your test withdrawal is being processed. No real money will be sent."
+            : "Your withdrawal is being processed by Paystack. Do not submit another withdrawal while it is pending.",
+        nextStatus,
+      );
+    }
+
+    console.warn("Paystack returned an unrecognized transfer status:", reservedReference, verifiedStatus);
+    return await respondWithCurrentStatus(
+      "Paystack returned an unrecognized transfer status. Your balance remains reserved while support checks it.",
+    );
   } catch (error) {
     console.error("Referral withdrawal failed:", error);
+    if (reservationId && serviceClient) {
+      const { data: currentWithdrawal, error: currentStatusError } = await serviceClient
+        .from("referral_withdrawals")
+        .select("status")
+        .eq("id", reservationId)
+        .maybeSingle();
+      if (currentStatusError) {
+        console.error("Could not refresh withdrawal after an error:", currentStatusError.message);
+      }
+      return json({
+        accepted: true,
+        status: currentWithdrawal?.status || "queued",
+        reference: reservedReference,
+        warning: "The transfer outcome is uncertain. Your balance remains reserved while support checks its status. Do not submit another withdrawal.",
+      });
+    }
     return json({ error: error instanceof Error ? error.message : "Withdrawal could not be processed." }, 500);
   }
 });
