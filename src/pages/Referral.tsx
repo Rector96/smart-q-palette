@@ -53,7 +53,7 @@ const Referral = () => {
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawalConfirmation, setWithdrawalConfirmation] = useState<WithdrawalConfirmation | null>(null);
 
-  type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; reference?: string };
+  type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; completed_at?: string; reference?: string };
   const referralUrl = useMemo(() => {
     if (!profile?.referral_code) return "";
     return `${window.location.origin}/auth?ref=${encodeURIComponent(profile.referral_code)}`;
@@ -93,7 +93,7 @@ const Referral = () => {
     const channel = supabase.channel(`referral-financial-updates-${user.id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "referral_withdrawals", filter: `user_id=eq.${user.id}` }, (payload) => {
         const updated = payload.new as WithdrawalRow;
-        setWithdrawalConfirmation((current) => current && current.reference === updated.reference ? { ...current, status: updated.status } : current);
+        setWithdrawalConfirmation((current) => current && current.reference === updated.reference ? { ...current, status: updated.status, createdAt: updated.completed_at || current.createdAt } : current);
         void loadReferralData();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "referral_wallets", filter: `user_id=eq.${user.id}` }, () => { void loadReferralData(); })
