@@ -92,10 +92,10 @@ const Index = () => {
             </Button>
           ) : (
             <>
-              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
+              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate({ pathname: "/auth", search: window.location.search })}>
                 Login
               </Button>
-              <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/auth")}>
+              <Button size="sm" className="h-8 text-xs" onClick={() => navigate({ pathname: "/auth", search: window.location.search })}>
                 Sign Up <ArrowRight className="h-3.5 w-3.5 ml-1" />
               </Button>
             </>
@@ -129,7 +129,7 @@ const Index = () => {
                 </>
               ) : (
                 <>
-                  <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate("/auth")}>
+                  <Button className="h-11 px-6 text-sm rounded-xl" onClick={() => navigate({ pathname: "/auth", search: window.location.search })}>
                     Get Started <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
                   <motion.div
@@ -297,7 +297,7 @@ const Index = () => {
                       </li>
                     ))}
                   </ul>
-                  <Button className="w-full h-9 text-xs" onClick={() => isLoggedIn ? setShowSubscription(true) : navigate("/auth")}>
+                  <Button className="w-full h-9 text-xs" onClick={() => isLoggedIn ? setShowSubscription(true) : navigate({ pathname: "/auth", search: window.location.search })}>
                     <CreditCard className="h-3.5 w-3.5 mr-1" /> {isLoggedIn ? "Pay Now" : "Sign Up to Pay"}
                   </Button>
                 </CardContent>
@@ -442,7 +442,7 @@ const Index = () => {
               Continue Practicing <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button className="h-10 px-6 text-sm max-w-xs" onClick={() => navigate("/auth")}>
+            <Button className="h-10 px-6 text-sm max-w-xs" onClick={() => navigate({ pathname: "/auth", search: window.location.search })}>
               Create Free Account <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           )}
