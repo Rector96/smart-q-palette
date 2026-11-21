@@ -141,7 +141,7 @@ const Dashboard = () => {
     <div className="min-h-[100dvh] overflow-x-clip bg-background">
       <SEOHead title="Dashboard – ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
-      <main className="mx-auto max-w-4xl space-y-5 px-3 py-5 sm:px-4 lg:px-6 lg:py-6">
+      <main className="mx-auto max-w-4xl space-y-5 px-3 pt-5 pb-28 sm:px-4 lg:px-6 lg:py-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between">
             <div>
