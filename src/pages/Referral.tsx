@@ -380,9 +380,9 @@ const Referral = () => {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow-sm">
+            <Card id="rewards-history" className="rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-4">
-                <div className="flex items-center justify-between"><h2 className="font-bold">Recent referral rewards</h2><Badge variant="secondary">₦500 each</Badge></div>
+                <div className="flex items-center justify-between"><h2 className="font-bold">Referral reward history</h2><Badge variant="secondary">₦500 each</Badge></div>
                 {rewards.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Your successful referrals and rewards will appear here.</p> : rewards.map((reward) => (
                   <div key={reward.id} className="flex items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0">
                     <div><p className="text-sm font-semibold">Referral reward</p><p className="text-[11px] text-muted-foreground">{new Date(reward.created_at).toLocaleDateString()}</p></div>
@@ -392,9 +392,9 @@ const Referral = () => {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow-sm">
+            <Card id="withdrawal-history" className="rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-4">
-                <h2 className="font-bold">Withdrawal history</h2>
+                <div><h2 className="font-bold">Withdrawal history</h2><p className="text-xs text-muted-foreground">Every withdrawal request and its latest status.</p></div>
                 {withdrawals.length === 0 ? <p className="py-3 text-center text-sm text-muted-foreground">You have not made a withdrawal yet.</p> : withdrawals.map((item) => (
                   <div key={item.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                     <div><p className="text-sm font-semibold">{money(item.amount)}</p><p className="text-[11px] text-muted-foreground">{new Date(item.requested_at).toLocaleDateString()}</p></div>
