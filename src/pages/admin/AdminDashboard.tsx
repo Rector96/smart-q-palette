@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createElement, Fragment, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -13,7 +13,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 const ALLOWED_ALOC_FORMAT_TAGS = new Set(["SUP", "SUB", "STRONG", "B", "EM", "I", "U", "BR"]);
 const BLOCKED_ALOC_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "SVG", "MATH"]);
 
-function renderAlocFormattedText(value: unknown): React.ReactNode {
+function renderAlocFormattedText(value: unknown): ReactNode {
   if (typeof value !== "string" || !value) return value == null ? "" : String(value);
 
   // Parse the API's limited inline markup, then rebuild it using React elements.
@@ -28,10 +28,10 @@ function renderAlocFormattedText(value: unknown): React.ReactNode {
     if (BLOCKED_ALOC_TAGS.has(tag)) return null;
 
     const children = Array.from(element.childNodes).map((child, index) => renderNode(child, index));
-    if (!ALLOWED_ALOC_FORMAT_TAGS.has(tag)) return <React.Fragment key={key}>{children}</React.Fragment>;
+    if (!ALLOWED_ALOC_FORMAT_TAGS.has(tag)) return <Fragment key={key}>{children}</Fragment>;
     if (tag === "BR") return <br key={key} />;
     const reactTag = tag.toLowerCase() as "sup" | "sub" | "strong" | "b" | "em" | "i" | "u";
-    return React.createElement(reactTag, { key }, children);
+    return createElement(reactTag, { key }, children);
   };
 
   return Array.from(parsed.body.childNodes).map((node, index) => renderNode(node, index));
