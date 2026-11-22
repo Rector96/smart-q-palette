@@ -27,7 +27,7 @@ function statusFor(message: string): number {
   if (message.includes("ROOM_NOT_FOUND") || message.includes("PROFILE_NOT_FOUND")) return 404;
   if (message.includes("ROOM_FULL") || message.includes("already")) return 409;
   if (message.includes("HOST_ONLY") || message.includes("NOT_A_PARTICIPANT")) return 403;
-  return 400;
+  return 500;
 }
 
 Deno.serve(async (req: Request) => {
@@ -69,6 +69,52 @@ Deno.serve(async (req: Request) => {
       return respond({ subjects });
     }
 
+    if (action === "generate") {
+      const subject = typeof body.subject === "string" ? body.subject.trim() : "";
+      const topic = typeof body.topic === "string" ? body.topic.trim().slice(0, 300) : "";
+      const count = Number(body.num_questions);
+      const difficulty = ["easy", "medium", "hard", "mixed"].includes(body.difficulty) ? body.difficulty : "mixed";
+      if (!subject || !topic || !Number.isInteger(count) || count < 5 || count > 50) {
+        return respond({ error: "Choose a subject, enter a topic and select 5–50 questions." }, 400);
+      }
+      const groqKey = Deno.env.get("GROQ_API_KEY");
+      if (!groqKey) return respond({ error: "AI question generation is not configured on this server yet." }, 503);
+      const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, and correct_answer (exactly A, B, C, or D). Options must be plausible, and exactly one answer must be correct. Do not include markdown or explanations outside JSON.`;
+      const upstream = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile",
+          temperature: 0.65,
+          messages: [
+            { role: "system", content: "You create accurate educational multiple-choice questions. Output valid JSON only." },
+            { role: "user", content: prompt },
+          ],
+        }),
+      });
+      if (!upstream.ok) {
+        const providerBody = await upstream.text();
+        console.error("Live Quiz Groq generation failed:", upstream.status, providerBody.slice(0, 1000));
+        return respond({ error: upstream.status === 429 ? "AI is busy right now. Please wait a moment and try again." : "AI could not generate questions right now. Please try again." }, upstream.status === 429 ? 429 : 503);
+      }
+      const completion = await upstream.json();
+      const content = String(completion.choices?.[0]?.message?.content ?? "");
+      const jsonText = content.match(/\[[\s\S]*\]/)?.[0];
+      if (!jsonText) return respond({ error: "AI returned an invalid question set. Please generate again." }, 502);
+      let parsed: any[];
+      try { parsed = JSON.parse(jsonText); } catch { return respond({ error: "AI returned unreadable questions. Please generate again." }, 502); }
+      const questions = parsed.slice(0, count).map((q: any) => ({
+        question_text: String(q.question_text ?? "").trim(),
+        option_a: String(q.option_a ?? "").trim(),
+        option_b: String(q.option_b ?? "").trim(),
+        option_c: String(q.option_c ?? "").trim(),
+        option_d: String(q.option_d ?? "").trim(),
+        correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
+      })).filter((q: any) => q.question_text && q.option_a && q.option_b && q.option_c && q.option_d && ["A", "B", "C", "D"].includes(q.correct_answer));
+      if (questions.length !== count) return respond({ error: "AI did not produce the requested number of complete questions. Please generate again." }, 502);
+      return respond({ questions });
+    }
+
     if (action === "create") {
       const subject = typeof body.subject === "string" ? body.subject.trim() : "";
       const gameMode = body.game_mode === "duel" ? "duel" : "group";
@@ -79,14 +125,35 @@ Deno.serve(async (req: Request) => {
         return respond({ error: "Choose a subject, 1–100 questions and a timer between 5 and 300 seconds." }, 400);
       }
 
-      const { data: bank, error: bankError } = await admin.from("questions")
-        .select("id,subject,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,exam_hint")
-        .ilike("subject", subject)
-        .eq("is_published", true)
-        .limit(1000);
-      if (bankError) throw bankError;
-      const selected = shuffle(bank ?? []).slice(0, requestedCount);
-      if (!selected.length) return respond({ error: "No published questions are available for this subject yet." }, 404);
+      let selected: any[] = [];
+      if (Array.isArray(body.questions)) {
+        if (body.questions.length < 1 || body.questions.length > 50) {
+          return respond({ error: "The AI question set is empty or too large. Generate the questions again." }, 400);
+        }
+        selected = body.questions.map((q: any, index: number) => ({
+          id: `ai-${index + 1}`,
+          question_text: String(q.question_text ?? "").trim(),
+          option_a: String(q.option_a ?? "").trim(),
+          option_b: String(q.option_b ?? "").trim(),
+          option_c: String(q.option_c ?? "").trim(),
+          option_d: String(q.option_d ?? "").trim(),
+          correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
+          explanation: null,
+          exam_hint: null,
+        }));
+        if (selected.some((q: any) => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d || !["A", "B", "C", "D"].includes(q.correct_answer))) {
+          return respond({ error: "Every question must have four options and one valid correct answer." }, 400);
+        }
+      } else {
+        const { data: bank, error: bankError } = await admin.from("questions")
+          .select("id,subject,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,exam_hint")
+          .ilike("subject", subject)
+          .eq("is_published", true)
+          .limit(1000);
+        if (bankError) throw bankError;
+        selected = shuffle(bank ?? []).slice(0, requestedCount);
+        if (!selected.length) return respond({ error: "No published questions are available for this subject yet. Choose AI generation or another subject." }, 404);
+      }
 
       const publicQuestions = selected.map((q: any) => ({
         id: q.id,
@@ -200,18 +267,19 @@ Deno.serve(async (req: Request) => {
     return respond({ error: "Unknown Live Quiz action." }, 400);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected server error";
-    console.error("live-quiz failed:", message);
+    console.error("live-quiz failed:", error);
     const status = statusFor(message);
-    return respond({
-      error: message.includes("LIVE_QUIZ_LIMIT_REACHED")
-        ? "You have used your 2 free live quiz sessions. Subscribe for unlimited access."
-        : message.includes("ROOM_FULL")
-          ? "This 1-vs-1 battle already has two players."
-          : message.includes("ROOM_NOT_FOUND")
-            ? "Quiz room not found."
-            : message.includes("REVEAL_PERIOD_ACTIVE") || message.includes("QUESTION_TIMER_ACTIVE")
-              ? "The current question is still active."
-              : "The Live Quiz request could not be completed. Please try again.",
-    }, status);
+    const safeMessage = message.includes("LIVE_QUIZ_LIMIT_REACHED")
+      ? "You have used your 2 free live quiz sessions. Subscribe for unlimited access."
+      : message.includes("ROOM_FULL")
+        ? "This 1-vs-1 battle already has two players."
+        : message.includes("ROOM_NOT_FOUND")
+          ? "Quiz room not found."
+          : message.includes("REVEAL_PERIOD_ACTIVE") || message.includes("QUESTION_TIMER_ACTIVE")
+            ? "The current question is still active."
+            : message.toLowerCase().includes("profile not found")
+              ? "Your player profile could not be found. Please sign out and sign in again."
+              : "Room creation failed on the server. Please try again; support diagnostics have been recorded.";
+    return respond({ error: safeMessage, code: message.slice(0, 160) }, status);
   }
 });
