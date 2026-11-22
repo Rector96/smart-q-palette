@@ -59,7 +59,7 @@ Your goal is to help learners build confidence and master the topic. You are not
 
     const payload = {
       messages: [{ role: "system", content: systemPrompt }, ...safeMessages],
-      stream: Boolean(shouldStream),
+      stream: false,
       temperature: 0.7,
     };
 
@@ -78,12 +78,15 @@ Your goal is to help learners build confidence and master the topic. You are not
       },
     ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
 
-    let upstream: Response | null = null;
+    let assistantContent = "";
     let lastStatus = 503;
     for (const provider of providers) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       try {
         const candidate = await fetch(provider.url, {
           method: "POST",
+          signal: controller.signal,
           headers: {
             Authorization: `Bearer ${provider.key}`,
             "Content-Type": "application/json",
@@ -91,36 +94,55 @@ Your goal is to help learners build confidence and master the topic. You are not
           body: JSON.stringify({ ...payload, model: provider.model }),
         });
 
-        if (candidate.ok) {
-          upstream = candidate;
-          console.info(`AI tutor provider selected: ${provider.name}`);
-          break;
-        }
-
-        lastStatus = candidate.status;
-        const providerError = await candidate.text();
-        console.error(`${provider.name} returned ${candidate.status}:`, providerError.slice(0, 1200));
-        // Try the fallback for rate limits, provider outages, and other upstream failures.
-        if (candidate.status < 500 && candidate.status !== 408 && candidate.status !== 429) {
+        if (!candidate.ok) {
+          lastStatus = candidate.status;
+          const providerError = await candidate.text();
+          console.error(`${provider.name} returned ${candidate.status}:`, providerError.slice(0, 1200));
           continue;
         }
+
+        const data = await candidate.json();
+        const content = String(data.choices?.[0]?.message?.content ?? "").trim();
+        if (!content) {
+          console.error(`${provider.name} returned an empty tutor response; trying fallback.`);
+          continue;
+        }
+
+        assistantContent = content;
+        console.info(`AI tutor provider selected: ${provider.name}`);
+        break;
       } catch (error) {
         console.error(`${provider.name} request failed:`, error);
         lastStatus = 503;
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
-    if (!upstream) {
+    if (!assistantContent) {
       return jsonError(
         lastStatus === 429
           ? "Both AI services are currently rate-limited. Please try again shortly."
-          : "AI service is temporarily unavailable. Please try again shortly.",
+          : "AI Tutor is temporarily unavailable. Please try again shortly.",
         lastStatus === 429 ? 429 : 503,
       );
     }
 
     if (shouldStream) {
-      return new Response(upstream.body, {
+      // Preserve the existing OpenAI-compatible SSE contract for the browser,
+      // while validating the complete answer before committing to a provider.
+      const encoder = new TextEncoder();
+      const chunks = assistantContent.match(/[\\s\\S]{1,96}/g) ?? [assistantContent];
+      const stream = new ReadableStream({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\\n\\n`));
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\\n\\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
         headers: {
           ...corsHeaders,
           "Content-Type": "text/event-stream",
@@ -130,8 +152,7 @@ Your goal is to help learners build confidence and master the topic. You are not
       });
     }
 
-    const data = await upstream.json();
-    return new Response(JSON.stringify({ content: data.choices?.[0]?.message?.content || "" }), {
+    return new Response(JSON.stringify({ content: assistantContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
