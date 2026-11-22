@@ -548,19 +548,6 @@ const QuizRoom = () => {
                 </div>
               )}
 
-              {/* Mini leaderboard */}
-              <Card className="border-border/50 rounded-xl">
-                <CardContent className="p-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Live Scores</p>
-                  {sorted.slice(0, 5).map((p, i) => (
-                    <div key={p.id} className="flex items-center justify-between py-0.5">
-                      <span className="text-[11px] font-medium">{i + 1}. {p.display_name}</span>
-                      <span className="text-[11px] font-bold text-primary">{p.score}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
               {!isHost && <p className="text-[10px] text-muted-foreground text-center">Waiting for next question...</p>}
             </motion.div>
           )}
