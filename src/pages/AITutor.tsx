@@ -21,7 +21,7 @@ const AITutor = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const studentName = String(user?.user_metadata?.full_name || user?.user_metadata?.name || "").trim();
-  const firstName = studentName.split(/\\s+/)[0] || "there";
+  const firstName = studentName.split(/\s+/)[0] || "there";
   const isReturningLearner = user?.created_at
     ? Date.now() - new Date(user.created_at).getTime() > 60_000
     : false;
