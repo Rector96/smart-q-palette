@@ -12,6 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { SUBJECTS } from "@/lib/subjects";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+
+interface LiveQuestionDraft {
+  question_text: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string;
+}
 import DesktopHeader from "@/components/DesktopHeader";
 
 async function getFunctionErrorMessage(error: any, fallback: string): Promise<string> {
@@ -37,6 +42,11 @@ const LiveQuiz = () => {
   const [profile, setProfile] = useState<{ is_subscribed: boolean; free_live_quiz_used: number; full_name: string | null }>({ is_subscribed: false, free_live_quiz_used: 0, full_name: null });
   const [showPaywall, setShowPaywall] = useState(false);
   const [availableSubjects, setAvailableSubjects] = useState<string[] | null>(null);
+  const [questionSource, setQuestionSource] = useState<"bank" | "ai">("bank");
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "mixed">("mixed");
+  const [generatedQuestions, setGeneratedQuestions] = useState<LiveQuestionDraft[]>([]);
+  const [generating, setGenerating] = useState(false);
 
   // Create form
   const [subject, setSubject] = useState("");
@@ -72,6 +82,36 @@ const LiveQuiz = () => {
     return false;
   };
 
+  const handleGenerate = async () => {
+    if (!subject || !topic.trim()) {
+      toast({ title: "Choose a subject and enter a topic.", variant: "destructive" });
+      return;
+    }
+    if (!Number.isInteger(numQuestions) || numQuestions < 5 || numQuestions > 50) {
+      toast({ title: "Choose between 5 and 50 questions.", variant: "destructive" });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: { action: "generate", subject, topic: topic.trim(), num_questions: numQuestions, difficulty },
+      });
+      if (error) throw new Error(await getFunctionErrorMessage(error, "AI question generation failed."));
+      if (data?.error) throw new Error(data.error);
+      if (!Array.isArray(data?.questions) || data.questions.length < 1) throw new Error("The AI did not return usable questions. Please try again.");
+      setGeneratedQuestions(data.questions);
+      toast({ title: `${data.questions.length} questions generated`, description: "Review and edit them before creating your room." });
+    } catch (err: any) {
+      toast({ title: "Question generation failed", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const updateGeneratedQuestion = (index: number, field: keyof LiveQuestionDraft, value: string) => {
+    setGeneratedQuestions(current => current.map((q, i) => i === index ? { ...q, [field]: value } : q));
+  };
+
   const handleCreate = async () => {
     if (!user || !subject) return;
     setLoading(true);
@@ -83,6 +123,7 @@ const LiveQuiz = () => {
           num_questions: numQuestions,
           time_per_question: timePerQuestion,
           game_mode: gameMode,
+          questions: questionSource === "ai" ? generatedQuestions : undefined,
         },
       });
       if (error) throw new Error(await getFunctionErrorMessage(error, "We could not create the quiz room. Please try again."));
@@ -195,12 +236,34 @@ const LiveQuiz = () => {
               <Select value={subject} onValueChange={setSubject}>
                 <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
-                  {SUBJECTS.filter(s => availableSubjects === null || availableSubjects.some(name => name.trim().toLowerCase() === s.name.trim().toLowerCase() || name.trim().toLowerCase() === s.id.replace(/_/g, " ").toLowerCase())).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  {SUBJECTS.filter(s => questionSource === "ai" || availableSubjects === null || availableSubjects.some(name => name.trim().toLowerCase() === s.name.trim().toLowerCase() || name.trim().toLowerCase() === s.id.replace(/_/g, " ").toLowerCase())).map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               {availableSubjects !== null && availableSubjects.length === 0 && <p className="text-xs text-destructive">No subjects currently have published questions for Live Quiz.</p>}
-              {availableSubjects !== null && availableSubjects.length > 0 && <p className="text-xs text-muted-foreground">Only subjects with published questions are shown.</p>}
+              {questionSource === "bank" && availableSubjects !== null && availableSubjects.length > 0 && <p className="text-xs text-muted-foreground">Only subjects with published questions are shown.</p>}
             </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Question source</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant={questionSource === "bank" ? "default" : "outline"} className="rounded-xl" onClick={() => { setQuestionSource("bank"); setGeneratedQuestions([]); }}>Question bank</Button>
+                <Button type="button" variant={questionSource === "ai" ? "default" : "outline"} className="rounded-xl" onClick={() => { setQuestionSource("ai"); setGeneratedQuestions([]); }}>Generate with AI</Button>
+              </div>
+            </div>
+            {questionSource === "ai" && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="space-y-2"><Label className="text-sm font-semibold">Topic</Label><Input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Photosynthesis, Cell structure" className="h-11 rounded-xl" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2"><Label className="text-sm font-semibold">Difficulty</Label><Select value={difficulty} onValueChange={(v: any) => setDifficulty(v)}><SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="easy">Easy</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="hard">Hard</SelectItem><SelectItem value="mixed">Mixed</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label className="text-sm font-semibold">Questions</Label><Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-11 rounded-xl" /></div>
+              </div>
+              <Button type="button" variant="outline" className="w-full rounded-xl" onClick={handleGenerate} disabled={generating || !subject || !topic.trim()}>{generating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating questions...</> : "Generate questions"}</Button>
+            </div>}
+            {questionSource === "ai" && generatedQuestions.length > 0 && <div className="space-y-3">
+              <div className="flex items-center justify-between"><p className="text-sm font-bold">Preview · {generatedQuestions.length} questions</p><Button type="button" size="sm" variant="ghost" onClick={handleGenerate} disabled={generating}>Regenerate all</Button></div>
+              {generatedQuestions.map((q, i) => <Card key={i} className="rounded-xl border-border/60"><CardContent className="space-y-2 p-3"><p className="text-xs font-bold text-muted-foreground">QUESTION {i + 1}</p><Textarea value={q.question_text} onChange={e => updateGeneratedQuestion(i, "question_text", e.target.value)} rows={2} className="text-sm" />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(["A", "B", "C", "D"] as const).map(letter => <div key={letter} className="flex items-center gap-2"><span className="text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 text-xs" /></div>)}</div>
+                <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
+              </CardContent></Card>)}
+            </div>}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Questions</Label>
@@ -211,7 +274,7 @@ const LiveQuiz = () => {
                 <Input type="number" min={10} max={120} value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))} className="h-10" />
               </div>
             </div>
-            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject}>
+            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject || (questionSource === "ai" && (generatedQuestions.length === 0 || generatedQuestions.some(q => !q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim())))}>
               {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : gameMode === "duel" ? "Create 1-vs-1 Challenge" : "Create Group Room"}
             </Button>
           </motion.div>
