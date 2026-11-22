@@ -98,7 +98,31 @@ const Dashboard = () => {
       }
     };
     void fetchData();
-    return (
+    return () => { active = false; };
+  }, [user]);
+
+  const attemptsLeft = Math.max(0, 10 - profile.trial_count);
+  const isPro = profile.is_subscribed;
+
+  const handleStartTest = () => {
+    if (!isPro && attemptsLeft <= 0) { setShowSubscription(true); return; }
+    navigate("/select-subjects?mode=practice");
+  };
+
+  const statCards = [
+    { icon: Trophy, label: "Sessions", value: stats.sessions, color: "text-primary" },
+    { icon: Target, label: "Avg Score", value: `${stats.avgScore}%`, color: "text-[hsl(var(--success))]" },
+    { icon: Clock, label: "Questions", value: stats.totalQuestions, color: "text-primary" },
+    { icon: Flame, label: "Streak", value: `${streak} days`, color: "text-warning" },
+  ];
+
+  const allModeCards = [
+    ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
+    { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
+    { id: "live-quiz", name: "Live Quiz", description: "Real-time quiz battles", icon: Users, action: () => navigate("/live-quiz") },
+  ];
+
+  return (
     <div className="min-h-[100dvh] overflow-x-clip bg-[#F8FAFC]">
       <SEOHead title="Dashboard – ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
