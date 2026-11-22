@@ -134,194 +134,21 @@ const Profile = () => {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.replace(/_/g, " ").slice(1);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="flex-1 text-center font-bold text-base" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Profile</h1>
-          <div className="w-8" />
-        </div>
+    <div className="min-h-screen overflow-x-clip bg-[#F8FAFC]">
+      <header className="relative isolate overflow-hidden bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] pb-14 text-white">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full border border-white/15 bg-white/[0.04]"/><div className="pointer-events-none absolute right-12 top-24 h-40 w-40 rounded-full border border-white/10"/>
+        <div className="relative z-10 mx-auto max-w-lg px-4 pt-4"><div className="flex items-center justify-between"><Button variant="ghost" size="icon" className="rounded-full text-white hover:bg-white/15 hover:text-white" onClick={()=>navigate(-1)}><ArrowLeft className="h-5 w-5"/></Button><h1 className="text-base font-bold">Profile</h1><span className="rounded-full border border-white/20 bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">👑 {profile?.is_subscribed?"Pro":"Member"}</span></div>
+        <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} className="mt-6 flex flex-col items-center text-center"><div className="relative"><img src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile?.full_name||user.email||"S")}&backgroundColor=eff6ff&textColor=1d4ed8`} alt="Profile avatar" className="h-20 w-20 rounded-full border-4 border-white/20 bg-white object-cover shadow-lg"/><button aria-label="Edit avatar" onClick={()=>{setEditName(profile?.full_name||"");setShowEditProfile(true);}} className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-600"><Pencil className="h-3.5 w-3.5"/></button></div><h2 className="mt-3 text-xl font-extrabold">{profile?.full_name||user.email?.split("@")[0]||"Student"}</h2><p className="mt-1 text-sm text-blue-100">{user.email}</p><Button onClick={()=>{setEditName(profile?.full_name||"");setShowEditProfile(true);}} className="mt-4 h-9 rounded-full bg-white px-4 text-xs font-semibold text-[#1D4ED8] shadow-sm hover:bg-blue-50"><Pencil className="mr-2 h-3.5 w-3.5"/>Edit Profile</Button></motion.div></div>
       </header>
-
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Profile Info */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-            <img
-              src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile?.full_name || user.email || "S")}&backgroundColor=3b82f6&textColor=ffffff`}
-              alt="Avatar"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-base truncate">{profile?.full_name || "Student"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] mt-1.5 gap-1 rounded-full px-3" onClick={() => { setEditName(profile?.full_name || ""); setShowEditProfile(true); }}>
-              <Pencil className="h-3 w-3" /> Edit Profile
-            </Button>
-          </div>
-        </motion.div>
-
-        {/* Stats Row */}
-        <Card className="border-border/50 shadow-sm rounded-2xl">
-          <CardContent className="p-3">
-            <div className="grid grid-cols-4 divide-x divide-border">
-              {statCards.map((s) => (
-                <div key={s.label} className="text-center px-2">
-                  <s.icon className={`h-4 w-4 mx-auto mb-1 ${s.color}`} />
-                  <p className="text-lg font-bold">{s.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Chart */}
-        <div>
-          <h2 className="text-sm font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Performance Overview</h2>
-          <Card className="border-border/50 shadow-sm rounded-2xl">
-            <CardContent className="p-4">
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={160}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(220, 9%, 46%)" />
-                    <YAxis tick={{ fontSize: 10 }} stroke="hsl(220, 9%, 46%)" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                    <Area type="monotone" dataKey="score" stroke="hsl(217, 91%, 60%)" strokeWidth={2} fill="url(#colorScore)" dot={{ r: 4, fill: "hsl(217, 91%, 60%)" }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-8">Complete exams to see your performance chart</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Best / Weak */}
-        {(bestSubject || weakSubject) && (
-          <div className="grid grid-cols-2 gap-3">
-            {bestSubject && (
-              <Card className="border-border/50 shadow-sm rounded-2xl">
-                <CardContent className="p-3 flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary">A+</span>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground font-medium">Best Subject</p>
-                    <p className="text-xs font-bold">{capitalize(bestSubject)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {weakSubject && (
-              <Card className="border-border/50 shadow-sm rounded-2xl">
-                <CardContent className="p-3 flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-destructive">F</span>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground font-medium">Needs Improvement</p>
-                    <p className="text-xs font-bold">{capitalize(weakSubject)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {/* Study Goals */}
-        <div>
-          <h2 className="text-sm font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Study Goals</h2>
-          <Card className="border-border/50 shadow-sm rounded-2xl">
-            <CardContent className="p-0 divide-y divide-border">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="h-6 w-6 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center">
-                  <Award className="h-3.5 w-3.5 text-[hsl(var(--success))]" />
-                </div>
-                <span className="flex-1 text-xs font-medium">Complete 3 practice tests this week</span>
-                {stats.sessions >= 3 ? (
-                  <span className="text-[hsl(var(--success))]">✓</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">{stats.sessions}/3</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Flame className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <span className="flex-1 text-xs font-medium">Study for 5 hours this weekend</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Settings */}
-        <div>
-          <h2 className="text-sm font-bold mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Settings</h2>
-          <Card className="border-border/50 shadow-sm rounded-2xl">
-            <CardContent className="p-0 divide-y divide-border">
-              {settingsItems.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={item.action}
-                  className="flex items-center gap-3 px-4 py-3 w-full hover:bg-secondary/50 transition-colors text-left"
-                >
-                  <item.icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1 text-xs font-medium">{item.label}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Logout */}
-        <Button variant="outline" className="w-full h-10 text-sm text-destructive border-destructive/20 hover:bg-destructive/5" onClick={handleSignOut}>
-          <LogOut className="h-4 w-4 mr-2" /> Sign Out
-        </Button>
+      <main className="relative z-10 mx-auto -mt-7 max-w-lg space-y-5 rounded-t-[28px] bg-[#F8FAFC] px-4 pt-5 pb-28">
+        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="grid grid-cols-4 divide-x divide-slate-100 p-3">{statCards.map((s,i)=><div key={i} className="min-w-0 px-1 text-center"><s.icon className={`mx-auto mb-1.5 h-5 w-5 ${s.color}`}/><p className="text-lg font-extrabold text-slate-900">{s.value}</p><p className="text-[10px] text-slate-500">{i===3?"Streak":s.label}</p></div>)}</CardContent></Card>
+        <section><h2 className="mb-3 text-base font-bold text-slate-900">Performance Overview</h2><Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="p-3">{chartData.length>0?<ResponsiveContainer width="100%" height={180}><AreaChart data={chartData} margin={{top:8,right:8,left:0,bottom:0}}><defs><linearGradient id="profileScoreFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2563EB" stopOpacity={.22}/><stop offset="100%" stopColor="#2563EB" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="4 4" stroke="#E2E8F0"/><XAxis dataKey="name" tick={{fontSize:10}} stroke="#94A3B8"/><YAxis domain={[0,100]} ticks={[0,25,50,75,100]} tickFormatter={v=>`${v}%`} tick={{fontSize:10}} width={35} stroke="#94A3B8"/><Area type="monotone" dataKey="score" stroke="#2563EB" strokeWidth={2.5} fill="url(#profileScoreFill)" dot={{r:4,fill:"#2563EB"}}/></AreaChart></ResponsiveContainer>:<p className="py-8 text-center text-xs text-slate-500">Complete exams to see your performance chart.</p>}</CardContent></Card></section>
+        {bestSubject&&<Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="flex items-center justify-between gap-3 p-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-base font-extrabold text-[#2563EB]">A+</div><div><p className="text-xs text-slate-400">Best Subject</p><p className="text-base font-bold text-slate-900">{capitalize(bestSubject)}</p></div></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600">Top Strength</span></CardContent></Card>}
+        <section><h2 className="mb-3 text-base font-bold text-slate-900">Study Goals</h2><div className="space-y-2.5"><div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Award className="h-5 w-5"/></span><span className="flex-1 text-xs font-semibold text-slate-700">Complete 3 practice tests this week</span>{stats.sessions>=3?<span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">✓</span>:<span className="text-xs text-slate-500">{stats.sessions}/3</span>}</div><div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Flame className="h-5 w-5"/></span><span className="flex-1 text-xs font-semibold text-slate-700">Study for 5 hours this weekend</span><span className="h-6 w-6 rounded-full border-2 border-slate-200"/></div></div></section>
+        <section><h2 className="mb-3 text-base font-bold text-slate-900">Settings</h2><Card className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="divide-y divide-slate-100 p-0">{settingsItems.map(item=><button key={item.label} onClick={item.action} className="flex w-full items-center justify-between p-3.5 text-left transition hover:bg-slate-50"><span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><item.icon className="h-4 w-4"/></span><span className="text-sm font-semibold text-slate-700">{item.label}</span></span><ChevronRight className="h-4 w-4 text-slate-400"/></button>)}</CardContent></Card></section>
+        <Button variant="outline" className="w-full rounded-2xl border border-red-100 bg-red-50 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-100" onClick={handleSignOut}><LogOut className="mr-2 h-4 w-4"/>Sign Out</Button>
       </main>
-
-      {/* Edit Profile Dialog */}
-      {showEditProfile && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-border">
-            <h3 className="text-base font-bold mb-4">Edit Profile</h3>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Full Name</Label>
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="h-10 text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Email</Label>
-                <Input value={user.email || ""} disabled className="h-10 text-sm bg-secondary" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-4">
-              <Button variant="outline" className="flex-1 h-10 text-sm rounded-xl" onClick={() => setShowEditProfile(false)}>
-                Cancel
-              </Button>
-              <Button className="flex-1 h-10 text-sm rounded-xl" onClick={handleSaveProfile} disabled={saving || !editName.trim()}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {showEditProfile&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"><motion.div initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl"><h3 className="mb-4 text-base font-bold">Edit Profile</h3><div className="space-y-3"><div className="space-y-1.5"><Label className="text-xs">Full Name</Label><Input value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Enter your name" className="h-10 text-sm"/></div><div className="space-y-1.5"><Label className="text-xs">Email</Label><Input value={user.email||""} disabled className="h-10 bg-secondary text-sm"/></div></div><div className="mt-4 flex gap-3"><Button variant="outline" className="h-10 flex-1 rounded-xl text-sm" onClick={()=>setShowEditProfile(false)}>Cancel</Button><Button className="h-10 flex-1 rounded-xl text-sm" onClick={handleSaveProfile} disabled={saving||!editName.trim()}>{saving?"Saving...":"Save"}</Button></div></motion.div></div>}
     </div>
   );
 };
