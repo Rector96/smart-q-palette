@@ -267,36 +267,36 @@ const Referral = () => {
   const latestWithdrawalBank = latestOpenWithdrawal ? bankAccounts.find((account) => account.id === latestOpenWithdrawal.bank_account_id) : null;
 
   return (
-    <div className="min-h-[100dvh] bg-background">
+    <div className="min-h-[100dvh] bg-[#F8FAFC]">
       <SEOHead title="ROCKCBT – Referral Wallet" description="Practise for exams and still earn with ROCKCBT referral rewards." path="/referrals" />
       <DesktopHeader profileName={user?.user_metadata?.full_name || null} isPro={false} />
-      <main className="mx-auto max-w-5xl space-y-5 px-3 py-5 sm:px-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0 lg:px-8 lg:py-8">
+      <main className="mx-auto max-w-2xl space-y-4 px-3 py-4 sm:space-y-5 sm:px-5 sm:py-6">
         {!loading && !loadError && (
-                      <Card className="overflow-hidden rounded-2xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm lg:col-span-2">
+                      <Card className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] text-white shadow-sm">
                         <CardContent className="space-y-4 p-4 sm:p-5">
                           <div className="flex items-center justify-between gap-3">
-                            <div><p className="text-sm font-semibold text-muted-foreground">Available to withdraw</p><p className="mt-1 text-3xl font-extrabold">{money(wallet.available_balance)}</p></div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Wallet className="h-6 w-6 text-primary" /></div>
+                            <div><p className="text-xs font-medium text-blue-100">Available to withdraw</p><p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{money(wallet.available_balance)}</p></div>
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15"><Wallet className="h-6 w-6 text-white" /></div>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Pending rewards</p><p className="mt-1 text-lg font-bold">{money(wallet.pending_balance)}</p></div>
-                            <div className="rounded-xl bg-background/80 p-3"><p className="text-xs text-muted-foreground">Lifetime earned</p><p className="mt-1 text-lg font-bold">{money(wallet.lifetime_earned)}</p></div>
+                            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-[11px] text-blue-100">Pending rewards</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.pending_balance)}</p></div>
+                            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-[11px] text-blue-100">Lifetime earned</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.lifetime_earned)}</p></div>
                           </div>
                           <div className="space-y-2">
-                            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Withdrawal minimum: ₦1,000</span><span className="font-semibold">{Math.round(minimumProgress)}%</span></div>
-                            <div className="h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${minimumProgress}%` }} /></div>
-                            <p className="text-xs text-muted-foreground">{Number(wallet.available_balance) >= 1000 ? "You have reached the withdrawal minimum." : `${money(Math.max(0, 1000 - Number(wallet.available_balance)))} more in available rewards to reach the withdrawal minimum.`}</p>
+                            <div className="flex justify-between text-xs text-blue-100"><span className="text-blue-100">Withdrawal minimum: ₦1,000</span><span className="font-semibold">{Math.round(minimumProgress)}%</span></div>
+                            <div className="h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${minimumProgress}%` }} /></div>
+                            <p className="text-xs text-blue-100">{Number(wallet.available_balance) >= 1000 ? "You have reached the withdrawal minimum." : `${money(Math.max(0, 1000 - Number(wallet.available_balance)))} more in available rewards to reach the withdrawal minimum.`}</p>
                           </div>
                         </CardContent>
                       </Card>
         )}
-        <div className="lg:col-span-2">
-          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-6">
-            <p className="text-xs font-bold uppercase tracking-wider text-primary">ROCKCBT · Refer & Earn</p>
-            <h1 className="mt-2 max-w-xl text-2xl font-extrabold leading-tight sm:text-3xl">Practise for exams. Earn by sharing ROCKCBT.</h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Invite people preparing for exams. When someone subscribes through your link, you earn <span className="font-bold text-foreground">₦500</span>.</p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">1. Share your link</span>
+        <div>
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#2563EB]">ROCKCBT · Refer & Earn</p>
+            <h1 className="mt-1 text-lg font-extrabold leading-tight text-slate-900">Practise for exams. Earn by sharing ROCKCBT.</h1>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">Invite people preparing for exams. When someone subscribes through your link, you earn <span className="font-bold text-slate-900">₦500</span>.</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">1. Share your link</span>
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. They subscribe</span>
               <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">3. You earn ₦500</span>
             </div>
@@ -351,12 +351,10 @@ const Referral = () => {
 
 
 
-            <Card className="rounded-2xl shadow-sm">
-              <div className="grid grid-cols-2 gap-3">
-              <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Users className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] text-muted-foreground">People referred</p></div></CardContent></Card>
-              <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] text-muted-foreground">Available rewards</p></div></CardContent></Card>
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="rounded-2xl border border-slate-100 shadow-sm"><CardContent className="flex items-center gap-3 p-3 sm:p-4"><Users className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] leading-4 text-muted-foreground">People referred</p></div></CardContent></Card>
+              <Card className="rounded-2xl border border-slate-100 shadow-sm"><CardContent className="flex items-center gap-3 p-3 sm:p-4"><Gift className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] leading-4 text-muted-foreground">Available rewards</p></div></CardContent></Card>
             </div>
-            </Card>
 
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">

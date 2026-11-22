@@ -12,7 +12,26 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { SUBJECTS } from "@/lib/subjects";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+
+interface LiveQuestionDraft {
+  question_text: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string;
+  explanation?: string; exam_hint?: string;
+}
 import DesktopHeader from "@/components/DesktopHeader";
+
+async function getFunctionErrorMessage(error: any, fallback: string): Promise<string> {
+  const context = error?.context;
+  if (context && typeof context.json === "function") {
+    try {
+      const payload = await context.json();
+      if (typeof payload?.error === "string" && payload.error.trim()) return payload.error;
+    } catch {
+      // Fall back to the SDK error when the response body is unavailable.
+    }
+  }
+  return error?.message || fallback;
+}
 
 const LiveQuiz = () => {
   const { user } = useAuth();
@@ -23,6 +42,12 @@ const LiveQuiz = () => {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<{ is_subscribed: boolean; free_live_quiz_used: number; full_name: string | null }>({ is_subscribed: false, free_live_quiz_used: 0, full_name: null });
   const [showPaywall, setShowPaywall] = useState(false);
+  const [availableSubjects, setAvailableSubjects] = useState<string[] | null>(null);
+  const [questionSource, setQuestionSource] = useState<"bank" | "ai">("bank");
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "mixed">("mixed");
+  const [generatedQuestions, setGeneratedQuestions] = useState<LiveQuestionDraft[]>([]);
+  const [generating, setGenerating] = useState(false);
 
   // Create form
   const [subject, setSubject] = useState("");
@@ -40,6 +65,15 @@ const LiveQuiz = () => {
       if (data) setProfile(data as any);
     };
     fetch();
+    const fetchAvailableSubjects = async () => {
+      const { data, error } = await supabase.functions.invoke("live-quiz", { body: { action: "subjects" } });
+      if (error) {
+        console.error("Unable to load Live Quiz subjects:", await getFunctionErrorMessage(error, "Subject list unavailable."));
+        return;
+      }
+      if (Array.isArray(data?.subjects)) setAvailableSubjects(data.subjects);
+    };
+    fetchAvailableSubjects();
   }, [user]);
 
   const checkAccess = (): boolean => {
@@ -49,56 +83,60 @@ const LiveQuiz = () => {
     return false;
   };
 
+  const handleGenerate = async () => {
+    if (!subject || !topic.trim()) {
+      toast({ title: "Choose a subject and enter a topic.", variant: "destructive" });
+      return;
+    }
+    if (!Number.isInteger(numQuestions) || numQuestions < 5 || numQuestions > 50) {
+      toast({ title: "Choose between 5 and 50 questions.", variant: "destructive" });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: { action: "generate", subject, topic: topic.trim(), num_questions: numQuestions, difficulty },
+      });
+      if (error) throw new Error(await getFunctionErrorMessage(error, "AI question generation failed."));
+      if (data?.error) throw new Error(data.error);
+      if (!Array.isArray(data?.questions) || data.questions.length < 1) throw new Error("The AI did not return usable questions. Please try again.");
+      setGeneratedQuestions(data.questions);
+      toast({ title: `${data.questions.length} questions generated`, description: "Review and edit them before creating your room." });
+    } catch (err: any) {
+      toast({ title: "Question generation failed", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const updateGeneratedQuestion = (index: number, field: keyof LiveQuestionDraft, value: string) => {
+    setGeneratedQuestions(current => current.map((q, i) => i === index ? { ...q, [field]: value } : q));
+  };
+
   const handleCreate = async () => {
     if (!user || !subject) return;
-    if (!checkAccess()) return;
     setLoading(true);
     try {
-      // Fetch questions for subject
-      const { data: questions, error: qErr } = await supabase
-        .from("questions")
-        .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, exam_hint")
-        .eq("subject", subject)
-        .limit(200);
-
-      if (qErr || !questions || questions.length === 0) {
-        toast({ title: "No questions available", description: "This subject has no questions yet.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      // Shuffle and pick
-      const shuffled = questions.sort(() => Math.random() - 0.5).slice(0, numQuestions);
-      const roomCodeGen = `${gameMode === "duel" ? "D" : ""}${Math.floor(1000 + Math.random() * 9000)}`;
-      const expiresAt = new Date(Date.now() + 2 * 3600000).toISOString();
-
-      const { data: room, error } = await supabase.from("quiz_rooms").insert({
-        host_id: user.id,
-        subject,
-        num_questions: shuffled.length,
-        time_per_question: timePerQuestion,
-        room_code: roomCodeGen,
-        questions: shuffled as any,
-        expires_at: expiresAt,
-      }).select("id, room_code").single();
-
-      if (error) throw error;
-
-      // Increment free usage if not subscribed
-      if (!profile.is_subscribed) {
-        await supabase.from("profiles").update({ free_live_quiz_used: (profile.free_live_quiz_used || 0) + 1 } as any).eq("user_id", user.id);
-      }
-
-      // Host joins as participant
-      await supabase.from("quiz_participants").insert({
-        room_id: room.id,
-        user_id: user.id,
-        display_name: profile.full_name?.split(" ")[0] || "Host",
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: {
+          action: "create",
+          subject,
+          num_questions: numQuestions,
+          time_per_question: timePerQuestion,
+          game_mode: gameMode,
+          questions: questionSource === "ai" ? generatedQuestions : undefined,
+        },
       });
-
-      navigate(`/quiz-room/${room.room_code}`);
+      if (error) throw new Error(await getFunctionErrorMessage(error, "We could not create the quiz room. Please try again."));
+      if (data?.error) {
+        if (String(data.error).toLowerCase().includes("free live quiz")) setShowPaywall(true);
+        throw new Error(data.error);
+      }
+      const roomCode = data?.room?.room_code;
+      if (!roomCode) throw new Error("The room was created but no room code was returned.");
+      navigate(`/quiz-room/${roomCode}`);
     } catch (err: any) {
-      toast({ title: "Error creating room", description: err.message, variant: "destructive" });
+      toast({ title: "Error creating room", description: err.message || "Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -106,61 +144,20 @@ const LiveQuiz = () => {
 
   const handleJoin = async () => {
     if (!user || !roomCode.trim()) return;
-    if (!checkAccess()) return;
     setLoading(true);
     try {
-      const { data: room, error } = await supabase
-        .from("quiz_rooms")
-        .select("*")
-        .eq("room_code", roomCode.trim().toUpperCase())
-        .single();
-
-      if (error || !room) {
-        toast({ title: "Room not found", description: "Check the code and try again.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (room.status === "ended") {
-        toast({ title: "Quiz ended", description: "This quiz session has already ended.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (room.expires_at && new Date(room.expires_at) < new Date()) {
-        toast({ title: "Quiz expired", description: "This quiz session has expired.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (room.room_code.startsWith("D")) {
-        const { data: existingPlayers, error: playersError } = await supabase
-          .from("quiz_participants").select("user_id").eq("room_id", room.id);
-        if (playersError) throw playersError;
-        const alreadyJoined = existingPlayers?.some((player) => player.user_id === user.id);
-        if (!alreadyJoined && (existingPlayers?.length || 0) >= 2) {
-          toast({ title: "Battle is full", description: "This 1-vs-1 challenge already has two players.", variant: "destructive" });
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Increment free usage if not subscribed
-      if (!profile.is_subscribed) {
-        await supabase.from("profiles").update({ free_live_quiz_used: (profile.free_live_quiz_used || 0) + 1 } as any).eq("user_id", user.id);
-      }
-
-      // Join as participant
-      const { error: joinErr } = await supabase.from("quiz_participants").insert({
-        room_id: room.id,
-        user_id: user.id,
-        display_name: profile.full_name?.split(" ")[0] || "Player",
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: { action: "join", room_code: roomCode.trim().toUpperCase() },
       });
-
-      if (joinErr && !joinErr.message.includes("duplicate")) throw joinErr;
-      navigate(`/quiz-room/${room.room_code}`);
+      if (error) throw error;
+      if (data?.error) {
+        if (String(data.error).toLowerCase().includes("free live quiz")) setShowPaywall(true);
+        throw new Error(data.error);
+      }
+      const joinedCode = data?.room?.room_code || roomCode.trim().toUpperCase();
+      navigate(`/quiz-room/${joinedCode}`);
     } catch (err: any) {
-      toast({ title: "Error joining room", description: err.message, variant: "destructive" });
+      toast({ title: "Error joining room", description: err.message || "Please check the code and try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -184,7 +181,7 @@ const LiveQuiz = () => {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-3 pb-28 pt-5 sm:px-4 sm:py-8 space-y-5">
+      <main className="w-full max-w-2xl mx-auto px-3 pb-28 pt-5 sm:px-5 sm:py-8 md:px-6 space-y-5">
         {view === "menu" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="text-center space-y-3 mb-6 px-2">
@@ -237,24 +234,54 @@ const LiveQuiz = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Subject</Label>
-              <Select value={subject} onValueChange={setSubject}>
+              <Select value={subject} onValueChange={v => { setSubject(v); setGeneratedQuestions([]); }}>
                 <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
-                  {SUBJECTS.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  {SUBJECTS.filter(s => questionSource === "ai" || availableSubjects === null || availableSubjects.some(name => name.trim().toLowerCase() === s.name.trim().toLowerCase() || name.trim().toLowerCase() === s.id.replace(/_/g, " ").toLowerCase())).map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {questionSource === "bank" && availableSubjects !== null && availableSubjects.length === 0 && <p className="text-xs text-destructive">No subjects currently have published questions for Live Quiz.</p>}
+              {questionSource === "bank" && availableSubjects !== null && availableSubjects.length > 0 && <p className="text-xs text-muted-foreground">Only subjects with published questions are shown.</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Question source</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant={questionSource === "bank" ? "default" : "outline"} className="rounded-xl" onClick={() => { setQuestionSource("bank"); setGeneratedQuestions([]); }}>Question bank</Button>
+                <Button type="button" variant={questionSource === "ai" ? "default" : "outline"} className="rounded-xl" onClick={() => { setQuestionSource("ai"); setGeneratedQuestions([]); }}>Generate with AI</Button>
+              </div>
+            </div>
+            {questionSource === "ai" && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="space-y-2"><Label className="text-sm font-semibold">Topic</Label><Input value={topic} onChange={e => { setTopic(e.target.value); setGeneratedQuestions([]); }} placeholder="e.g. Photosynthesis, Cell structure" className="h-11 rounded-xl" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2"><Label className="text-sm font-semibold">Difficulty</Label><Select value={difficulty} onValueChange={(v: any) => { setDifficulty(v); setGeneratedQuestions([]); }}><SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="easy">Easy</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="hard">Hard</SelectItem><SelectItem value="mixed">Mixed</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label className="text-sm font-semibold">Questions</Label><Input type="number" min={5} max={50} value={numQuestions} onChange={e => { setNumQuestions(Number(e.target.value)); setGeneratedQuestions([]); }} className="h-11 rounded-xl" /></div>
+              </div>
+              <Button type="button" variant="outline" className="w-full rounded-xl" onClick={handleGenerate} disabled={generating || !subject || !topic.trim()}>{generating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating questions...</> : "Generate questions"}</Button>
+            </div>}
+            {questionSource === "ai" && generatedQuestions.length > 0 && <div className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold">Preview · {generatedQuestions.length} questions</p><Button type="button" size="sm" variant="ghost" onClick={handleGenerate} disabled={generating}>Regenerate all</Button></div>
+              {generatedQuestions.map((q, i) => <Card key={i} className="rounded-xl border-border/60"><CardContent className="space-y-2 p-3"><p className="text-xs font-bold text-muted-foreground">QUESTION {i + 1}</p><Textarea value={q.question_text} onChange={e => updateGeneratedQuestion(i, "question_text", e.target.value)} rows={2} className="text-sm" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{(["A", "B", "C", "D"] as const).map(letter => <div key={letter} className="flex items-center gap-2"><span className="text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 text-xs" /></div>)}</div>
+                <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
+                <div className="rounded-lg border border-primary/15 bg-primary/5 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-primary">Study explanation</p>
+                  <Textarea value={q.explanation || ""} onChange={e => updateGeneratedQuestion(i, "explanation", e.target.value)} rows={2} placeholder="Why is this answer correct? (AI-generated explanation)" className="text-sm bg-background" />
+                  <p className="text-xs font-semibold text-muted-foreground">Revision tip</p>
+                  <Textarea value={q.exam_hint || ""} onChange={e => updateGeneratedQuestion(i, "exam_hint", e.target.value)} rows={2} placeholder="A short tip to help remember this concept" className="text-sm bg-background" />
+                </div>
+              </CardContent></Card>)}
+            </div>}
+            <div className={questionSource === "ai" ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
+              {questionSource === "bank" && <div className="space-y-2">
                 <Label className="text-sm font-semibold">Questions</Label>
                 <Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-12 rounded-xl text-base" />
-              </div>
+              </div>}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Time/Question (s)</Label>
                 <Input type="number" min={10} max={120} value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))} className="h-10" />
               </div>
             </div>
-            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject}>
+            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject || (questionSource === "ai" && (generatedQuestions.length !== numQuestions || generatedQuestions.some(q => !q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim())))}>
               {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : gameMode === "duel" ? "Create 1-vs-1 Challenge" : "Create Group Room"}
             </Button>
           </motion.div>

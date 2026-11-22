@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#1d4ed8"><title>ROCKCBT — Dashboard Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#e8edf5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a}
+    .app{max-width:430px;min-height:100dvh;margin:0 auto;background:#f8fafc;position:relative;box-shadow:0 24px 70px #0f172a24;overflow:hidden}
+    .hero{background:linear-gradient(135deg,#1e40af 0%,#1d4ed8 52%,#2563eb 100%);position:relative;overflow:hidden}
+    .hero:before,.hero:after{content:"";position:absolute;border:1px solid #ffffff20;border-radius:999px;background:#ffffff0b;pointer-events:none}
+    .hero:before{width:250px;height:250px;right:-95px;top:-130px}.hero:after{width:180px;height:180px;right:30px;top:50px}
+    .glass{background:#ffffff20;border:1px solid #ffffff30;backdrop-filter:blur(12px)}
+    .sheet{position:relative;margin-top:-24px;border-radius:28px 28px 0 0;background:#f8fafc;z-index:2}
+    .soft-card{background:white;border:1px solid #e9eef6;box-shadow:0 3px 12px #0f172a08}
+    .icon-tile{display:grid;place-items:center;background:#eff6ff;color:#2563eb;border-radius:13px;flex:none}
+    .nav-active{background:#eff6ff;color:#2563eb}
+    button,a{-webkit-tap-highlight-color:transparent}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="sticky top-0 z-30 flex h-[62px] items-center justify-between border-b border-slate-100 bg-white/90 px-4 backdrop-blur-md">
+    <a href="/dashboard" class="flex items-center gap-2.5 no-underline text-slate-900"><span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-sm font-black tracking-tight text-white shadow-md shadow-blue-600/20">RC</span><span class="text-[15px] font-extrabold tracking-tight">ROCKCBT</span></a>
+    <div class="flex items-center gap-2">
+      <button aria-label="Notifications" class="relative grid h-9 w-9 place-items-center rounded-full text-slate-500 hover:bg-slate-100"><i data-lucide="bell" class="h-[18px] w-[18px]"></i><span class="absolute right-[7px] top-[7px] h-2 w-2 rounded-full border-2 border-white bg-emerald-500"></span></button>
+      <button class="flex items-center gap-2 rounded-full bg-blue-50 py-1.5 pl-1.5 pr-2.5 text-xs font-semibold text-blue-800"><span class="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-white">P</span><span>peternoche</span><i data-lucide="chevron-down" class="h-3.5 w-3.5"></i></button>
+    </div>
+  </header>
+  <section class="hero px-5 pb-12 pt-7 text-white">
+    <div class="relative z-10">
+      <div class="mb-3 inline-flex items-center gap-1.5 rounded-full glass px-3 py-1 text-[11px] font-semibold text-blue-50"><i data-lucide="crown" class="h-3.5 w-3.5"></i> Pro Member</div>
+      <h1 class="text-[23px] font-extrabold leading-tight tracking-tight">Welcome back, peternoche 👋</h1>
+      <p class="mt-2 max-w-[300px] text-[13px] leading-relaxed text-blue-100">You have unlimited access. Keep crushing it!</p>
+    </div>
+  </section>
+  <main class="sheet px-4 pb-28 pt-5">
+    <a href="/select-subjects?mode=practice" class="flex min-h-[54px] items-center justify-between rounded-full bg-blue-600 px-5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-700 active:scale-[.99]">
+      <span class="flex items-center gap-2.5"><i data-lucide="sparkles" class="h-5 w-5"></i>Start Practice Test</span><i data-lucide="arrow-right" class="h-5 w-5"></i>
+    </a>
+    <section class="soft-card mt-4 grid grid-cols-2 overflow-hidden rounded-2xl p-1">
+      <div class="flex items-center gap-3 border-b border-r border-slate-100 p-3.5"><span class="icon-tile h-10 w-10 text-blue-600"><i data-lucide="trophy" class="h-5 w-5"></i></span><div><p class="text-lg font-extrabold leading-tight">7</p><p class="mt-0.5 text-[11px] text-slate-500">Sessions</p></div></div>
+      <div class="flex items-center gap-3 border-b border-slate-100 p-3.5"><span class="icon-tile h-10 w-10 bg-emerald-50 text-emerald-600"><i data-lucide="target" class="h-5 w-5"></i></span><div><p class="text-lg font-extrabold leading-tight">25%</p><p class="mt-0.5 text-[11px] text-slate-500">Avg Score</p></div></div>
+      <div class="flex items-center gap-3 border-r border-slate-100 p-3.5"><span class="icon-tile h-10 w-10 bg-indigo-50 text-indigo-600"><i data-lucide="clock-3" class="h-5 w-5"></i></span><div><p class="text-lg font-extrabold leading-tight">63</p><p class="mt-0.5 text-[11px] text-slate-500">Questions</p></div></div>
+      <div class="flex items-center gap-3 p-3.5"><span class="icon-tile h-10 w-10 bg-amber-50 text-amber-600"><i data-lucide="flame" class="h-5 w-5"></i></span><div><p class="text-lg font-extrabold leading-tight">3 days</p><p class="mt-0.5 text-[11px] text-slate-500">Streak</p></div></div>
+    </section>
+    <a href="/referrals" class="soft-card mt-4 flex items-center gap-3 rounded-2xl p-3.5 text-inherit no-underline transition hover:border-blue-200">
+      <span class="icon-tile h-11 w-11"><i data-lucide="gift" class="h-5 w-5"></i></span><span class="min-w-0 flex-1"><span class="block text-sm font-bold">Refer &amp; Earn ₦500</span><span class="mt-1 block text-[11px] leading-relaxed text-slate-500">Invite friends and earn when they become paid members.</span></span><i data-lucide="chevron-right" class="h-4 w-4 text-slate-400"></i>
+    </a>
+    <a href="/ai-tutor" class="soft-card mt-3 flex items-center gap-3 rounded-2xl p-3.5 text-inherit no-underline transition hover:border-blue-200">
+      <span class="icon-tile h-11 w-11"><i data-lucide="sparkles" class="h-5 w-5"></i></span><span class="min-w-0 flex-1"><span class="block text-sm font-bold">AI Tutor</span><span class="mt-1 block text-[11px] leading-relaxed text-slate-500">Get instant help with any topic. Your personal AI study companion is ready!</span></span><span class="whitespace-nowrap rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">• Online</span>
+    </a>
+    <section class="mt-6">
+      <div class="mb-3 flex items-center justify-between"><h2 class="text-base font-extrabold tracking-tight">Exam Modes</h2><span class="text-[11px] font-medium text-slate-400">Choose how to study</span></div>
+      <div class="grid grid-cols-2 gap-3">
+        <a href="/select-subjects?mode=practice" class="soft-card rounded-2xl p-3.5 text-inherit no-underline"><span class="icon-tile mb-3 h-10 w-10"><i data-lucide="brain" class="h-5 w-5"></i></span><b class="block text-[13px]">Practice Mode</b><span class="mt-1 block text-[11px] leading-4 text-slate-500">Untimed &amp; instant</span></a>
+        <a href="/select-subjects?mode=cbt" class="soft-card rounded-2xl p-3.5 text-inherit no-underline"><span class="icon-tile mb-3 h-10 w-10"><i data-lucide="timer" class="h-5 w-5"></i></span><b class="block text-[13px]">CBT Exam</b><span class="mt-1 block text-[11px] leading-4 text-slate-500">60 timed questions</span></a>
+        <a href="/select-subjects?mode=mock" class="soft-card rounded-2xl p-3.5 text-inherit no-underline"><span class="icon-tile mb-3 h-10 w-10"><i data-lucide="graduation-cap" class="h-5 w-5"></i></span><b class="block text-[13px]">Mock Exam</b><span class="mt-1 block text-[11px] leading-4 text-slate-500">Full JAMB simulation</span></a>
+        <a href="/select-subjects?mode=revision" class="soft-card rounded-2xl p-3.5 text-inherit no-underline"><span class="icon-tile mb-3 h-10 w-10"><i data-lucide="refresh-ccw" class="h-5 w-5"></i></span><b class="block text-[13px]">Revision</b><span class="mt-1 block text-[11px] leading-4 text-slate-500">Review missed items</span></a>
+        <a href="/library" class="soft-card rounded-2xl p-3.5 text-inherit no-underline"><span class="icon-tile mb-3 h-10 w-10"><i data-lucide="library" class="h-5 w-5"></i></span><b class="block text-[13px]">Library</b><span class="mt-1 block text-[11px] leading-4 text-slate-500">Study materials</span></a>
+        <a href="/live-quiz" class="soft-card rounded-2xl p-3.5 text-inherit no-underline"><span class="icon-tile mb-3 h-10 w-10"><i data-lucide="users" class="h-5 w-5"></i></span><b class="block text-[13px]">Live Quiz</b><span class="mt-1 block text-[11px] leading-4 text-slate-500">Real-time challenge</span></a>
+      </div>
+    </section>
+    <section class="mt-6">
+      <h2 class="mb-3 text-base font-extrabold tracking-tight">Subjects</h2>
+      <div class="grid grid-cols-2 gap-2.5">
+        <a href="/select-subjects?mode=practice&subject=english" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="book-open" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">English</b><small class="text-[10px] text-slate-400">Language</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=mathematics" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="calculator" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Mathematics</b><small class="text-[10px] text-slate-400">Numbers &amp; logic</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=physics" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="atom" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Physics</b><small class="text-[10px] text-slate-400">Matter &amp; energy</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=chemistry" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="flask-conical" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Chemistry</b><small class="text-[10px] text-slate-400">Elements &amp; reactions</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=biology" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="dna" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Biology</b><small class="text-[10px] text-slate-400">Life sciences</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=economics" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="chart-no-axes-combined" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Economics</b><small class="text-[10px] text-slate-400">Markets &amp; choice</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=government" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="landmark" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Government</b><small class="text-[10px] text-slate-400">Civic studies</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=literature" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="feather" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">Literature</b><small class="text-[10px] text-slate-400">Texts &amp; poetry</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=crs" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="cross" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">CRS</b><small class="text-[10px] text-slate-400">Christian studies</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+        <a href="/select-subjects?mode=practice&subject=irs" class="soft-card flex items-center gap-2 rounded-2xl p-3 text-inherit no-underline"><span class="icon-tile h-9 w-9"><i data-lucide="moon-star" class="h-4 w-4"></i></span><span class="min-w-0 flex-1"><b class="block text-xs">IRS</b><small class="text-[10px] text-slate-400">Islamic studies</small></span><i data-lucide="chevron-right" class="h-3.5 w-3.5 text-slate-300"></i></a>
+      </div>
+    </section>
+  </main>
+  <nav class="fixed bottom-0 z-30 flex w-full max-w-[430px] items-center justify-around border-t border-slate-100 bg-white/95 px-2 py-2 backdrop-blur-md">
+    <a href="/dashboard" data-tab="Home" class="nav-active flex min-w-[62px] flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-[10px] font-bold"><i data-lucide="house" class="h-[18px] w-[18px]"></i>Home</a>
+    <a href="/select-subjects?mode=practice" data-tab="Practice" class="flex min-w-[62px] flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-[10px] font-semibold text-slate-500"><i data-lucide="book-open-check" class="h-[18px] w-[18px]"></i>Practice</a>
+    <a href="/referrals" data-tab="Earn" class="flex min-w-[62px] flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-[10px] font-semibold text-slate-500"><i data-lucide="gift" class="h-[18px] w-[18px]"></i>Earn</a>
+    <a href="/ai-tutor" data-tab="AI Tutor" class="flex min-w-[62px] flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-[10px] font-semibold text-slate-500"><i data-lucide="sparkles" class="h-[18px] w-[18px]"></i>AI Tutor</a>
+    <a href="/profile" data-tab="Profile" class="flex min-w-[62px] flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-[10px] font-semibold text-slate-500"><i data-lucide="user-round" class="h-[18px] w-[18px]"></i>Profile</a>
+  </nav>
+</div>
+<script>
+  lucide.createIcons();
+  document.querySelectorAll("[data-tab]").forEach(tab=>tab.addEventListener("click",()=>{
+    document.querySelectorAll("[data-tab]").forEach(item=>{item.classList.remove("nav-active","font-bold");item.classList.add("text-slate-500","font-semibold")});
+    tab.classList.add("nav-active","font-bold");tab.classList.remove("text-slate-500","font-semibold");
+  }));
+</script>
+</body></html>
