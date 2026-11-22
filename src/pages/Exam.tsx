@@ -53,7 +53,7 @@ const Exam = () => {
   const [trialBlocked, setTrialBlocked] = useState(false);
   const [activeSubject, setActiveSubject] = useState(subjects[0] || "");
   const [profileName, setProfileName] = useState("");
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
   const deadlineRef = useRef<number | null>(null);
   const answersRef = useRef<Record<string, string>>({});
   const submitRef = useRef<() => Promise<void>>(async () => {});
