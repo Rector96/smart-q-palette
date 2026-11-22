@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const authorization = req.headers.get("Authorization") ?? "";
-    const token = authorization.replace(/^Bearer\\s+/i, "");
+    const token = authorization.replace(/^Bearer\s+/i, "");
     if (!token || token === authorization) return respond({ error: "Sign in to use Live Quiz." }, 401);
 
     const url = Deno.env.get("SUPABASE_URL");
@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
     const { data: profile, error: profileError } = await admin.from("profiles")
       .select("full_name").eq("user_id", user.id).maybeSingle();
     if (profileError) throw profileError;
-    const displayName = String(profile?.full_name ?? "").trim().split(/\\s+/)[0] || "Player";
+    const displayName = String(profile?.full_name ?? "").trim().split(/\s+/)[0] || "Player";
 
     if (action === "create") {
       const subject = typeof body.subject === "string" ? body.subject.trim() : "";
