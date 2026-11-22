@@ -85,8 +85,8 @@ Deno.serve(async (req: Request) => {
       }
       const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, and correct_answer (exactly A, B, C, or D). Options must be plausible, and exactly one answer must be correct. Do not include markdown or explanations outside JSON.`;
       const providers = [
-        groqKey && { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile" },
-        geminiKey && { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: geminiKey, model: Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash" },
+        groqKey && { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: "openai/gpt-oss-120b" },
+        geminiKey && { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: geminiKey, model: "gemini-3.8-flash" },
       ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
       let questions: any[] | null = null;
       let lastStatus = 503;
