@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface LiveQuestionDraft {
   question_text: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string;
+  explanation?: string; exam_hint?: string;
 }
 import DesktopHeader from "@/components/DesktopHeader";
 
@@ -262,6 +263,12 @@ const LiveQuiz = () => {
               {generatedQuestions.map((q, i) => <Card key={i} className="rounded-xl border-border/60"><CardContent className="space-y-2 p-3"><p className="text-xs font-bold text-muted-foreground">QUESTION {i + 1}</p><Textarea value={q.question_text} onChange={e => updateGeneratedQuestion(i, "question_text", e.target.value)} rows={2} className="text-sm" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{(["A", "B", "C", "D"] as const).map(letter => <div key={letter} className="flex items-center gap-2"><span className="text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 text-xs" /></div>)}</div>
                 <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
+                <div className="rounded-lg border border-primary/15 bg-primary/5 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-primary">Study explanation</p>
+                  <Textarea value={q.explanation || ""} onChange={e => updateGeneratedQuestion(i, "explanation", e.target.value)} rows={2} placeholder="Why is this answer correct? (AI-generated explanation)" className="text-sm bg-background" />
+                  <p className="text-xs font-semibold text-muted-foreground">Revision tip</p>
+                  <Textarea value={q.exam_hint || ""} onChange={e => updateGeneratedQuestion(i, "exam_hint", e.target.value)} rows={2} placeholder="A short tip to help remember this concept" className="text-sm bg-background" />
+                </div>
               </CardContent></Card>)}
             </div>}
             <div className={questionSource === "ai" ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
