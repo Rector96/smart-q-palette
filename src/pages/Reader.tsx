@@ -132,6 +132,25 @@ const Reader = () => {
     return Math.max(240, Math.min(availableWidth, 900) * zoom);
   }, [containerWidth, zoom]);
 
+  useEffect(() => {
+    const root = viewerRef.current;
+    if (!root || !numPages || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const page = visible?.target.getAttribute("data-reader-page");
+        if (page) setPageNumber(Number(page));
+      },
+      { root, threshold: [0.25, 0.5, 0.75] },
+    );
+
+    root.querySelectorAll("[data-reader-page]").forEach((page) => observer.observe(page));
+    return () => observer.disconnect();
+  }, [fileUrl, numPages]);
+
   const onDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
     setNumPages(pdf.numPages);
     setPageNumber(1);
@@ -276,9 +295,9 @@ const Reader = () => {
             {Array.from({ length: numPages }, (_, index) => (
               <div
                 id={`reader-page-${index + 1}`}
+                data-reader-page={index + 1}
                 key={`page-${index + 1}`}
                 className="mx-auto w-fit max-w-none bg-white shadow-md"
-                onMouseEnter={() => setPageNumber(index + 1)}
               >
                 <Page
                   pageNumber={index + 1}
