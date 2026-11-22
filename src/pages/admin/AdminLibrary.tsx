@@ -187,7 +187,7 @@ const AdminLibrary = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4">
           <div className="flex items-center gap-3">
             <Link to="/admin"><ArrowLeft className="h-4 w-4" /></Link>
             <Shield className="h-5 w-5 text-primary" />
@@ -199,13 +199,13 @@ const AdminLibrary = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-4">
+      <main className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
         {/* Add/Edit Form */}
         <AnimatePresence>
           {showForm && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <Card className="border-primary/20">
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="space-y-3 p-3 sm:p-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold">{editing ? "Edit Book" : "Add New Book"}</h3>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetForm}><X className="h-4 w-4" /></Button>
@@ -254,7 +254,7 @@ const AdminLibrary = () => {
                     <Switch checked={isFree} onCheckedChange={setIsFree} />
                     <div><Label className="text-xs">{isFree ? "Free for every student" : "Included with paid subscription"}</Label><p className="text-[10px] text-muted-foreground">A paid subscriber can read every paid book in the library; students do not pay per book.</p></div>
                   </div>
-                  <Button size="sm" className="h-8 text-xs gap-1" onClick={handleSave} disabled={saving}>
+                  <Button size="sm" className="h-10 w-full gap-1 text-xs sm:h-8 sm:w-auto" onClick={handleSave} disabled={saving}>
                     {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                     {editing ? "Update Book" : "Add Book"}
                   </Button>
