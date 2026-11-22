@@ -136,7 +136,7 @@ Your goal is to help learners build confidence and master the topic. You are not
       const stream = new ReadableStream({
         start(controller) {
           for (const chunk of chunks) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\\n\\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`));
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
