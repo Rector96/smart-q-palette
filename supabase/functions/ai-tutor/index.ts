@@ -132,13 +132,13 @@ Your goal is to help learners build confidence and master the topic. You are not
       // Preserve the existing OpenAI-compatible SSE contract for the browser,
       // while validating the complete answer before committing to a provider.
       const encoder = new TextEncoder();
-      const chunks = assistantContent.match(/[\\s\\S]{1,96}/g) ?? [assistantContent];
+      const chunks = assistantContent.match(/[\s\S]{1,96}/g) ?? [assistantContent];
       const stream = new ReadableStream({
         start(controller) {
           for (const chunk of chunks) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\\n\\n`));
           }
-          controller.enqueue(encoder.encode("data: [DONE]\\n\\n"));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         },
       });
