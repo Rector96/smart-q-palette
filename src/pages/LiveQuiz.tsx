@@ -239,7 +239,7 @@ const LiveQuiz = () => {
                   {SUBJECTS.filter(s => questionSource === "ai" || availableSubjects === null || availableSubjects.some(name => name.trim().toLowerCase() === s.name.trim().toLowerCase() || name.trim().toLowerCase() === s.id.replace(/_/g, " ").toLowerCase())).map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {availableSubjects !== null && availableSubjects.length === 0 && <p className="text-xs text-destructive">No subjects currently have published questions for Live Quiz.</p>}
+              {questionSource === "bank" && availableSubjects !== null && availableSubjects.length === 0 && <p className="text-xs text-destructive">No subjects currently have published questions for Live Quiz.</p>}
               {questionSource === "bank" && availableSubjects !== null && availableSubjects.length > 0 && <p className="text-xs text-muted-foreground">Only subjects with published questions are shown.</p>}
             </div>
             <div className="space-y-2">
@@ -264,11 +264,11 @@ const LiveQuiz = () => {
                 <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
               </CardContent></Card>)}
             </div>}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className={questionSource === "ai" ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
+              {questionSource === "bank" && <div className="space-y-2">
                 <Label className="text-sm font-semibold">Questions</Label>
                 <Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-12 rounded-xl text-base" />
-              </div>
+              </div>}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Time/Question (s)</Label>
                 <Input type="number" min={10} max={120} value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))} className="h-10" />
