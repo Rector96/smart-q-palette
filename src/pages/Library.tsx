@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, ArrowLeft, FileText, Lock } from "lucide-react";
+import { BookOpen, Eye, ArrowLeft, FileText, Lock, Search, BookMarked } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import SubscriptionModal from "@/components/SubscriptionModal";
@@ -18,6 +18,9 @@ interface LibraryItem {
   full_file_url: string | null;
   is_free: boolean | null;
   summary: string | null;
+  author: string | null;
+  category: string;
+  target_level: string | null;
 }
 
 const Library = () => {
@@ -27,12 +30,14 @@ const Library = () => {
   const [loading, setLoading] = useState(true);
   const [isPro, setIsPro] = useState(false);
   const [showSub, setShowSub] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
 
   const load = useCallback(async () => {
     // Fetch books and profile in parallel for speed
     const booksPromise = supabase
       .from("digital_library")
-      .select("id, title, description, cover_image_url, preview_file_url, full_file_url, is_free, summary")
+      .select("id, title, description, cover_image_url, preview_file_url, full_file_url, is_free, summary, author, category, target_level")
       .order("created_at", { ascending: false });
 
     const profilePromise = user
@@ -59,11 +64,27 @@ const Library = () => {
     }
   };
 
+  const handleRead = (book: LibraryItem) => {
+    if (book.is_free || isPro) {
+      navigate(`/reader/${book.id}`);
+    } else {
+      setShowSub(true);
+    }
+  };
+
   const handlePreview = (book: LibraryItem) => {
     if (book.preview_file_url) {
       navigate(`/reader/${book.id}?preview=true`);
     }
   };
+
+  const categories = ["All", ...Array.from(new Set(books.map((book) => book.category || "General"))).sort()];
+  const filteredBooks = books.filter((book) => {
+    const matchesCategory = activeCategory === "All" || (book.category || "General") === activeCategory;
+    const term = search.trim().toLowerCase();
+    const matchesSearch = !term || [book.title, book.author, book.description, book.target_level, book.category].some((value) => value?.toLowerCase().includes(term));
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,7 +98,17 @@ const Library = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-5xl mx-auto px-4 py-5 sm:py-6 space-y-4">
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search novels, authors or study materials..." className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" aria-label="Search library" />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {categories.map((category) => <Button key={category} type="button" size="sm" variant={activeCategory === category ? "default" : "outline"} className="h-8 shrink-0 rounded-full px-3 text-xs" onClick={() => setActiveCategory(category)}>{category}</Button>)}
+          </div>
+          <div className="flex items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{filteredBooks.length} {filteredBooks.length === 1 ? "book" : "books"} available</p>{isPro && <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">Full library access</span>}</div>
+        </div>
         {loading ? (
           <div className="grid grid-cols-2 gap-3">
             {[1, 2, 3, 4].map((i) => (
@@ -98,8 +129,10 @@ const Library = () => {
             <p className="text-xs text-muted-foreground">Books and study materials will appear here.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {books.map((book, idx) => (
+          filteredBooks.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border px-4 py-12 text-center"><BookMarked className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="text-sm font-semibold">No matching books</p><p className="mt-1 text-xs text-muted-foreground">Try another title, author or category.</p></div>
+          ) : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {filteredBooks.map((book, idx) => (
               <motion.div
                 key={book.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -118,9 +151,16 @@ const Library = () => {
                   )}
                   <CardContent className="p-2.5 flex-1 flex flex-col">
                     <h3 className="font-bold text-xs mb-0.5 line-clamp-2">{book.title}</h3>
+                    {book.author && <p className="text-[10px] text-primary mb-1 line-clamp-1">By {book.author}</p>}
+                    <div className="mb-1 flex flex-wrap gap-1"><span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-medium">{book.category || "General"}</span>{book.target_level && <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px]">{book.target_level}</span>}</div>
                     {book.description && <p className="text-[10px] text-muted-foreground mb-2 line-clamp-2 flex-1">{book.description}</p>}
                     <div className="flex flex-col gap-1.5 mt-auto">
-                      {/* Summary: main action — paid only */}
+                      {book.full_file_url && (
+                        <Button size="sm" className="h-8 w-full gap-1 px-2 text-[10px]" onClick={() => handleRead(book)}>
+                          <BookOpen className="h-3 w-3" /> Read full book {(!book.is_free && !isPro) && <Lock className="ml-1 h-3 w-3" />}
+                        </Button>
+                      )}
+                      {/* Summary: main action — access follows the book setting and subscription */}
                       {book.summary && (
                         <Button
                           size="sm"
