@@ -20,6 +20,9 @@ interface LibraryItem {
   preview_file_url: string | null;
   full_file_url: string | null;
   is_free: boolean | null;
+  author: string | null;
+  category: string;
+  target_level: string | null;
   created_at: string | null;
 }
 
@@ -37,6 +40,9 @@ const AdminLibrary = () => {
   const [previewUrl, setPreviewUrl] = useState("");
   const [fullUrl, setFullUrl] = useState("");
   const [isFree, setIsFree] = useState(false);
+  const [author, setAuthor] = useState("");
+  const [category, setCategory] = useState("Literature");
+  const [targetLevel, setTargetLevel] = useState("");
 
   const fetchItems = async () => {
     const { data } = await supabase.from("digital_library").select("*").order("created_at", { ascending: false });
@@ -47,7 +53,7 @@ const AdminLibrary = () => {
   useEffect(() => { fetchItems(); }, []);
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setCoverUrl(""); setPreviewUrl(""); setFullUrl(""); setIsFree(false);
+    setTitle(""); setDescription(""); setCoverUrl(""); setPreviewUrl(""); setFullUrl(""); setIsFree(false); setAuthor(""); setCategory("Literature"); setTargetLevel("");
     setEditing(null); setShowForm(false);
   };
 
@@ -59,6 +65,9 @@ const AdminLibrary = () => {
     setPreviewUrl(item.preview_file_url || "");
     setFullUrl(item.full_file_url || "");
     setIsFree(item.is_free || false);
+    setAuthor(item.author || "");
+    setCategory(item.category || "General");
+    setTargetLevel(item.target_level || "");
     setShowForm(true);
   };
 
@@ -73,6 +82,9 @@ const AdminLibrary = () => {
       preview_file_url: previewUrl.trim() || null,
       full_file_url: fullUrl.trim() || null,
       is_free: isFree,
+      author: author.trim() || null,
+      category,
+      target_level: targetLevel.trim() || null,
     };
 
     if (editing) {
@@ -133,6 +145,11 @@ const AdminLibrary = () => {
                       <Input value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="h-9 text-xs" placeholder="https://... (Google Images URL)" />
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="space-y-1"><Label className="text-xs">Author</Label><Input value={author} onChange={(e) => setAuthor(e.target.value)} className="h-9 text-xs" placeholder="Author name" /></div>
+                    <div className="space-y-1"><Label className="text-xs">Category</Label><select value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"><option>Literature</option><option>Textbook</option><option>Study Guide</option><option>Past Questions</option><option>General</option></select></div>
+                    <div className="space-y-1"><Label className="text-xs">Class / Exam level</Label><Input value={targetLevel} onChange={(e) => setTargetLevel(e.target.value)} className="h-9 text-xs" placeholder="e.g. SS2, WAEC, JAMB" /></div>
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Description</Label>
                     <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="text-xs" rows={2} placeholder="Brief description of the book..." />
@@ -155,7 +172,7 @@ const AdminLibrary = () => {
                   )}
                   <div className="flex items-center gap-3">
                     <Switch checked={isFree} onCheckedChange={setIsFree} />
-                    <Label className="text-xs">{isFree ? "Free (all users)" : "Paid (subscribers only)"}</Label>
+                    <div><Label className="text-xs">{isFree ? "Free for every student" : "Included with paid subscription"}</Label><p className="text-[10px] text-muted-foreground">A paid subscriber can read every paid book in the library; students do not pay per book.</p></div>
                   </div>
                   <Button size="sm" className="h-8 text-xs gap-1" onClick={handleSave} disabled={saving}>
                     {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -190,11 +207,13 @@ const AdminLibrary = () => {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold truncate">{item.title}</p>
+                    {item.author && <p className="text-[10px] text-primary mt-0.5">By {item.author}</p>}
                     {item.description && <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{item.description}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant={item.is_free ? "default" : "secondary"} className="text-[9px] h-4">
                         {item.is_free ? "Free" : "Paid"}
                       </Badge>
+                      <Badge variant="outline" className="text-[9px] h-4">{item.category || "General"}</Badge>
                       {item.preview_file_url && <Badge variant="outline" className="text-[9px] h-4">Preview</Badge>}
                       {item.full_file_url && <Badge variant="outline" className="text-[9px] h-4">Full</Badge>}
                     </div>
