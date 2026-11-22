@@ -180,7 +180,7 @@ const LiveQuiz = () => {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-3 pb-28 pt-5 sm:px-4 sm:py-8 space-y-5">
+      <main className="w-full max-w-2xl mx-auto px-3 pb-28 pt-5 sm:px-5 sm:py-8 md:px-6 space-y-5">
         {view === "menu" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="text-center space-y-3 mb-6 px-2">
@@ -258,9 +258,9 @@ const LiveQuiz = () => {
               <Button type="button" variant="outline" className="w-full rounded-xl" onClick={handleGenerate} disabled={generating || !subject || !topic.trim()}>{generating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating questions...</> : "Generate questions"}</Button>
             </div>}
             {questionSource === "ai" && generatedQuestions.length > 0 && <div className="space-y-3">
-              <div className="flex items-center justify-between"><p className="text-sm font-bold">Preview · {generatedQuestions.length} questions</p><Button type="button" size="sm" variant="ghost" onClick={handleGenerate} disabled={generating}>Regenerate all</Button></div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold">Preview · {generatedQuestions.length} questions</p><Button type="button" size="sm" variant="ghost" onClick={handleGenerate} disabled={generating}>Regenerate all</Button></div>
               {generatedQuestions.map((q, i) => <Card key={i} className="rounded-xl border-border/60"><CardContent className="space-y-2 p-3"><p className="text-xs font-bold text-muted-foreground">QUESTION {i + 1}</p><Textarea value={q.question_text} onChange={e => updateGeneratedQuestion(i, "question_text", e.target.value)} rows={2} className="text-sm" />
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(["A", "B", "C", "D"] as const).map(letter => <div key={letter} className="flex items-center gap-2"><span className="text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 text-xs" /></div>)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{(["A", "B", "C", "D"] as const).map(letter => <div key={letter} className="flex items-center gap-2"><span className="text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 text-xs" /></div>)}</div>
                 <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
               </CardContent></Card>)}
             </div>}
