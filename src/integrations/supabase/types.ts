@@ -93,6 +93,8 @@ export type Database = {
       }
       digital_library: {
         Row: {
+          author: string | null
+          category: string
           cover_image_url: string | null
           created_at: string | null
           description: string | null
@@ -101,10 +103,13 @@ export type Database = {
           is_free: boolean | null
           preview_file_url: string | null
           summary: string | null
+          target_level: string | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          author?: string | null
+          category?: string
           cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
@@ -113,10 +118,13 @@ export type Database = {
           is_free?: boolean | null
           preview_file_url?: string | null
           summary?: string | null
+          target_level?: string | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          author?: string | null
+          category?: string
           cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
@@ -125,6 +133,7 @@ export type Database = {
           is_free?: boolean | null
           preview_file_url?: string | null
           summary?: string | null
+          target_level?: string | null
           title?: string
           updated_at?: string | null
         }
