@@ -78,24 +78,51 @@ Deno.serve(async (req: Request) => {
         return respond({ error: "Choose a subject, enter a topic and select 5–50 questions." }, 400);
       }
       const groqKey = Deno.env.get("GROQ_API_KEY");
-      if (!groqKey) return respond({ error: "AI question generation is not configured on this server yet." }, 503);
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
+      if (!groqKey && !geminiKey) {
+        console.error("Live Quiz AI is missing both GROQ_API_KEY and GEMINI_API_KEY Edge Function secrets.");
+        return respond({ error: "AI question generation is not configured on this server yet. Add GROQ_API_KEY or GEMINI_API_KEY to the Supabase project's Edge Function secrets, then redeploy this function." }, 503);
+      }
       const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, and correct_answer (exactly A, B, C, or D). Options must be plausible, and exactly one answer must be correct. Do not include markdown or explanations outside JSON.`;
-      const upstream = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile",
-          temperature: 0.65,
-          messages: [
-            { role: "system", content: "You create accurate educational multiple-choice questions. Output valid JSON only." },
-            { role: "user", content: prompt },
-          ],
-        }),
-      });
-      if (!upstream.ok) {
-        const providerBody = await upstream.text();
-        console.error("Live Quiz Groq generation failed:", upstream.status, providerBody.slice(0, 1000));
-        return respond({ error: upstream.status === 429 ? "AI is busy right now. Please wait a moment and try again." : "AI could not generate questions right now. Please try again." }, upstream.status === 429 ? 429 : 503);
+      const providers = [
+        groqKey && { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile" },
+        geminiKey && { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: geminiKey, model: Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash" },
+      ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
+      let upstream: Response | null = null;
+      let lastStatus = 503;
+      for (const provider of providers) {
+        try {
+          const candidate = await fetch(provider.url, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${provider.key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: provider.model,
+              temperature: 0.65,
+              messages: [
+                { role: "system", content: "You create accurate educational multiple-choice questions. Output valid JSON only." },
+                { role: "user", content: prompt },
+              ],
+            }),
+          });
+          if (candidate.ok) {
+            upstream = candidate;
+            console.info(`Live Quiz question provider selected: ${provider.name}`);
+            break;
+          }
+          lastStatus = candidate.status;
+          const providerBody = await candidate.text();
+          console.error(`Live Quiz ${provider.name} generation failed:`, candidate.status, providerBody.slice(0, 1000));
+        } catch (providerError) {
+          lastStatus = 503;
+          console.error(`Live Quiz ${provider.name} request failed:`, providerError);
+        }
+      }
+      if (!upstream) {
+        return respond({
+          error: lastStatus === 429
+            ? "Groq and Gemini are currently rate-limited or busy. Please wait a moment and try again."
+            : "Neither Groq nor Gemini could generate questions right now. Check the AI provider secrets and model access, then try again.",
+        }, lastStatus === 429 ? 429 : 503);
       }
       const completion = await upstream.json();
       const content = String(completion.choices?.[0]?.message?.content ?? "");
