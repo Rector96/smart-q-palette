@@ -461,7 +461,7 @@ const QuizRoom = () => {
   const sorted = [...participants].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-[env(safe-area-inset-bottom)]">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/[0.045] flex flex-col pb-[env(safe-area-inset-bottom)]">
       {/* Tab warning */}
       <AnimatePresence>
         {tabWarning && (
@@ -474,7 +474,7 @@ const QuizRoom = () => {
 
       {/* Header */}
       <div className="sticky top-0 z-30 border-b border-border/70 bg-card/95 px-4 py-3 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">{room.subject} · Live battle</span>
             <div className="flex items-center gap-2">
@@ -501,9 +501,9 @@ const QuizRoom = () => {
       </div>
 
       {/* Question */}
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col space-y-5 px-4 py-6 sm:py-8">
+      <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-5 px-4 py-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_280px]"><section className="min-w-0 space-y-5">
         <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-          <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:rounded-3xl sm:p-7"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><p className="text-base font-semibold leading-relaxed sm:text-lg">{currentQuestion.question_text}</p></div>
+          <div className="relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-lg shadow-primary/5 sm:p-9"><div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/[0.07] blur-2xl" /><div className="relative"><div className="mb-4 flex items-center justify-between gap-3"><p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-bold text-muted-foreground">Question {currentQ + 1} of {questions.length}</span></div><p className="text-lg font-semibold leading-relaxed sm:text-xl">{currentQuestion.question_text}</p></div></div>
         </motion.div>
 
         <div className="space-y-2">
@@ -522,7 +522,7 @@ const QuizRoom = () => {
             }
 
             return (
-              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("cursor-pointer rounded-2xl transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none", !answered && "hover:-translate-y-0.5 hover:shadow-md")} onClick={() => handleAnswer(opt)}>
+              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("cursor-pointer rounded-2xl border-2 transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none", !answered && "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5")} onClick={() => handleAnswer(opt)}>
                 <CardContent className="flex min-h-[64px] items-center gap-4 p-4 sm:p-5">
                   <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold", showResult && isCorrect ? "bg-[hsl(var(--success))] text-white" : showResult && isSelected ? "bg-destructive text-white" : "bg-secondary")}>
                     {showResult && isCorrect ? <CheckCircle2 className="h-4 w-4" /> : showResult && isSelected ? <XCircle className="h-4 w-4" /> : opt}
@@ -548,24 +548,48 @@ const QuizRoom = () => {
                 </div>
               )}
 
-              {/* Mini leaderboard */}
-              <Card className="border-border/50 rounded-xl">
-                <CardContent className="p-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Live Scores</p>
-                  {sorted.slice(0, 5).map((p, i) => (
-                    <div key={p.id} className="flex items-center justify-between py-0.5">
-                      <span className="text-[11px] font-medium">{i + 1}. {p.display_name}</span>
-                      <span className="text-[11px] font-bold text-primary">{p.score}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
               {!isHost && <p className="text-[10px] text-muted-foreground text-center">Waiting for next question...</p>}
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </section>
+
+      <aside className="space-y-3 lg:sticky lg:top-28 lg:self-start">
+        <Card className="overflow-hidden rounded-3xl border-border/60 bg-card/90 shadow-sm backdrop-blur">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-extrabold">Live leaderboard</p>
+                <p className="text-[11px] text-muted-foreground">Scores update as players answer</p>
+              </div>
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{participants.length}</span>
+            </div>
+            <div className="space-y-2">
+              {sorted.map((participant, index) => (
+                <div key={participant.id} className={cn("flex items-center gap-2 rounded-xl px-2.5 py-2", participant.user_id === user?.id ? "bg-primary/10 ring-1 ring-primary/20" : "bg-secondary/50")}>
+                  <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold", index === 0 ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground")}>{index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold">{participant.display_name}{participant.user_id === user?.id ? " · You" : ""}</span>
+                  <span className="shrink-0 text-xs font-extrabold tabular-nums text-primary">{participant.score} pts</span>
+                </div>
+              ))}
+              {participants.length === 0 && <p className="text-xs text-muted-foreground">Waiting for players…</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border-border/60 bg-card/90 shadow-sm">
+          <CardContent className="space-y-3 p-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Room code</p>
+              <p className="mt-1 text-2xl font-black tracking-[0.22em] text-primary">{roomCode}</p>
+            </div>
+            <Button variant="outline" className="w-full gap-2 rounded-xl" onClick={copyRoomCode}>
+              <Copy className="h-4 w-4" /> {copied ? "Copied!" : "Copy room code"}
+            </Button>
+          </CardContent>
+        </Card>
+      </aside>
+    </main>
     </div>
   );
 };
