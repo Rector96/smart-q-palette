@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +42,11 @@ const TakeExam = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const answersRef = useRef<Record<number, string>>({});
+  const deadlineRef = useRef<number | null>(null);
+  const submitRef = useRef<() => Promise<void>>(async () => {});
+  const submittedRef = useRef(false);
+  answersRef.current = answers;
 
   useEffect(() => {
     const load = async () => {
@@ -70,28 +75,42 @@ const TakeExam = () => {
     load();
   }, [code]);
 
-  // Timer
+  // Use an absolute deadline so background-tab throttling cannot extend the exam.
   useEffect(() => {
-    if (!started || submitted) return;
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [started, submitted]);
+    if (!started || submitted || !deadlineRef.current) return;
+
+    let interval: ReturnType<typeof window.setInterval> | null = null;
+    const updateCountdown = () => {
+      const deadline = deadlineRef.current;
+      if (!deadline) return;
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        if (interval !== null) window.clearInterval(interval);
+        void submitRef.current();
+      }
+    };
+
+    updateCountdown();
+    interval = window.setInterval(updateCountdown, 250);
+    window.addEventListener("focus", updateCountdown);
+    document.addEventListener("visibilitychange", updateCountdown);
+
+    return () => {
+      if (interval !== null) window.clearInterval(interval);
+      window.removeEventListener("focus", updateCountdown);
+      document.removeEventListener("visibilitychange", updateCountdown);
+    };
+  }, [started, submitted, exam?.id]);
 
   const handleSubmit = async () => {
-    if (!exam || submitted) return;
+    if (!exam || submittedRef.current) return;
+    submittedRef.current = true;
     setSubmitted(true);
+    const finalAnswers = answersRef.current;
     let correct = 0;
     exam.questions.forEach((q, i) => {
-      if (answers[i] === q.correct_answer) correct++;
+      if (finalAnswers[i] === q.correct_answer) correct++;
     });
     setScore(correct);
 
@@ -100,9 +119,10 @@ const TakeExam = () => {
       student_name: studentName || "Anonymous",
       score: correct,
       total_questions: exam.questions.length,
-      answers: answers as any,
+      answers: finalAnswers as any,
     });
   };
+  submitRef.current = handleSubmit;
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
@@ -212,7 +232,7 @@ const TakeExam = () => {
           <div className="space-y-2">
             <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="Enter your name" className="h-11 text-center" />
           </div>
-          <Button className="w-full h-11" onClick={() => setStarted(true)} disabled={!studentName.trim()}>
+          <Button className="w-full h-11" onClick={() => { deadlineRef.current = Date.now() + (exam.duration_minutes || 60) * 60 * 1000; setTimeLeft((exam.duration_minutes || 60) * 60); setStarted(true); }} disabled={!studentName.trim()}>
             Start Exam
           </Button>
         </motion.div>
@@ -247,7 +267,7 @@ const TakeExam = () => {
             return (
               <button
                 key={label}
-                onClick={() => setAnswers({ ...answers, [currentIdx]: label })}
+                onClick={() => { const nextAnswers = { ...answersRef.current, [currentIdx]: label }; answersRef.current = nextAnswers; setAnswers(nextAnswers); }}
                 className={cn(
                   "w-full text-left p-3 rounded-xl border text-sm transition-all flex items-center gap-3",
                   selected ? "border-primary bg-primary/5 font-medium" : "border-border/50 hover:border-primary/30"
