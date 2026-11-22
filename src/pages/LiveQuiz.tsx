@@ -14,6 +14,19 @@ import { SUBJECTS } from "@/lib/subjects";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DesktopHeader from "@/components/DesktopHeader";
 
+async function getFunctionErrorMessage(error: any, fallback: string): Promise<string> {
+  const context = error?.context;
+  if (context && typeof context.json === "function") {
+    try {
+      const payload = await context.json();
+      if (typeof payload?.error === "string" && payload.error.trim()) return payload.error;
+    } catch {
+      // Fall back to the SDK error when the response body is unavailable.
+    }
+  }
+  return error?.message || fallback;
+}
+
 const LiveQuiz = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -23,6 +36,7 @@ const LiveQuiz = () => {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<{ is_subscribed: boolean; free_live_quiz_used: number; full_name: string | null }>({ is_subscribed: false, free_live_quiz_used: 0, full_name: null });
   const [showPaywall, setShowPaywall] = useState(false);
+  const [availableSubjects, setAvailableSubjects] = useState<string[] | null>(null);
 
   // Create form
   const [subject, setSubject] = useState("");
@@ -40,6 +54,15 @@ const LiveQuiz = () => {
       if (data) setProfile(data as any);
     };
     fetch();
+    const fetchAvailableSubjects = async () => {
+      const { data, error } = await supabase.functions.invoke("live-quiz", { body: { action: "subjects" } });
+      if (error) {
+        console.error("Unable to load Live Quiz subjects:", await getFunctionErrorMessage(error, "Subject list unavailable."));
+        return;
+      }
+      if (Array.isArray(data?.subjects)) setAvailableSubjects(data.subjects);
+    };
+    fetchAvailableSubjects();
   }, [user]);
 
   const checkAccess = (): boolean => {
@@ -62,7 +85,7 @@ const LiveQuiz = () => {
           game_mode: gameMode,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await getFunctionErrorMessage(error, "We could not create the quiz room. Please try again."));
       if (data?.error) {
         if (String(data.error).toLowerCase().includes("free live quiz")) setShowPaywall(true);
         throw new Error(data.error);
@@ -172,9 +195,11 @@ const LiveQuiz = () => {
               <Select value={subject} onValueChange={setSubject}>
                 <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
-                  {SUBJECTS.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  {SUBJECTS.filter(s => availableSubjects === null || availableSubjects.some(name => name.trim().toLowerCase() === s.name.trim().toLowerCase() || name.trim().toLowerCase() === s.id.replace(/_/g, " ").toLowerCase())).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {availableSubjects !== null && availableSubjects.length === 0 && <p className="text-xs text-destructive">No subjects currently have published questions for Live Quiz.</p>}
+              {availableSubjects !== null && availableSubjects.length > 0 && <p className="text-xs text-muted-foreground">Only subjects with published questions are shown.</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
