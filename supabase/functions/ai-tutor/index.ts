@@ -32,7 +32,7 @@ serve(async (req) => {
     });
 
     const safeStudentName = typeof studentName === "string"
-      ? studentName.trim().replace(/[^\\p{L}\\p{M}\\s'-]/gu, "").slice(0, 60)
+      ? studentName.trim().replace(/[^\p{L}\p{M}\s'-]/gu, "").slice(0, 60)
       : "";
     const systemPrompt = `You are a warm, thoughtful, highly capable personal AI study tutor for Nigerian students. Your job is to answer the learner's actual question and help them understand, not merely give generic encouragement.
 
