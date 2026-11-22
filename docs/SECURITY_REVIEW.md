@@ -1,3 +1,31 @@
+# Security review status addendum — 2026-11-22
+
+This addendum supersedes earlier statements in this document where they conflict with the current source code or the development database's recorded migration history. The original review below is retained as historical evidence and must not be treated as a current certification.
+
+## Payment-handler recheck
+
+The current `paystack-verify` source now:
+- authenticates the caller and looks up the payment by both reference and authenticated user ID;
+- requires a pending payment before verification;
+- checks Paystack's top-level response status, successful transaction status, exact reference, expected amount, NGN currency, and payer email when available;
+- updates the payment only when its ID, owner, and pending status still match.
+
+The current `paystack-webhook` source rejects missing/invalid signatures, validates the modern timestamped signature (or the legacy HMAC signature), looks up the stored payment by reference, checks amount and currency, and uses the stored payment owner for account activation. Referral reward crediting uses an idempotent database RPC.
+
+Therefore, the older payment-ownership, amount/currency, and missing-signature findings below are historical and are not confirmed against the current handlers. The current flow still requires automated tests for replay, concurrent verification, invalid/missing signatures, wrong amount/currency, unknown references, and referral idempotency.
+
+## Database and migration status
+
+The development project `igntxwcitbjnafgrrcot` is active and has a recorded migration history. It is not an empty database. See `docs/DEVELOPMENT_DATABASE_MIGRATION_STATUS.md` for the filename alignment, archived legacy migrations, and five applied migration versions whose original SQL files are currently missing from this repository.
+
+No production database or deployment was changed by the cleanup branch.
+
+## Remaining review boundary
+
+The other findings in the historical review—including Live Quiz answer exposure and client-side score integrity—remain items requiring current source, RLS, and end-to-end verification. This addendum does not declare them fixed. Do not use this document as proof that the application or database has passed a complete security audit.
+
+---
+
 # Security Review — Smart Q Palette
 
 Review date: 2026-11-19
