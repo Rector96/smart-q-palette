@@ -34,6 +34,8 @@ const AdminLibrary = () => {
   const [editing, setEditing] = useState<LibraryItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [fullFile, setFullFile] = useState<File | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -54,7 +56,7 @@ const AdminLibrary = () => {
   useEffect(() => { fetchItems(); }, []);
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setCoverUrl(""); setCoverFile(null); setPreviewUrl(""); setFullUrl(""); setIsFree(false); setAuthor(""); setCategory("Literature"); setTargetLevel("");
+    setTitle(""); setDescription(""); setCoverUrl(""); setCoverFile(null); setPreviewFile(null); setFullFile(null); setPreviewUrl(""); setFullUrl(""); setIsFree(false); setAuthor(""); setCategory("Literature"); setTargetLevel("");
     setEditing(null); setShowForm(false);
   };
 
@@ -64,6 +66,8 @@ const AdminLibrary = () => {
     setDescription(item.description || "");
     setCoverUrl(item.cover_image_url || "");
     setCoverFile(null);
+    setPreviewFile(null);
+    setFullFile(null);
     setPreviewUrl(item.preview_file_url || "");
     setFullUrl(item.full_file_url || "");
     setIsFree(item.is_free || false);
@@ -101,31 +105,76 @@ const AdminLibrary = () => {
       savedCoverUrl = supabase.storage.from("library-covers").getPublicUrl(filePath).data.publicUrl;
     }
 
+    const validatePdf = (file: File | null, label: string) => {
+      if (!file) return true;
+      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+        toast({ title: "Invalid PDF", description: `${label} must be a PDF file.`, variant: "destructive" });
+        return false;
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        toast({ title: "PDF is too large", description: `${label} must be 25 MB or smaller.`, variant: "destructive" });
+        return false;
+      }
+      return true;
+    };
+    if (!validatePdf(previewFile, "Preview") || !validatePdf(fullFile, "Full book")) {
+      setSaving(false);
+      return;
+    }
+
+    let savedPreviewPath = previewUrl.trim() || null;
+    let savedFullPath = fullUrl.trim() || null;
+
+    if (previewFile) {
+      const path = `previews/${crypto.randomUUID()}.pdf`;
+      const { error } = await supabase.storage.from("library-previews").upload(path, previewFile, { contentType: "application/pdf", upsert: false });
+      if (error) {
+        toast({ title: "Preview upload failed", description: error.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      savedPreviewPath = path;
+    }
+
+    if (fullFile) {
+      const path = `books/${crypto.randomUUID()}.pdf`;
+      const { error } = await supabase.storage.from("library").upload(path, fullFile, { contentType: "application/pdf", upsert: false });
+      if (error) {
+        toast({ title: "Full book upload failed", description: error.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      savedFullPath = path;
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
       cover_image_url: savedCoverUrl || null,
-      preview_file_url: previewUrl.trim() || null,
-      full_file_url: fullUrl.trim() || null,
+      preview_file_url: savedPreviewPath,
+      full_file_url: savedFullPath,
       is_free: isFree,
       author: author.trim() || null,
       category,
       target_level: targetLevel.trim() || null,
     };
 
+    let saveSucceeded = false;
     if (editing) {
       const { error } = await supabase.from("digital_library").update(payload).eq("id", editing.id);
       if (error) { toast({ title: "Error updating", description: error.message, variant: "destructive" }); }
-      else { toast({ title: "Updated!" }); }
+      else { toast({ title: "Updated!" }); saveSucceeded = true; }
     } else {
       const { error } = await supabase.from("digital_library").insert(payload);
       if (error) { toast({ title: "Error adding", description: error.message, variant: "destructive" }); }
-      else { toast({ title: "Book added!" }); }
+      else { toast({ title: "Book added!" }); saveSucceeded = true; }
     }
 
     setSaving(false);
-    resetForm();
-    fetchItems();
+    if (saveSucceeded) {
+      resetForm();
+      fetchItems();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -169,15 +218,15 @@ const AdminLibrary = () => {
                     <div className="space-y-1">
                       <Label className="text-xs">Book Cover Image</Label>
                       <Input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} className="h-9 text-xs file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs" />
-                      <p className="text-[10px] text-muted-foreground">Upload JPG, PNG, WEBP or AVIF (maximum 5 MB), or paste an image link below.</p>
+                      <p className="text-[10px] text-muted-foreground">Choose JPG, PNG, WEBP or AVIF from your device (maximum 5 MB).</p>
                       {coverFile && <p className="text-[10px] text-primary">Selected: {coverFile.name}</p>}
-                      <Input type="url" value={coverUrl} onChange={(e) => { setCoverUrl(e.target.value); setCoverFile(null); }} className="h-9 text-xs" placeholder="Or paste a direct book-cover image URL" />
+                      {!coverFile && editing?.cover_image_url && <p className="text-[10px] text-muted-foreground">Current cover will be kept unless you choose another image.</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="space-y-1"><Label className="text-xs">Author</Label><Input value={author} onChange={(e) => setAuthor(e.target.value)} className="h-9 text-xs" placeholder="Author name" /></div>
                     <div className="space-y-1"><Label className="text-xs">Category</Label><select value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"><option>Literature</option><option>Textbook</option><option>Study Guide</option><option>Past Questions</option><option>General</option></select></div>
-                    <div className="space-y-1"><Label className="text-xs">Class / Exam level</Label><Input value={targetLevel} onChange={(e) => setTargetLevel(e.target.value)} className="h-9 text-xs" placeholder="e.g. SS2, WAEC, JAMB" /></div>
+                    <div className="space-y-1"><Label className="text-xs">Class / Exam level</Label><Input value={targetLevel} onChange={(e) => setTargetLevel(e.target.value)} className="h-9 text-xs" placeholder="e.g. SS2, Senior Secondary" /></div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Description</Label>
@@ -185,12 +234,14 @@ const AdminLibrary = () => {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Preview File URL (1-2 pages)</Label>
-                      <Input value={previewUrl} onChange={(e) => setPreviewUrl(e.target.value)} className="h-9 text-xs" placeholder="URL to preview PDF" />
+                      <Label className="text-xs">Preview PDF (public sample)</Label>
+                      <Input type="file" accept="application/pdf,.pdf" onChange={(e) => setPreviewFile(e.target.files?.[0] || null)} className="h-9 text-xs file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs" />
+                      {previewFile ? <p className="text-[10px] text-primary">Selected: {previewFile.name}</p> : <p className="text-[10px] text-muted-foreground">{editing?.preview_file_url ? "Existing preview will be kept." : "Select a short sample PDF. Maximum 25 MB."}</p>}
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Full Book URL (paid users)</Label>
-                      <Input value={fullUrl} onChange={(e) => setFullUrl(e.target.value)} className="h-9 text-xs" placeholder="URL to full content" />
+                      <Label className="text-xs">Full Literature PDF (protected)</Label>
+                      <Input type="file" accept="application/pdf,.pdf" onChange={(e) => setFullFile(e.target.files?.[0] || null)} className="h-9 text-xs file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs" />
+                      {fullFile ? <p className="text-[10px] text-primary">Selected: {fullFile.name}</p> : <p className="text-[10px] text-muted-foreground">{editing?.full_file_url ? "Existing full PDF will be kept." : "Select the complete book PDF. Maximum 25 MB."}</p>}
                     </div>
                   </div>
                   {(coverUrl || editing?.cover_image_url) && !coverFile && (
