@@ -33,6 +33,7 @@ const AdminLibrary = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LibraryItem | null>(null);
   const [saving, setSaving] = useState(false);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -53,7 +54,7 @@ const AdminLibrary = () => {
   useEffect(() => { fetchItems(); }, []);
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setCoverUrl(""); setPreviewUrl(""); setFullUrl(""); setIsFree(false); setAuthor(""); setCategory("Literature"); setTargetLevel("");
+    setTitle(""); setDescription(""); setCoverUrl(""); setCoverFile(null); setPreviewUrl(""); setFullUrl(""); setIsFree(false); setAuthor(""); setCategory("Literature"); setTargetLevel("");
     setEditing(null); setShowForm(false);
   };
 
@@ -62,6 +63,7 @@ const AdminLibrary = () => {
     setTitle(item.title);
     setDescription(item.description || "");
     setCoverUrl(item.cover_image_url || "");
+    setCoverFile(null);
     setPreviewUrl(item.preview_file_url || "");
     setFullUrl(item.full_file_url || "");
     setIsFree(item.is_free || false);
@@ -75,10 +77,34 @@ const AdminLibrary = () => {
     if (!title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return; }
     setSaving(true);
 
+    let savedCoverUrl = coverUrl.trim();
+    if (coverFile) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+      if (!allowedTypes.includes(coverFile.type)) {
+        toast({ title: "Unsupported image", description: "Choose a JPG, PNG, WEBP or AVIF image.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      if (coverFile.size > 5 * 1024 * 1024) {
+        toast({ title: "Image is too large", description: "Book covers must be 5 MB or smaller.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const extension = coverFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const filePath = `book-covers/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("library-covers").upload(filePath, coverFile, { contentType: coverFile.type, upsert: false });
+      if (uploadError) {
+        toast({ title: "Cover upload failed", description: uploadError.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      savedCoverUrl = supabase.storage.from("library-covers").getPublicUrl(filePath).data.publicUrl;
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
-      cover_image_url: coverUrl.trim() || null,
+      cover_image_url: savedCoverUrl || null,
       preview_file_url: previewUrl.trim() || null,
       full_file_url: fullUrl.trim() || null,
       is_free: isFree,
@@ -141,8 +167,11 @@ const AdminLibrary = () => {
                       <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-9 text-xs" placeholder="e.g. The Lekki Headmaster" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Book Cover Image (URL)</Label>
-                      <Input type="url" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="h-9 text-xs" placeholder="Paste a direct book-cover image URL" />
+                      <Label className="text-xs">Book Cover Image</Label>
+                      <Input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} className="h-9 text-xs file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs" />
+                      <p className="text-[10px] text-muted-foreground">Upload JPG, PNG, WEBP or AVIF (maximum 5 MB), or paste an image link below.</p>
+                      {coverFile && <p className="text-[10px] text-primary">Selected: {coverFile.name}</p>}
+                      <Input type="url" value={coverUrl} onChange={(e) => { setCoverUrl(e.target.value); setCoverFile(null); }} className="h-9 text-xs" placeholder="Or paste a direct book-cover image URL" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -164,9 +193,9 @@ const AdminLibrary = () => {
                       <Input value={fullUrl} onChange={(e) => setFullUrl(e.target.value)} className="h-9 text-xs" placeholder="URL to full content" />
                     </div>
                   </div>
-                  {coverUrl && (
+                  {(coverUrl || editing?.cover_image_url) && !coverFile && (
                     <div className="flex items-center gap-3">
-                      <img src={coverUrl} alt="Preview" className="h-16 w-12 object-cover rounded border" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <img src={coverUrl || editing?.cover_image_url || ""} alt="Preview" className="h-16 w-12 object-cover rounded border" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       <span className="text-[10px] text-muted-foreground">Cover preview</span>
                     </div>
                   )}
