@@ -382,7 +382,7 @@ const Exam = () => {
             <Logo size="sm" showText />
           </div>
           <div className="flex items-center gap-2">
-            {subjects.some((subject) => ["mathematics", "physics", "chemistry", "economics"].includes(subject.toLowerCase())) && <ScientificCalculator />}
+            <ScientificCalculator />
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
               <X className="h-4 w-4" />
             </Button>
