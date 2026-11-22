@@ -55,47 +55,48 @@ const QuizRoom = () => {
   const [answered, setAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  const [privateAnswer, setPrivateAnswer] = useState<any>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [quizEnded, setQuizEnded] = useState(false);
   const [tabWarning, setTabWarning] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const answerTimeRef = useRef(0);
 
-  // Load room
-  useEffect(() => {
+  // Load the sanitized room state from the trusted Live Quiz backend.
+  const refreshRoom = useCallback(async () => {
     if (!roomCode || !user) return;
-    const loadRoom = async () => {
-      const { data, error } = await supabase
-        .from("quiz_rooms")
-        .select("*")
-        .eq("room_code", roomCode)
-        .single();
-
-      if (error || !data) {
-        toast({ title: "Room not found", variant: "destructive" });
-        navigate("/live-quiz");
-        return;
-      }
-
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        toast({ title: "This quiz session has expired", variant: "destructive" });
-        navigate("/live-quiz");
-        return;
-      }
-
-      setRoom(data);
-      setIsHost(data.host_id === user.id);
-      setCurrentQ(data.current_question_index || 0);
-      if (data.status === "ended") setQuizEnded(true);
-      if (data.status === "live") {
-        setTimeLeft(data.time_per_question);
-        answerTimeRef.current = 0;
-      }
-      setLoading(false);
-    };
-    loadRoom();
+    const { data, error } = await supabase.functions.invoke("live-quiz", {
+      body: { action: "get", room_code: roomCode },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    const nextRoom = data?.room;
+    if (!nextRoom) throw new Error("Quiz room not found.");
+    setRoom(nextRoom);
+    setIsHost(nextRoom.host_id === user.id);
+    setCurrentQ(nextRoom.current_question_index || 0);
+    setParticipants(data.participants || []);
+    setPrivateAnswer(data.my_answer || null);
+    if (nextRoom.status === "ended") setQuizEnded(true);
+    else setQuizEnded(false);
+    if (nextRoom.status === "live") {
+      const startedAt = nextRoom.question_started_at ? new Date(nextRoom.question_started_at).getTime() : Date.now();
+      const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      setTimeLeft(Math.max(0, nextRoom.time_per_question - elapsed));
+      setSelectedOption(data.my_answer?.selected_option || null);
+      setAnswered(Boolean(data.my_answer));
+      setShowResult(Boolean(data.my_answer));
+    }
+    setLoading(false);
   }, [roomCode, user]);
 
+  useEffect(() => {
+    if (!roomCode || !user) return;
+    refreshRoom().catch((err: any) => {
+      toast({ title: "Unable to load quiz", description: err.message || "Please try again.", variant: "destructive" });
+      navigate("/live-quiz");
+    });
+  }, [roomCode, user, refreshRoom]);
   // Load participants
   useEffect(() => {
     if (!room) return;
@@ -108,18 +109,8 @@ const QuizRoom = () => {
     // Real-time participants
     const channel = supabase.channel(`room-${room.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "quiz_participants", filter: `room_id=eq.${room.id}` }, () => loadParticipants())
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "quiz_rooms", filter: `id=eq.${room.id}` }, (payload) => {
-        const updated = payload.new as any;
-        setRoom(updated);
-        if (updated.status === "live" && !quizEnded) {
-          setCurrentQ(updated.current_question_index || 0);
-          setSelectedOption(null);
-          setAnswered(false);
-          setShowResult(false);
-          setTimeLeft(updated.time_per_question);
-          answerTimeRef.current = 0;
-        }
-        if (updated.status === "ended") setQuizEnded(true);
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "quiz_rooms", filter: `id=eq.${room.id}` }, () => {
+        refreshRoom().catch(() => {});
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "quiz_answers", filter: `room_id=eq.${room.id}` }, () => {
         // Reload scores
@@ -128,7 +119,7 @@ const QuizRoom = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [room?.id]);
+  }, [room?.id, refreshRoom]);
 
   const loadScores = async () => {
     if (!room) return;
@@ -169,71 +160,83 @@ const QuizRoom = () => {
   }, [room?.status]);
 
   const questions: QuizQuestion[] = room?.questions || [];
-  const currentQuestion = questions[currentQ];
+  const currentQuestionBase = questions[currentQ];
+  const currentQuestion = currentQuestionBase ? {
+    ...currentQuestionBase,
+    correct_answer: privateAnswer?.correct_answer,
+    exam_hint: privateAnswer?.exam_hint,
+    explanation: privateAnswer?.explanation,
+  } : undefined;
+
+  const submitAnswer = async (option: string | null) => {
+    if (!user || !room || answered) return;
+    setAnswered(true);
+    setSelectedOption(option);
+    try {
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: {
+          action: "submit",
+          room_id: room.id,
+          question_index: currentQ,
+          selected_option: option,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPrivateAnswer({
+        ...(data?.result || {}),
+        selected_option: option,
+      });
+      setShowResult(true);
+      if (isHost) {
+        window.setTimeout(() => {
+          supabase.functions.invoke("live-quiz", {
+            body: { action: "advance", room_id: room.id },
+          }).then(({ data: advanceData, error: advanceError }) => {
+            if (advanceError || advanceData?.error) {
+              refreshRoom().catch(() => {});
+            }
+          });
+        }, 3100);
+      }
+    } catch (err: any) {
+      setAnswered(false);
+      setSelectedOption(null);
+      toast({ title: "Answer not submitted", description: err.message || "Please try again.", variant: "destructive" });
+    }
+  };
 
   const handleAutoSubmit = useCallback(async () => {
-    if (!user || !room || answered) return;
-    setAnswered(true);
-    setShowResult(true);
-
-    await supabase.from("quiz_answers").insert({
-      room_id: room.id,
-      user_id: user.id,
-      question_index: currentQ,
-      selected_option: null,
-      time_taken: room.time_per_question,
-      is_correct: false,
-    });
-
-    // Auto advance after showing result
-    if (isHost) {
-      setTimeout(() => advanceQuestion(), 3000);
-    }
-  }, [user, room, currentQ, answered, isHost]);
+    if (answered) return;
+    await submitAnswer(null);
+  }, [answered, user, room, currentQ, isHost]);
 
   const handleAnswer = async (option: string) => {
-    if (!user || !room || answered) return;
-    setSelectedOption(option);
-    setAnswered(true);
-    setShowResult(true);
-
-    const isCorrect = option === currentQuestion.correct_answer;
-    const timeTaken = answerTimeRef.current;
-    const speedBonus = Math.max(0, Math.floor((room.time_per_question - timeTaken) / room.time_per_question * 5));
-    const points = isCorrect ? 10 + speedBonus : 0;
-
-    await supabase.from("quiz_answers").insert({
-      room_id: room.id,
-      user_id: user.id,
-      question_index: currentQ,
-      selected_option: option,
-      time_taken: timeTaken,
-      is_correct: isCorrect,
-    });
-
-    if (points > 0) {
-      const currentScore = participants.find(p => p.user_id === user.id)?.score || 0;
-      await supabase.from("quiz_participants").update({ score: currentScore + points }).eq("room_id", room.id).eq("user_id", user.id);
-    }
-
-    if (isHost) {
-      setTimeout(() => advanceQuestion(), 3000);
-    }
+    await submitAnswer(option);
   };
 
   const advanceQuestion = async () => {
-    if (!room) return;
-    const nextQ = currentQ + 1;
-    if (nextQ >= questions.length) {
-      await supabase.from("quiz_rooms").update({ status: "ended" }).eq("id", room.id);
-    } else {
-      await supabase.from("quiz_rooms").update({ current_question_index: nextQ, status: "live" }).eq("id", room.id);
+    if (!room || !isHost) return;
+    const { data, error } = await supabase.functions.invoke("live-quiz", {
+      body: { action: "advance", room_id: room.id },
+    });
+    if (error || data?.error) {
+      toast({ title: "Unable to advance", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
+      return;
     }
+    await refreshRoom();
   };
 
   const handleStart = async () => {
-    if (!room) return;
-    await supabase.from("quiz_rooms").update({ status: "live", current_question_index: 0 }).eq("id", room.id);
+    if (!room || !isHost) return;
+    const { data, error } = await supabase.functions.invoke("live-quiz", {
+      body: { action: "start", room_id: room.id },
+    });
+    if (error || data?.error) {
+      toast({ title: "Unable to start quiz", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
+      return;
+    }
+    await refreshRoom();
   };
 
   const [rematchLoading, setRematchLoading] = useState(false);
@@ -242,59 +245,19 @@ const QuizRoom = () => {
     if (!room || !user || !isHost || rematchLoading) return;
     setRematchLoading(true);
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("is_subscribed, free_live_quiz_used")
-        .eq("user_id", user.id)
-        .single();
-      if (profileError) throw profileError;
-      if (!profile?.is_subscribed && (profile?.free_live_quiz_used || 0) >= 2) {
-        toast({ title: "Free sessions used", description: "Subscribe to host another live quiz." });
-        navigate("/live-quiz");
-        return;
-      }
-
-      let nextCode = "";
-      let newRoom: { id: string; room_code: string } | null = null;
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        nextCode = `${room.room_code?.startsWith("D") ? "D" : ""}${Math.floor(1000 + Math.random() * 9000)}`;
-        const { data, error } = await supabase.from("quiz_rooms").insert({
-          host_id: user.id,
-          subject: room.subject,
-          num_questions: questions.length,
-          time_per_question: room.time_per_question,
-          room_code: nextCode,
-          questions: questions as any,
-          expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-        }).select("id, room_code").single();
-        if (!error && data) {
-          newRoom = data;
-          break;
-        }
-        if (!error || !/duplicate|unique/i.test(error.message)) throw error;
-      }
-      if (!newRoom) throw new Error("Could not create a new room code. Please try again.");
-
-      const { error: hostJoinError } = await supabase.from("quiz_participants").insert({
-        room_id: newRoom.id,
-        user_id: user.id,
-        display_name: participants.find((participant) => participant.user_id === user.id)?.display_name || "Host",
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: { action: "rematch", room_id: room.id },
       });
-      if (hostJoinError) throw hostJoinError;
-
-      if (!profile?.is_subscribed) {
-        const { error: usageError } = await supabase.from("profiles")
-          .update({ free_live_quiz_used: (profile?.free_live_quiz_used || 0) + 1 } as any)
-          .eq("user_id", user.id);
-        if (usageError) throw usageError;
-      }
-
-      const inviteUrl = `${window.location.origin}/q/${newRoom.room_code}`;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const nextCode = data?.room?.room_code;
+      if (!nextCode) throw new Error("The rematch room could not be created.");
+      const inviteUrl = `${window.location.origin}/q/${nextCode}`;
       toast({ title: "Rematch room created", description: "Share the new room code with everyone from the last game." });
       if (navigator.share) {
-        try { await navigator.share({ title: "Rematch challenge!", text: `Join our rematch with code ${newRoom.room_code}`, url: inviteUrl }); } catch {}
+        try { await navigator.share({ title: "Rematch challenge!", text: `Join our rematch with code ${nextCode}`, url: inviteUrl }); } catch {}
       }
-      navigate(`/quiz-room/${newRoom.room_code}`);
+      navigate(`/quiz-room/${nextCode}`);
     } catch (error: any) {
       toast({ title: "Could not start rematch", description: error.message || "Please try again.", variant: "destructive" });
     } finally {
