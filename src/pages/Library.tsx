@@ -140,15 +140,21 @@ const Library = () => {
                 transition={{ delay: idx * 0.05 }}
               >
                 <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow rounded-xl overflow-hidden h-full flex flex-col">
-                  {book.cover_image_url ? (
-                    <div className="aspect-[4/5] bg-secondary overflow-hidden">
-                      <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                  ) : (
-                    <div className="aspect-[4/5] bg-primary/5 flex items-center justify-center">
-                      <BookOpen className="h-10 w-10 text-primary/30" />
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => book.full_file_url ? handleRead(book) : handlePreview(book)}
+                    className="group relative block aspect-[4/5] w-full overflow-hidden bg-secondary text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                    aria-label={`Open ${book.title}`}
+                  >
+                    {book.cover_image_url ? (
+                      <img src={book.cover_image_url} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-primary/5"><BookOpen className="h-10 w-10 text-primary/30" /></div>
+                    )}
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-9 text-left text-[10px] font-semibold text-white opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+                      {book.full_file_url ? "Open book" : book.preview_file_url ? "View preview" : "Book details"}
+                    </span>
+                  </button>
                   <CardContent className="p-2.5 flex-1 flex flex-col">
                     <h3 className="font-bold text-xs mb-0.5 line-clamp-2">{book.title}</h3>
                     {book.author && <p className="text-[10px] text-primary mb-1 line-clamp-1">By {book.author}</p>}
