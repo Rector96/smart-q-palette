@@ -68,6 +68,13 @@ const AITutor = () => {
     const viewport = scrollRef.current;
     if (viewport) viewport.scrollTo({ top: viewport.scrollHeight, behavior: isLoading ? "auto" : "smooth" });
   }, [messages, isLoading]);
+  
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+  }, [input]);
 
   const sendMessage = async (messageText = input) => {
     const trimmed = messageText.trim();
@@ -258,7 +265,7 @@ const AITutor = () => {
               placeholder="Message ROCKCBT AI…"
               aria-label="Write your message to ROCKCBT AI"
               rows={1}
-              className="max-h-32 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
+              className="max-h-32 min-h-10 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
               disabled={isLoading}
             />
             <Button type="submit" size="icon" aria-label="Send message" className="mb-0.5 h-10 w-10 shrink-0 rounded-xl shadow-sm" disabled={isLoading || !input.trim()}>
