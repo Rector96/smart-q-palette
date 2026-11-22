@@ -59,6 +59,16 @@ Deno.serve(async (req: Request) => {
     if (profileError) throw profileError;
     const displayName = String(profile?.full_name ?? "").trim().split(/\s+/)[0] || "Player";
 
+    if (action === "subjects") {
+      const { data, error } = await admin.from("questions")
+        .select("subject")
+        .eq("is_published", true);
+      if (error) throw error;
+      const subjects = [...new Set((data ?? []).map((row: any) => String(row.subject ?? "").trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+      return respond({ subjects });
+    }
+
     if (action === "create") {
       const subject = typeof body.subject === "string" ? body.subject.trim() : "";
       const gameMode = body.game_mode === "duel" ? "duel" : "group";
