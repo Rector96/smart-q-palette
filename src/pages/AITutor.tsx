@@ -261,7 +261,7 @@ const AITutor = () => {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMessage(); } }}
               placeholder="Message ROCKCBT AI…"
               aria-label="Write your message to ROCKCBT AI"
               rows={1}
