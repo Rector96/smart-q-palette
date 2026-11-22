@@ -89,7 +89,7 @@ const Library = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="mx-auto flex max-w-4xl items-center gap-3 px-3 py-3 sm:px-4">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -98,7 +98,7 @@ const Library = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-5 sm:py-6 space-y-4">
+      <main className="mx-auto max-w-5xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
         <div className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -155,14 +155,14 @@ const Library = () => {
                       {book.full_file_url ? "Open book" : book.preview_file_url ? "View preview" : "Book details"}
                     </span>
                   </button>
-                  <CardContent className="p-2.5 flex-1 flex flex-col">
+                  <CardContent className="flex flex-1 flex-col p-2.5 sm:p-3">
                     <h3 className="font-bold text-xs mb-0.5 line-clamp-2">{book.title}</h3>
                     {book.author && <p className="text-[10px] text-primary mb-1 line-clamp-1">By {book.author}</p>}
                     <div className="mb-1 flex flex-wrap gap-1"><span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-medium">{book.category || "General"}</span>{book.target_level && <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px]">{book.target_level}</span>}</div>
                     {book.description && <p className="text-[10px] text-muted-foreground mb-2 line-clamp-2 flex-1">{book.description}</p>}
                     <div className="flex flex-col gap-1.5 mt-auto">
                       {book.full_file_url && (
-                        <Button size="sm" className="h-8 w-full gap-1 px-2 text-[10px]" onClick={() => handleRead(book)}>
+                        <Button size="sm" className="min-h-9 h-auto w-full gap-1 whitespace-normal px-2 py-2 text-[10px] leading-tight" onClick={() => handleRead(book)}>
                           <BookOpen className="h-3 w-3" /> Read full book {(!book.is_free && !isPro) && <Lock className="ml-1 h-3 w-3" />}
                         </Button>
                       )}
@@ -170,7 +170,7 @@ const Library = () => {
                       {book.summary && (
                         <Button
                           size="sm"
-                          className="h-7 text-[10px] gap-1 px-2 w-full"
+                          className="min-h-9 h-auto w-full gap-1 whitespace-normal px-2 py-2 text-[10px] leading-tight"
                           onClick={() => handleSummary(book)}
                         >
                           {book.is_free || isPro ? (
@@ -182,7 +182,7 @@ const Library = () => {
                       )}
                       {/* Preview: available to everyone */}
                       {book.preview_file_url && (
-                        <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 px-2 w-full" onClick={() => handlePreview(book)}>
+                        <Button variant="outline" size="sm" className="min-h-9 h-auto w-full gap-1 whitespace-normal px-2 py-2 text-[10px] leading-tight" onClick={() => handlePreview(book)}>
                           <Eye className="h-3 w-3" /> Preview
                         </Button>
                       )}
