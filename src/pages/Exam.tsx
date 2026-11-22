@@ -53,10 +53,15 @@ const Exam = () => {
   const [trialBlocked, setTrialBlocked] = useState(false);
   const [activeSubject, setActiveSubject] = useState(subjects[0] || "");
   const [profileName, setProfileName] = useState("");
-  const timerRef = useState<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const deadlineRef = useRef<number | null>(null);
+  const answersRef = useRef<Record<string, string>>({});
+  const submitRef = useRef<() => Promise<void>>(async () => {});
+  const submittingRef = useRef(false);
   const startTimeRef = useState<number>(Date.now());
   const questionStartRef = useState<number>(Date.now());
   const feedbackRef = useRef<HTMLParagraphElement | null>(null);
+  answersRef.current = answers;
 
   const isTimed = mode === "cbt" || mode === "mock";
   const isPractice = mode === "practice" || mode === "revision";
@@ -119,23 +124,44 @@ const Exam = () => {
     }
     setQuestions(data.questions as QuestionWithShuffledOptions[]);
     setSessionId(data.session.id);
+    const serverStartedAt = data.session.started_at ? new Date(data.session.started_at).getTime() : Date.now();
+    deadlineRef.current = serverStartedAt + customDuration * 1000;
+    setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)));
     setLoading(false);
     startTimeRef[1](Date.now());
     questionStartRef[1](Date.now());
   };
 
   useEffect(() => {
-    if (!isTimed || loading || trialBlocked) return;
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) { clearInterval(interval); handleSubmit(); return 0; }
-        if (prev === 300) toast({ title: "⏰ 5 minutes remaining!", variant: "destructive" });
-        return prev - 1;
-      });
-    }, 1000);
-    timerRef[1](interval);
-    return () => clearInterval(interval);
-  }, [isTimed, loading, trialBlocked]);
+    if (!isTimed || loading || trialBlocked || !sessionId || !deadlineRef.current) return;
+
+    const updateCountdown = () => {
+      const deadline = deadlineRef.current;
+      if (!deadline) return;
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 300) {
+        toast({ title: "⏰ 5 minutes remaining!", variant: "destructive" });
+      }
+      if (remaining <= 0) {
+        if (timerRef.current) window.clearInterval(timerRef.current);
+        timerRef.current = null;
+        void submitRef.current();
+      }
+    };
+
+    updateCountdown();
+    timerRef.current = window.setInterval(updateCountdown, 250);
+    window.addEventListener("focus", updateCountdown);
+    document.addEventListener("visibilitychange", updateCountdown);
+
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+      timerRef.current = null;
+      window.removeEventListener("focus", updateCountdown);
+      document.removeEventListener("visibilitychange", updateCountdown);
+    };
+  }, [isTimed, loading, trialBlocked, sessionId]);
 
   const currentQuestion = hasMultipleSubjects ? displayedQuestions[currentIndex] : questions[currentIndex];
 
@@ -228,19 +254,22 @@ const Exam = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user || !sessionId || submitting) return;
+    if (!user || !sessionId || submittingRef.current) return;
+    submittingRef.current = true;
     setShowConfirmSubmit(false);
     setSubmitting(true);
-    if (timerRef[0]) clearInterval(timerRef[0]);
+    if (timerRef.current) window.clearInterval(timerRef.current);
+    timerRef.current = null;
     const submission = questions.map((q) => ({
       question_id: q.id,
-      selected_answer: answers[q.id] || "X",
+      selected_answer: answersRef.current[q.id] || "X",
       time_spent_seconds: 0,
     }));
     const { data: submitData, error: submitError } = await supabase.functions.invoke("cbt-submit", {
       body: { session_id: sessionId, answers: submission },
     });
     if (submitError || !submitData?.result) {
+      submittingRef.current = false;
       setSubmitting(false);
       toast({
         title: "Submission not completed",
@@ -264,6 +293,7 @@ const Exam = () => {
     await new Promise(r => setTimeout(r, 2000));
     navigate(`/results/${sessionId}`);
   };
+  submitRef.current = handleSubmit;
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
