@@ -48,6 +48,7 @@ const QuizRoom = () => {
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isAdvancing, setIsAdvancing] = useState(false);
 
   // Quiz state
   const [currentQ, setCurrentQ] = useState(0);
@@ -188,17 +189,6 @@ const QuizRoom = () => {
         selected_option: option,
       });
       setShowResult(true);
-      if (isHost) {
-        window.setTimeout(() => {
-          supabase.functions.invoke("live-quiz", {
-            body: { action: "advance", room_id: room.id },
-          }).then(({ data: advanceData, error: advanceError }) => {
-            if (advanceError || advanceData?.error) {
-              refreshRoom().catch(() => {});
-            }
-          });
-        }, 3100);
-      }
     } catch (err: any) {
       setAnswered(false);
       setSelectedOption(null);
@@ -216,15 +206,21 @@ const QuizRoom = () => {
   };
 
   const advanceQuestion = async () => {
-    if (!room || !isHost) return;
-    const { data, error } = await supabase.functions.invoke("live-quiz", {
-      body: { action: "advance", room_id: room.id },
-    });
-    if (error || data?.error) {
-      toast({ title: "Unable to advance", description: data?.error || error?.message || "Please try again.", variant: "destructive" });
-      return;
+    if (!room || !isHost || isAdvancing || !answered) return;
+    setIsAdvancing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: { action: "advance", room_id: room.id },
+      });
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || "Please try again.");
+      }
+      await refreshRoom();
+    } catch (err: any) {
+      toast({ title: "Unable to advance", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setIsAdvancing(false);
     }
-    await refreshRoom();
   };
 
   const handleStart = async () => {
@@ -511,7 +507,13 @@ const QuizRoom = () => {
                 </div>
               )}
 
-              {!isHost && <p className="text-[10px] text-muted-foreground text-center">Waiting for next question...</p>}
+              {isHost ? (
+                <Button className="w-full rounded-xl" onClick={advanceQuestion} disabled={isAdvancing}>
+                  {isAdvancing ? "Loading next question..." : currentQ === questions.length - 1 ? "Finish Quiz" : "Next Question"}
+                </Button>
+              ) : (
+                <p className="text-[10px] text-muted-foreground text-center">Waiting for the host to continue...</p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
