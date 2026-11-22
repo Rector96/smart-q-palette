@@ -139,10 +139,11 @@ Deno.serve(async (req: Request) => {
       if (!(participants ?? []).some((p: any) => p.user_id === user.id)) {
         return respond({ error: "You must join this room before viewing it." }, 403);
       }
-      const { data: myAnswer, error: answerError } = await admin.from("quiz_answers")
-        .select("question_index,selected_option,time_taken,is_correct,points_awarded,answered_at")
-        .eq("room_id", room.id).eq("user_id", user.id)
-        .eq("question_index", room.current_question_index).maybeSingle();
+      const { data: myAnswer, error: answerError } = await admin.rpc("live_quiz_get_my_answer_internal", {
+        p_user_id: user.id,
+        p_room_id: room.id,
+        p_question_index: room.current_question_index,
+      });
       if (answerError) throw answerError;
       return respond({ room, participants: participants ?? [], my_answer: myAnswer ?? null });
     }
