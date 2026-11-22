@@ -84,7 +84,7 @@ const Reader = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex min-h-[100svh] items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
@@ -92,7 +92,7 @@ const Reader = () => {
 
   if (blocked) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="flex min-h-[100svh] items-center justify-center bg-background px-4 py-6">
         <div className="text-center space-y-4 max-w-sm">
           <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
           <h2 className="text-lg font-bold">Premium Content</h2>
@@ -110,9 +110,9 @@ const Reader = () => {
   // Summary view
   if (viewMode === "summary" && summary) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex min-h-[100svh] flex-col overflow-x-hidden bg-background">
         <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
-          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="mx-auto flex max-w-4xl items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/library")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -142,7 +142,7 @@ const Reader = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-background flex flex-col">
+    <div className="flex min-h-[100svh] flex-col overflow-x-hidden bg-white dark:bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/library")}>
@@ -163,7 +163,7 @@ const Reader = () => {
         ) : fileUrl ? (
           <iframe
             src={fileUrl}
-            className="h-[calc(100dvh-64px)] w-full bg-white"
+            className="h-[calc(100svh-57px)] min-h-[60svh] w-full bg-white sm:h-[calc(100svh-64px)]"
             title={title}
             style={{ border: "none" }}
           />
