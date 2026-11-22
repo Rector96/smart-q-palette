@@ -165,7 +165,6 @@ const Reader = () => {
             src={fileUrl}
             className="h-[calc(100dvh-64px)] w-full bg-white"
             title={title}
-            sandbox="allow-same-origin allow-scripts"
             style={{ border: "none" }}
           />
         ) : (
