@@ -51,54 +51,27 @@ const LiveQuiz = () => {
 
   const handleCreate = async () => {
     if (!user || !subject) return;
-    if (!checkAccess()) return;
     setLoading(true);
     try {
-      // Fetch questions for subject
-      const { data: questions, error: qErr } = await supabase
-        .from("questions")
-        .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, exam_hint")
-        .eq("subject", subject)
-        .limit(200);
-
-      if (qErr || !questions || questions.length === 0) {
-        toast({ title: "No questions available", description: "This subject has no questions yet.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      // Shuffle and pick
-      const shuffled = questions.sort(() => Math.random() - 0.5).slice(0, numQuestions);
-      const roomCodeGen = `${gameMode === "duel" ? "D" : ""}${Math.floor(1000 + Math.random() * 9000)}`;
-      const expiresAt = new Date(Date.now() + 2 * 3600000).toISOString();
-
-      const { data: room, error } = await supabase.from("quiz_rooms").insert({
-        host_id: user.id,
-        subject,
-        num_questions: shuffled.length,
-        time_per_question: timePerQuestion,
-        room_code: roomCodeGen,
-        questions: shuffled as any,
-        expires_at: expiresAt,
-      }).select("id, room_code").single();
-
-      if (error) throw error;
-
-      // Increment free usage if not subscribed
-      if (!profile.is_subscribed) {
-        await supabase.from("profiles").update({ free_live_quiz_used: (profile.free_live_quiz_used || 0) + 1 } as any).eq("user_id", user.id);
-      }
-
-      // Host joins as participant
-      await supabase.from("quiz_participants").insert({
-        room_id: room.id,
-        user_id: user.id,
-        display_name: profile.full_name?.split(" ")[0] || "Host",
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: {
+          action: "create",
+          subject,
+          num_questions: numQuestions,
+          time_per_question: timePerQuestion,
+          game_mode: gameMode,
+        },
       });
-
-      navigate(`/quiz-room/${room.room_code}`);
+      if (error) throw error;
+      if (data?.error) {
+        if (String(data.error).toLowerCase().includes("free live quiz")) setShowPaywall(true);
+        throw new Error(data.error);
+      }
+      const roomCode = data?.room?.room_code;
+      if (!roomCode) throw new Error("The room was created but no room code was returned.");
+      navigate(`/quiz-room/${roomCode}`);
     } catch (err: any) {
-      toast({ title: "Error creating room", description: err.message, variant: "destructive" });
+      toast({ title: "Error creating room", description: err.message || "Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -106,61 +79,20 @@ const LiveQuiz = () => {
 
   const handleJoin = async () => {
     if (!user || !roomCode.trim()) return;
-    if (!checkAccess()) return;
     setLoading(true);
     try {
-      const { data: room, error } = await supabase
-        .from("quiz_rooms")
-        .select("*")
-        .eq("room_code", roomCode.trim().toUpperCase())
-        .single();
-
-      if (error || !room) {
-        toast({ title: "Room not found", description: "Check the code and try again.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (room.status === "ended") {
-        toast({ title: "Quiz ended", description: "This quiz session has already ended.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (room.expires_at && new Date(room.expires_at) < new Date()) {
-        toast({ title: "Quiz expired", description: "This quiz session has expired.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (room.room_code.startsWith("D")) {
-        const { data: existingPlayers, error: playersError } = await supabase
-          .from("quiz_participants").select("user_id").eq("room_id", room.id);
-        if (playersError) throw playersError;
-        const alreadyJoined = existingPlayers?.some((player) => player.user_id === user.id);
-        if (!alreadyJoined && (existingPlayers?.length || 0) >= 2) {
-          toast({ title: "Battle is full", description: "This 1-vs-1 challenge already has two players.", variant: "destructive" });
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Increment free usage if not subscribed
-      if (!profile.is_subscribed) {
-        await supabase.from("profiles").update({ free_live_quiz_used: (profile.free_live_quiz_used || 0) + 1 } as any).eq("user_id", user.id);
-      }
-
-      // Join as participant
-      const { error: joinErr } = await supabase.from("quiz_participants").insert({
-        room_id: room.id,
-        user_id: user.id,
-        display_name: profile.full_name?.split(" ")[0] || "Player",
+      const { data, error } = await supabase.functions.invoke("live-quiz", {
+        body: { action: "join", room_code: roomCode.trim().toUpperCase() },
       });
-
-      if (joinErr && !joinErr.message.includes("duplicate")) throw joinErr;
-      navigate(`/quiz-room/${room.room_code}`);
+      if (error) throw error;
+      if (data?.error) {
+        if (String(data.error).toLowerCase().includes("free live quiz")) setShowPaywall(true);
+        throw new Error(data.error);
+      }
+      const joinedCode = data?.room?.room_code || roomCode.trim().toUpperCase();
+      navigate(`/quiz-room/${joinedCode}`);
     } catch (err: any) {
-      toast({ title: "Error joining room", description: err.message, variant: "destructive" });
+      toast({ title: "Error joining room", description: err.message || "Please check the code and try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
