@@ -208,9 +208,9 @@ const AITutor = () => {
   }
 
   return (
-    <section className="flex h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] min-h-0 flex-col overflow-hidden bg-background lg:h-dvh">
+    <section className="flex h-[calc(100dvh_-_5.25rem_-_env(safe-area-inset-bottom,0px))] min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background lg:h-dvh">
       <header className="z-10 shrink-0 border-b border-border/80 bg-card/90 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-3 py-3 sm:px-5 sm:py-4 safe-area-top">
+        <div className="mx-auto flex w-full max-w-4xl items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4 safe-area-top">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-500 shadow-md shadow-primary/15"><Sparkles className="h-5 w-5 text-primary-foreground" /></div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold sm:text-base">ROCKCBT AI Tutor</p>
@@ -220,14 +220,14 @@ const AITutor = () => {
         </div>
       </header>
 
-      <div ref={scrollRef} role="log" aria-live="polite" aria-label="Tutor conversation" className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth">
+      <div ref={scrollRef} role="log" aria-live="polite" aria-label="Tutor conversation" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain scroll-smooth [scrollbar-gutter:stable]">
         <div className="mx-auto w-full max-w-4xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-5 sm:py-7">
           {messages.map((msg, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex min-w-0 gap-2.5 sm:gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex w-full min-w-0 gap-2 sm:gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-9 sm:w-9"><Bot className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /></div>}
-              <div className={`min-w-0 max-w-[calc(100%-2.75rem)] rounded-2xl px-3.5 py-3 text-[14px] leading-7 shadow-sm sm:max-w-[82%] sm:px-5 sm:py-4 sm:text-[15px] ${msg.role === "user" ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md border border-border/70 bg-card text-card-foreground"}`}>
+              <div className={`min-w-0 max-w-[calc(100%-2.5rem)] rounded-2xl px-3.5 py-3 text-[14px] leading-7 shadow-sm [overflow-wrap:anywhere] sm:max-w-[82%] sm:px-5 sm:py-4 sm:text-[15px] ${msg.role === "user" ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md border border-border/70 bg-card text-card-foreground"}`}>
                 {msg.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none break-words dark:prose-invert sm:prose-base [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_code]:break-words [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto">
+                  <div className="prose prose-sm max-w-none break-words dark:prose-invert sm:prose-base [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:whitespace-pre-wrap [&_code]:break-words [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
                 ) : <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
@@ -255,7 +255,7 @@ const AITutor = () => {
       </div>
 
       <footer className="z-10 shrink-0 border-t border-border/80 bg-card/95 backdrop-blur-xl">
-        <div className="mx-auto w-full max-w-4xl px-3 pb-3 pt-3 sm:px-5 sm:pb-4 safe-area-bottom">
+        <div className="mx-auto w-full max-w-4xl px-3 pb-2 pt-3 sm:px-5 sm:pb-3 safe-area-bottom">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex items-end gap-2 rounded-2xl border border-border bg-background p-2 shadow-sm transition-colors focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
             <Textarea
               ref={inputRef}
@@ -265,7 +265,7 @@ const AITutor = () => {
               placeholder="Message ROCKCBT AI…"
               aria-label="Write your message to ROCKCBT AI"
               rows={1}
-              className="max-h-32 min-h-10 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
+              className="max-h-32 min-h-10 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
               disabled={isLoading}
             />
             <Button type="submit" size="icon" aria-label="Send message" className="mb-0.5 h-10 w-10 shrink-0 rounded-xl shadow-sm" disabled={isLoading || !input.trim()}>
