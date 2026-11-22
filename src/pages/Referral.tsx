@@ -270,7 +270,7 @@ const Referral = () => {
     <div className="min-h-[100dvh] bg-[#F8FAFC]">
       <SEOHead title="ROCKCBT – Referral Wallet" description="Practise for exams and still earn with ROCKCBT referral rewards." path="/referrals" />
       <DesktopHeader profileName={user?.user_metadata?.full_name || null} isPro={false} />
-      <main className="mx-auto max-w-[430px] space-y-4 px-4 py-4">
+      <main className="mx-auto max-w-2xl space-y-4 px-3 py-4 sm:space-y-5 sm:px-5 sm:py-6">
         {!loading && !loadError && (
                       <Card className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] text-white shadow-sm">
                         <CardContent className="space-y-4 p-4 sm:p-5">
@@ -280,7 +280,7 @@ const Referral = () => {
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-[11px] text-blue-100">Pending rewards</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.pending_balance)}</p></div>
-                            <div className="rounded-xl bg-background/80 p-3"><p className="text-[11px] text-blue-100">Lifetime earned</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.lifetime_earned)}</p></div>
+                            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-[11px] text-blue-100">Lifetime earned</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.lifetime_earned)}</p></div>
                           </div>
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs text-blue-100"><span className="text-blue-100">Withdrawal minimum: ₦1,000</span><span className="font-semibold">{Math.round(minimumProgress)}%</span></div>
@@ -351,12 +351,10 @@ const Referral = () => {
 
 
 
-            <Card className="rounded-2xl shadow-sm">
-              <div className="grid grid-cols-2 gap-3">
-              <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Users className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] text-muted-foreground">People referred</p></div></CardContent></Card>
-              <Card className="rounded-2xl"><CardContent className="flex items-center gap-3 p-3"><Gift className="h-5 w-5 text-primary" /><div><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] text-muted-foreground">Available rewards</p></div></CardContent></Card>
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="rounded-2xl border border-slate-100 shadow-sm"><CardContent className="flex items-center gap-3 p-3 sm:p-4"><Users className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] leading-4 text-muted-foreground">People referred</p></div></CardContent></Card>
+              <Card className="rounded-2xl border border-slate-100 shadow-sm"><CardContent className="flex items-center gap-3 p-3 sm:p-4"><Gift className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] leading-4 text-muted-foreground">Available rewards</p></div></CardContent></Card>
             </div>
-            </Card>
 
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="space-y-4 p-4">
