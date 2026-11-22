@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Home, BookOpenCheck, Sparkles, User, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -14,6 +16,13 @@ const NAV_ITEMS = [
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [showTutorHint, setShowTutorHint] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setShowTutorHint(window.localStorage.getItem("rockcbt-tutor-welcomed-" + user.id) !== "true");
+  }, [user?.id, location.pathname]);
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return location.pathname === "/dashboard";
@@ -50,6 +59,9 @@ const BottomNav = () => {
                 />
               )}
               <item.icon className={cn("relative z-10 h-5 w-5", active && "stroke-[2.5]")} />
+              {item.path === "/ai-tutor" && showTutorHint && (
+                <span className="absolute -top-2 right-0 z-20 rounded-full bg-primary px-2 py-1 text-[8px] font-bold leading-none text-primary-foreground shadow-md shadow-primary/20">Say hello!</span>
+              )}
               <span className={cn("relative z-10 text-[9px] leading-none", active ? "font-bold" : "font-medium")}>
                 {item.label}
               </span>
