@@ -16,6 +16,7 @@ const Reader = () => {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState<string | null>(null);
+  const [author, setAuthor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [blocked, setBlocked] = useState(false);
   const [showSub, setShowSub] = useState(false);
@@ -26,21 +27,23 @@ const Reader = () => {
       const { data: book } = await supabase.from("digital_library").select("*").eq("id", id).single();
       if (!book) { navigate("/library"); return; }
       setTitle(book.title);
+      setAuthor((book as any).author || null);
       setSummary((book as any).summary || null);
 
-      if (viewMode === "summary") {
-        setLoading(false);
-        return;
-      }
-
+      // Previews are public. Summaries and full books follow the admin's access setting.
       if (isPreview) {
         setFileUrl(book.preview_file_url);
         setLoading(false);
         return;
       }
 
-      // Check subscription for full content
-      if (!book.is_free && user) {
+      if (!book.is_free) {
+        if (!user) {
+          setBlocked(true);
+          setShowSub(true);
+          setLoading(false);
+          return;
+        }
         const { data: prof } = await supabase.from("profiles").select("is_subscribed").eq("user_id", user.id).single();
         if (!prof?.is_subscribed) {
           setBlocked(true);
@@ -49,6 +52,12 @@ const Reader = () => {
           return;
         }
       }
+
+      if (viewMode === "summary") {
+        setLoading(false);
+        return;
+      }
+
       setFileUrl(book.full_file_url || book.preview_file_url);
       setLoading(false);
     };
@@ -89,7 +98,7 @@ const Reader = () => {
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/library")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="font-bold text-sm truncate flex-1">{title}</h1>
+            <div className="min-w-0 flex-1"><h1 className="truncate text-sm font-bold">{title}</h1>{author && <p className="truncate text-[10px] text-muted-foreground">By {author}</p>}</div>
             <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Summary</span>
           </div>
         </header>
@@ -121,7 +130,7 @@ const Reader = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/library")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="font-bold text-sm truncate flex-1">{title}</h1>
+          <div className="min-w-0 flex-1"><h1 className="truncate text-sm font-bold">{title}</h1>{author && <p className="truncate text-[10px] text-muted-foreground">By {author}</p>}</div>
           {isPreview && <span className="text-[10px] bg-warning/20 text-warning px-2 py-0.5 rounded-full font-medium">Preview</span>}
         </div>
       </header>
@@ -130,7 +139,7 @@ const Reader = () => {
         {fileUrl ? (
           <iframe
             src={fileUrl}
-            className="w-full h-[calc(100dvh-60px)]"
+            className="h-[calc(100dvh-64px)] w-full bg-white"
             title={title}
             sandbox="allow-same-origin allow-scripts"
             style={{ border: "none" }}
