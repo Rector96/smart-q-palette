@@ -114,7 +114,12 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
         }
 
         const data = await candidate.json();
-        const content = String(data.choices?.[0]?.message?.content ?? "").trim();
+        const rawContent = data?.choices?.[0]?.message?.content;
+        if (typeof rawContent !== "string") {
+          console.error(`${provider.name} returned non-text tutor content; trying fallback.`);
+          continue;
+        }
+        const content = rawContent.trim();
         if (!content) {
           console.error(`${provider.name} returned an empty tutor response; trying fallback.`);
           continue;
