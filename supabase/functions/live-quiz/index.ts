@@ -88,57 +88,104 @@ Deno.serve(async (req: Request) => {
         groqKey && { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile" },
         geminiKey && { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: geminiKey, model: Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash" },
       ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
-      let upstream: Response | null = null;
+      let questions: any[] | null = null;
       let lastStatus = 503;
+      const providerFailures: string[] = [];
+
+      // A provider only counts as successful after it returns a complete, valid question set.
+      // This means malformed JSON or incomplete questions also trigger the other provider.
       for (const provider of providers) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000);
         try {
           const candidate = await fetch(provider.url, {
             method: "POST",
+            signal: controller.signal,
             headers: { Authorization: `Bearer ${provider.key}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               model: provider.model,
-              temperature: 0.65,
+              temperature: 0.55,
               messages: [
-                { role: "system", content: "You create accurate educational multiple-choice questions. Output valid JSON only." },
-                { role: "user", content: prompt },
+                {
+                  role: "system",
+                  content: "You are an expert Nigerian secondary-school teacher and assessment writer. Produce accurate, age-appropriate, curriculum-aligned multiple-choice questions. Return only a valid JSON array, with no markdown fences or text outside the JSON.",
+                },
+                {
+                  role: "user",
+                  content: prompt + " Each question must also include a short, student-friendly explanation of why the correct answer is right, and a brief exam_hint or learning tip. Keep explanations accurate and useful for revision.",
+                },
               ],
             }),
           });
-          if (candidate.ok) {
-            upstream = candidate;
-            console.info(`Live Quiz question provider selected: ${provider.name}`);
-            break;
+          if (!candidate.ok) {
+            lastStatus = candidate.status;
+            const providerBody = await candidate.text();
+            providerFailures.push(`${provider.name} HTTP ${candidate.status}`);
+            console.error(`Live Quiz ${provider.name} generation failed:`, candidate.status, providerBody.slice(0, 1000));
+            continue;
           }
-          lastStatus = candidate.status;
-          const providerBody = await candidate.text();
-          console.error(`Live Quiz ${provider.name} generation failed:`, candidate.status, providerBody.slice(0, 1000));
+
+          const completion = await candidate.json();
+          const content = String(completion.choices?.[0]?.message?.content ?? "");
+          const jsonText = content.match(/\[[\s\S]*\]/)?.[0];
+          if (!jsonText) {
+            providerFailures.push(`${provider.name} returned no JSON array`);
+            console.error(`Live Quiz ${provider.name} returned an invalid question payload.`);
+            continue;
+          }
+
+          let parsed: any[];
+          try {
+            parsed = JSON.parse(jsonText);
+          } catch {
+            providerFailures.push(`${provider.name} returned malformed JSON`);
+            console.error(`Live Quiz ${provider.name} returned malformed JSON.`);
+            continue;
+          }
+          if (!Array.isArray(parsed)) {
+            providerFailures.push(`${provider.name} response was not an array`);
+            continue;
+          }
+
+          const candidateQuestions = parsed.slice(0, count).map((q: any) => ({
+            question_text: String(q.question_text ?? "").trim(),
+            option_a: String(q.option_a ?? "").trim(),
+            option_b: String(q.option_b ?? "").trim(),
+            option_c: String(q.option_c ?? "").trim(),
+            option_d: String(q.option_d ?? "").trim(),
+            correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
+            explanation: String(q.explanation ?? "").trim(),
+            exam_hint: String(q.exam_hint ?? q.learning_tip ?? "").trim(),
+          })).filter((q: any) =>
+            q.question_text && q.option_a && q.option_b && q.option_c && q.option_d &&
+            ["A", "B", "C", "D"].includes(q.correct_answer)
+          );
+
+          if (candidateQuestions.length !== count) {
+            providerFailures.push(`${provider.name} returned ${candidateQuestions.length} valid questions; expected ${count}`);
+            console.error(`Live Quiz ${provider.name} returned an incomplete question set.`);
+            continue;
+          }
+
+          questions = candidateQuestions;
+          console.info(`Live Quiz question provider selected: ${provider.name}`);
+          break;
         } catch (providerError) {
           lastStatus = 503;
+          providerFailures.push(`${provider.name} request failed`);
           console.error(`Live Quiz ${provider.name} request failed:`, providerError);
+        } finally {
+          clearTimeout(timeout);
         }
       }
-      if (!upstream) {
+
+      if (!questions) {
         return respond({
           error: lastStatus === 429
-            ? "Groq and Gemini are currently rate-limited or busy. Please wait a moment and try again."
-            : "Neither Groq nor Gemini could generate questions right now. Check the AI provider secrets and model access, then try again.",
+            ? "Both AI services are currently busy or rate-limited. Please wait a moment and try again."
+            : "Neither Groq nor Gemini could produce a complete question set. Please try again shortly.",
         }, lastStatus === 429 ? 429 : 503);
       }
-      const completion = await upstream.json();
-      const content = String(completion.choices?.[0]?.message?.content ?? "");
-      const jsonText = content.match(/\[[\s\S]*\]/)?.[0];
-      if (!jsonText) return respond({ error: "AI returned an invalid question set. Please generate again." }, 502);
-      let parsed: any[];
-      try { parsed = JSON.parse(jsonText); } catch { return respond({ error: "AI returned unreadable questions. Please generate again." }, 502); }
-      const questions = parsed.slice(0, count).map((q: any) => ({
-        question_text: String(q.question_text ?? "").trim(),
-        option_a: String(q.option_a ?? "").trim(),
-        option_b: String(q.option_b ?? "").trim(),
-        option_c: String(q.option_c ?? "").trim(),
-        option_d: String(q.option_d ?? "").trim(),
-        correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
-      })).filter((q: any) => q.question_text && q.option_a && q.option_b && q.option_c && q.option_d && ["A", "B", "C", "D"].includes(q.correct_answer));
-      if (questions.length !== count) return respond({ error: "AI did not produce the requested number of complete questions. Please generate again." }, 502);
       return respond({ questions });
     }
 
@@ -165,8 +212,8 @@ Deno.serve(async (req: Request) => {
           option_c: String(q.option_c ?? "").trim(),
           option_d: String(q.option_d ?? "").trim(),
           correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
-          explanation: null,
-          exam_hint: null,
+          explanation: String(q.explanation ?? "").trim() || null,
+          exam_hint: String(q.exam_hint ?? "").trim() || null,
         }));
         if (selected.some((q: any) => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d || !["A", "B", "C", "D"].includes(q.correct_answer))) {
           return respond({ error: "Every question must have four options and one valid correct answer." }, 400);
