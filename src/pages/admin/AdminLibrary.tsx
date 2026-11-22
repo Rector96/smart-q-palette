@@ -141,8 +141,8 @@ const AdminLibrary = () => {
                       <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-9 text-xs" placeholder="e.g. The Lekki Headmaster" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Cover Image URL</Label>
-                      <Input value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="h-9 text-xs" placeholder="https://... (Google Images URL)" />
+                      <Label className="text-xs">Book Cover Image (URL)</Label>
+                      <Input type="url" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="h-9 text-xs" placeholder="Paste a direct book-cover image URL" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
