@@ -158,6 +158,7 @@ Deno.serve(async (req: Request) => {
             exam_hint: String(q.exam_hint ?? q.learning_tip ?? "").trim(),
           })).filter((q: any) =>
             q.question_text && q.option_a && q.option_b && q.option_c && q.option_d &&
+            q.explanation && q.exam_hint &&
             ["A", "B", "C", "D"].includes(q.correct_answer)
           );
 
