@@ -20,8 +20,16 @@ const AITutor = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const studentName = String(user?.user_metadata?.full_name || user?.user_metadata?.name || "").trim();
+  const firstName = studentName.split(/\\s+/)[0] || "there";
+  const isReturningLearner = user?.created_at
+    ? Date.now() - new Date(user.created_at).getTime() > 60_000
+    : false;
+  const welcomeMessage = isReturningLearner
+    ? `Welcome back, ${firstName}! 😊 It's lovely to have you here. What would you like us to work through today? I can explain a topic, solve a question step by step, or give you a little practice.`
+    : `Hello ${firstName}! 👋 I'm happy to be your study companion. Ask me anything you're learning, and we'll work through it together, one clear step at a time.`;
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Hello! 👋 I'm your AI study companion. I can help you with any JAMB subject — ask me questions, request explanations, or let me quiz you. What would you like to study today?" },
+    { role: "assistant", content: welcomeMessage },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -76,7 +84,7 @@ const AITutor = () => {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({ studentName, messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
       });
 
       if (!resp.ok) {
@@ -171,7 +179,7 @@ const AITutor = () => {
           </div>
           <div className="flex-1">
             <p className="font-bold text-sm">AI Tutor</p>
-            <p className="text-[10px] text-muted-foreground">Your personal JAMB study companion</p>
+            <p className="text-[10px] text-muted-foreground">Your friendly, personal study companion</p>
           </div>
           <span className="text-[10px] text-[hsl(var(--success))] font-semibold">● Online</span>
         </div>
@@ -227,7 +235,7 @@ const AITutor = () => {
       <footer className="border-t border-border bg-card/80 backdrop-blur-sm shrink-0">
         <div className="max-w-3xl mx-auto w-full px-3 sm:px-4 py-3 safe-area-bottom">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
-            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about JAMB..." className="h-12 text-base flex-1 rounded-xl" disabled={isLoading} />
+            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question or tell me what you are studying..." className="h-12 text-base flex-1 rounded-xl" disabled={isLoading} />
             <Button type="submit" size="icon" className="h-12 w-12 shrink-0 rounded-xl" disabled={isLoading || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>
