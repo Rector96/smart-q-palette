@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Clock, ArrowLeft, ArrowRight, Send, CheckCircle2, XCircle, Loader2, Zap } from "lucide-react";
+import ScientificCalculator from "@/components/ScientificCalculator";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -247,10 +248,13 @@ const TakeExam = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
-          <span className="text-xs font-semibold">{exam.title}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold">{exam.title}</span>
+          <div className="flex shrink-0 items-center gap-2">
+          <ScientificCalculator />
           <div className={cn("flex items-center gap-1 text-xs font-mono", timeLeft < 300 && "text-destructive")}>
             <Clock className="h-3.5 w-3.5" />
             {formatTime(timeLeft)}
+          </div>
           </div>
         </div>
         <Progress value={((currentIdx + 1) / exam.questions.length) * 100} className="h-0.5" />
