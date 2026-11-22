@@ -20,7 +20,7 @@ const AITutor = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const studentName = String(user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "").trim();
-  const firstName = studentName.split(/\\s+/)[0] || "there";
+  const firstName = studentName.split(/\s+/)[0] || "there";
   const isReturningLearner = user?.created_at
     ? Date.now() - new Date(user.created_at).getTime() > 60_000
     : false;
@@ -114,10 +114,10 @@ const AITutor = () => {
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
         let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\\n")) !== -1) {
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
           let line = textBuffer.slice(0, newlineIndex);
           textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\\r")) line = line.slice(0, -1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
           if (line.startsWith(":") || line.trim() === "" || !line.startsWith("data: ")) continue;
           const jsonStr = line.slice(6).trim();
           if (jsonStr === "[DONE]") {
