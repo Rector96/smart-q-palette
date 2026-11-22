@@ -14,6 +14,7 @@ const Reader = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState<string | null>(null);
   const [author, setAuthor] = useState<string | null>(null);
@@ -32,7 +33,13 @@ const Reader = () => {
 
       // Previews are public. Summaries and full books follow the admin's access setting.
       if (isPreview) {
-        setFileUrl(book.preview_file_url);
+        const previewPath = book.preview_file_url as string | null;
+        if (previewPath && /^https?:\/\//i.test(previewPath)) {
+          setFileUrl(previewPath);
+        } else if (previewPath) {
+          const { data } = supabase.storage.from("library-previews").getPublicUrl(previewPath);
+          setFileUrl(data.publicUrl);
+        }
         setLoading(false);
         return;
       }
@@ -58,7 +65,18 @@ const Reader = () => {
         return;
       }
 
-      setFileUrl(book.full_file_url || book.preview_file_url);
+      if (book.full_file_url) {
+        const { data, error } = await supabase.functions.invoke("library-access", {
+          body: { bookId: id },
+        });
+        if (error || !data?.url) {
+          setFileError(data?.error || error?.message || "The PDF could not be opened. Please try again.");
+        } else {
+          setFileUrl(data.url);
+        }
+      } else {
+        setFileError("The full PDF has not been uploaded for this book yet.");
+      }
       setLoading(false);
     };
     load();
@@ -136,7 +154,13 @@ const Reader = () => {
       </header>
 
       <div className="flex-1 max-w-4xl mx-auto w-full">
-        {fileUrl ? (
+        {fileError ? (
+          <div className="flex min-h-64 flex-col items-center justify-center gap-2 px-5 text-center">
+            <p className="text-sm font-semibold">Unable to open this PDF</p>
+            <p className="max-w-md text-xs text-muted-foreground">{fileError}</p>
+            <Button variant="outline" size="sm" onClick={() => navigate("/library")}>Back to library</Button>
+          </div>
+        ) : fileUrl ? (
           <iframe
             src={fileUrl}
             className="h-[calc(100dvh-64px)] w-full bg-white"
