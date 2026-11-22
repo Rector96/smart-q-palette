@@ -233,7 +233,7 @@ const LiveQuiz = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Subject</Label>
-              <Select value={subject} onValueChange={setSubject}>
+              <Select value={subject} onValueChange={v => { setSubject(v); setGeneratedQuestions([]); }}>
                 <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
                   {SUBJECTS.filter(s => questionSource === "ai" || availableSubjects === null || availableSubjects.some(name => name.trim().toLowerCase() === s.name.trim().toLowerCase() || name.trim().toLowerCase() === s.id.replace(/_/g, " ").toLowerCase())).map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
@@ -250,10 +250,10 @@ const LiveQuiz = () => {
               </div>
             </div>
             {questionSource === "ai" && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
-              <div className="space-y-2"><Label className="text-sm font-semibold">Topic</Label><Input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Photosynthesis, Cell structure" className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><Label className="text-sm font-semibold">Topic</Label><Input value={topic} onChange={e => { setTopic(e.target.value); setGeneratedQuestions([]); }} placeholder="e.g. Photosynthesis, Cell structure" className="h-11 rounded-xl" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2"><Label className="text-sm font-semibold">Difficulty</Label><Select value={difficulty} onValueChange={(v: any) => setDifficulty(v)}><SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="easy">Easy</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="hard">Hard</SelectItem><SelectItem value="mixed">Mixed</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label className="text-sm font-semibold">Questions</Label><Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-11 rounded-xl" /></div>
+                <div className="space-y-2"><Label className="text-sm font-semibold">Difficulty</Label><Select value={difficulty} onValueChange={(v: any) => { setDifficulty(v); setGeneratedQuestions([]); }}><SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="easy">Easy</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="hard">Hard</SelectItem><SelectItem value="mixed">Mixed</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label className="text-sm font-semibold">Questions</Label><Input type="number" min={5} max={50} value={numQuestions} onChange={e => { setNumQuestions(Number(e.target.value)); setGeneratedQuestions([]); }} className="h-11 rounded-xl" /></div>
               </div>
               <Button type="button" variant="outline" className="w-full rounded-xl" onClick={handleGenerate} disabled={generating || !subject || !topic.trim()}>{generating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating questions...</> : "Generate questions"}</Button>
             </div>}
@@ -274,7 +274,7 @@ const LiveQuiz = () => {
                 <Input type="number" min={10} max={120} value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))} className="h-10" />
               </div>
             </div>
-            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject || (questionSource === "ai" && (generatedQuestions.length === 0 || generatedQuestions.some(q => !q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim())))}>
+            <Button className="w-full h-12 rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject || (questionSource === "ai" && (generatedQuestions.length !== numQuestions || generatedQuestions.some(q => !q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim())))}>
               {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : gameMode === "duel" ? "Create 1-vs-1 Challenge" : "Create Group Room"}
             </Button>
           </motion.div>
