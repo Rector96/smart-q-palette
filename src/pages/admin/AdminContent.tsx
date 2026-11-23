@@ -171,9 +171,11 @@ const AdminContent = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [showImporter, setShowImporter] = useState(false);
   const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+  const [manualImage, setManualImage] = useState<File | null>(null);
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
+  const manualImageRef = useRef<HTMLInputElement>(null);
   const [importData, setImportData] = useState<ImportQuestion[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importImages, setImportImages] = useState<File[]>([]);
@@ -212,11 +214,19 @@ const AdminContent = () => {
     if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text.trim() || !form.option_a.trim()) {
       toast({ title: "Fill required fields", variant: "destructive" }); return;
     }
-    const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination } as any);
+    let diagramFile: string | null = null;
+    if (manualImage) {
+      const path = form.examination + "/" + questionYear + "/" + form.subject + "/" + crypto.randomUUID() + "-" + manualImage.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const { error: imageError } = await supabase.storage.from("question-diagrams").upload(path, manualImage, { contentType: manualImage.type, upsert: false, cacheControl: "31536000" });
+      if (imageError) { toast({ title: "Image upload failed", description: imageError.message, variant: "destructive" }); return; }
+      diagramFile = path;
+    }
+    const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination, diagram_file: diagramFile } as any);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else {
       toast({ title: "Question added!" });
       setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+      setManualImage(null); if (manualImageRef.current) manualImageRef.current.value = "";
       setShowAdd(false); void fetchCounts();
     }
   };
@@ -478,6 +488,7 @@ const AdminContent = () => {
               <div><Label className="text-xs">Topic</Label><Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} className="h-9 text-xs" /></div>
             </div>
             <div><Label className="text-xs">Question</Label><Textarea value={form.question_text} onChange={(e) => setForm({ ...form, question_text: e.target.value })} className="text-xs" rows={2} /></div>
+            <div className="space-y-2"><Label className="text-xs">Question image / diagram (optional)</Label><Input ref={manualImageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="h-9 text-xs" onChange={(e) => setManualImage(e.target.files?.[0] || null)} />{manualImage && <div className="flex items-center gap-2 text-[11px] text-muted-foreground"><ImagePlus className="h-4 w-4" />{manualImage.name}</div>}</div>
             <div className="grid grid-cols-2 gap-3">{["A", "B", "C", "D"].map((l) => <div key={l}><Label className="text-xs">Option {l}</Label><Input value={(form as any)["option_" + l.toLowerCase()]} onChange={(e) => setForm({ ...form, ["option_" + l.toLowerCase()]: e.target.value })} className="h-9 text-xs" /></div>)}</div>
             <div className="grid grid-cols-3 gap-3">
               <div><Label className="text-xs">Correct Answer</Label><Select value={form.correct_answer} onValueChange={(v) => setForm({ ...form, correct_answer: v })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select></div>
