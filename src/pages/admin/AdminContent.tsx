@@ -80,7 +80,9 @@ function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: str
     }
     return "";
   };
-  const subject = String(get("subject") || defaults.subject).trim().toLowerCase();
+  const rawSubject = String(get("subject") || defaults.subject).trim().toLowerCase();
+  const subjectAliases: Record<string, string> = { "english language": "english", "financial accounting": "accounting", "agricultural science": "agricultural_science", "agric science": "agricultural_science" };
+  const subject = subjectAliases[rawSubject] || SUBJECTS.find((item) => item.id === rawSubject || item.name.toLowerCase() === rawSubject)?.id || rawSubject;
   const examination = String(get("examination", "exam") || defaults.examination).trim().toUpperCase();
   const year = Number(get("year") || defaults.year);
   const correct = String(get("correct_answer", "correctAnswer", "answer", "correct")).trim().toUpperCase().replace(/^OPTION\s+/, "");
