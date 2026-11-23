@@ -246,7 +246,7 @@ const AdminContent = () => {
 
   const parseDataFile = async (file: File, extraImages: File[] = []) => {
     if (file.size > MAX_FILE_SIZE) throw new Error("The question file is larger than 30 MB.");
-    const text = (await file.text()).replace(/^\\uFEFF/, "");
+    const text = (await file.text()).replace(/^\uFEFF/, "");
     let rawItems: any[];
     if (file.name.toLowerCase().endsWith(".json") || file.type.includes("json")) {
       const parsed = JSON.parse(text);
