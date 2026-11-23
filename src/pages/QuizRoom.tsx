@@ -50,6 +50,9 @@ const QuizRoom = () => {
   const [isHost, setIsHost] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [advanceCommitted, setAdvanceCommitted] = useState(false);
+  const [revealUntil, setRevealUntil] = useState(0);
+  const [clockNow, setClockNow] = useState(Date.now());
 
   // Quiz state
   const [currentQ, setCurrentQ] = useState(0);
@@ -63,6 +66,21 @@ const QuizRoom = () => {
   const [tabWarning, setTabWarning] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const answerTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (!revealUntil) return;
+    const tick = () => setClockNow(Date.now());
+    tick();
+    const interval = setInterval(tick, 100);
+    return () => clearInterval(interval);
+  }, [revealUntil]);
+
+  useEffect(() => {
+    setRevealUntil(0);
+    setAdvanceCommitted(false);
+  }, [currentQ]);
+
+  const revealRemaining = Math.max(0, Math.ceil((revealUntil - clockNow) / 1000));
 
   // Load the sanitized room state from the trusted Live Quiz backend.
   const refreshRoom = useCallback(async () => {
@@ -190,6 +208,7 @@ const QuizRoom = () => {
         selected_option: option,
       });
       setShowResult(true);
+      if (isHost) setRevealUntil(Date.now() + 3000);
     } catch (err: any) {
       setAnswered(false);
       setSelectedOption(null);
@@ -207,16 +226,31 @@ const QuizRoom = () => {
   };
 
   const advanceQuestion = async () => {
-    if (!room || !isHost || isAdvancing || !answered) return;
+    if (!room || !isHost || isAdvancing || !answered || revealRemaining > 0) return;
     setIsAdvancing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("live-quiz", {
-        body: { action: "advance", room_id: room.id },
-      });
-      if (error || data?.error) {
-        throw new Error(data?.error || error?.message || "Please try again.");
+      if (!advanceCommitted) {
+        const { data, error } = await supabase.functions.invoke("live-quiz", {
+          body: { action: "advance", room_id: room.id },
+        });
+        if (error || data?.error) {
+          throw new Error(data?.error || error?.message || "Please try again.");
+        }
+        // The server has advanced. Never issue a second advance if refreshing the
+        // client state fails; subsequent clicks only retry the room refresh.
+        setAdvanceCommitted(true);
       }
-      await refreshRoom();
+
+      try {
+        await refreshRoom();
+        setAdvanceCommitted(false);
+      } catch (refreshError: any) {
+        toast({
+          title: "Question advanced; refresh needed",
+          description: refreshError?.message || "The next question is ready. Tap Refresh question to reload it.",
+          variant: "destructive",
+        });
+      }
     } catch (err: any) {
       toast({ title: "Unable to advance", description: err.message || "Please try again.", variant: "destructive" });
     } finally {
@@ -543,8 +577,14 @@ const QuizRoom = () => {
               )}
 
               {isHost ? (
-                <Button className="w-full rounded-xl" onClick={advanceQuestion} disabled={isAdvancing}>
-                  {isAdvancing ? "Loading next question..." : currentQ === questions.length - 1 ? "Finish Quiz" : "Next Question"}
+                <Button className="w-full rounded-xl" onClick={advanceQuestion} disabled={isAdvancing || revealRemaining > 0}>
+                  {isAdvancing
+                    ? (advanceCommitted ? "Refreshing question..." : "Loading next question...")
+                    : revealRemaining > 0
+                      ? `Please wait ${revealRemaining}s to continue`
+                      : advanceCommitted
+                        ? "Refresh question"
+                        : currentQ === questions.length - 1 ? "Finish Quiz" : "Next Question"}
                 </Button>
               ) : (
                 <p className="text-[10px] text-muted-foreground text-center">Waiting for the host to continue...</p>

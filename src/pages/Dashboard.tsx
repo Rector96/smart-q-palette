@@ -123,52 +123,75 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-[100dvh] overflow-x-clip bg-background">
+    <div className="min-h-[100dvh] overflow-x-clip bg-[#F8FAFC]">
       <SEOHead title="Dashboard – ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
-      <main className="mx-auto max-w-4xl space-y-5 px-3 pt-5 pb-28 sm:px-4 lg:px-6 lg:py-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl lg:text-2xl font-bold">Welcome back{getSurname(profile.full_name) ? `, ${getSurname(profile.full_name)}` : ""} 👋</h1>
-              <p className="text-xs lg:text-sm text-muted-foreground mt-0.5">
-                {isPro ? "You have unlimited access. Keep crushing it!" : `You have ${attemptsLeft} free attempt${attemptsLeft !== 1 ? "s" : ""} remaining.`}
-              </p>
+      <main className="mx-auto max-w-5xl px-3 pb-8 pt-4 sm:px-5 lg:px-7 lg:pb-10">
+        <section className="relative isolate overflow-hidden rounded-[26px] bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] px-5 pb-11 pt-6 text-white shadow-lg shadow-blue-900/10 sm:px-7 sm:pt-8">
+          <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full border border-white/15 bg-white/[0.04]" />
+          <div className="pointer-events-none absolute right-16 top-20 h-40 w-40 rounded-full border border-white/10 bg-white/[0.04]" />
+          <div className="relative z-10">
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-semibold text-blue-50 backdrop-blur-md">
+              {isPro ? <><Crown className="h-3.5 w-3.5" /> Pro Member</> : <><Shield className="h-3.5 w-3.5" /> Free Plan · {attemptsLeft}/10 attempts</>}
             </div>
-            <div className="flex items-center gap-2 lg:hidden">
-              {isPro ? <Badge variant="default" className="text-[10px] h-5 gap-1 bg-primary/10 text-primary border-primary/20"><Crown className="h-3 w-3" /> Pro</Badge> : <Badge variant="outline" className="text-[10px] h-5 gap-1">Free · {attemptsLeft}/10</Badge>}
-              {isAdmin && <Button variant="ghost" size="icon" className="h-8 w-8 lg:hidden" onClick={() => navigate("/admin")}><Shield className="h-4 w-4" /></Button>}
-            </div>
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-tight sm:text-3xl">Welcome back{getSurname(profile.full_name) ? `, ${getSurname(profile.full_name)}` : ""} 👋</h1>
+            <p className="mt-2 max-w-lg text-xs leading-relaxed text-blue-100 sm:text-sm">
+              {isPro ? "You have unlimited access. Keep crushing it!" : `You have ${attemptsLeft} free attempt${attemptsLeft !== 1 ? "s" : ""} remaining. Keep building your confidence!`}
+            </p>
           </div>
-        </motion.div>
+        </section>
 
-        <Card className="rounded-2xl border-primary/20 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/referrals")}><CardContent className="flex items-center gap-3 p-3.5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10"><Gift className="h-5 w-5 text-primary" /></div><div className="min-w-0 flex-1"><p className="text-sm font-bold">Refer & Earn ₦500</p><p className="text-xs text-muted-foreground">Invite friends and earn when they become paid members.</p></div><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" /></CardContent></Card>
+        <div className="relative z-10 -mt-5 rounded-t-[26px] bg-[#F8FAFC] px-1 pt-5 sm:px-2">
+          <motion.div whileTap={{ scale: 0.99 }} data-tour="start-test">
+            <Button className="h-[54px] w-full justify-between rounded-full bg-[#2563EB] px-5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 hover:bg-[#1D4ED8]" onClick={handleStartTest}>
+              <span className="flex items-center gap-2.5"><Sparkles className="h-5 w-5" /> Start Practice Test</span><ChevronRight className="h-5 w-5" />
+            </Button>
+          </motion.div>
 
-        <motion.div whileTap={{ scale: 0.98 }} data-tour="start-test">
-          <Button className="w-full h-12 lg:h-14 text-sm lg:text-base gap-2 rounded-xl shadow-md bg-primary hover:bg-primary/90 justify-between px-5" onClick={handleStartTest}>
-            <div className="flex items-center gap-2"><Rocket className="h-5 w-5" /><span className="font-semibold">Start Practice Test</span></div><ChevronRight className="h-5 w-5" />
-          </Button>
-        </motion.div>
+          <Card className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <CardContent className="grid grid-cols-2 p-1 sm:grid-cols-4">
+              {statCards.map((stat, index) => <div key={stat.label} className={`flex items-center gap-3 px-3 py-3.5 ${index < 2 ? "border-b border-slate-100" : ""} ${index % 2 === 0 ? "border-r border-slate-100" : ""} sm:border-b-0 sm:px-4`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${index === 1 ? "bg-emerald-50" : index === 2 ? "bg-indigo-50" : index === 3 ? "bg-amber-50" : "bg-blue-50"}`}><stat.icon className={`h-5 w-5 ${stat.color}`} /></span>
+                <span className="min-w-0"><span className="block text-lg font-extrabold leading-tight text-slate-900">{stat.value}</span><span className="mt-0.5 block text-[10px] font-medium text-slate-500">{stat.label}</span></span>
+              </div>)}
+            </CardContent>
+          </Card>
 
-        <Card data-tour="ai-tutor" className="border-border/50 bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate("/ai-tutor")}><CardContent className="p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
-          <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0"><Sparkles className="h-5 w-5 lg:h-6 lg:w-6 text-primary" /></div>
-          <div className="flex-1 min-w-0"><p className="text-sm font-bold">AI Tutor</p><p className="text-[11px] lg:text-xs text-muted-foreground leading-relaxed">Get instant help with any topic. Your personal AI study companion is ready!</p></div>
-          <span className="text-[10px] text-[hsl(var(--success))] font-semibold whitespace-nowrap">● Online</span>
-        </CardContent></Card>
+          <div className="mt-4 grid gap-3">
+            <Card className="cursor-pointer rounded-2xl border border-slate-100 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md" onClick={() => navigate("/referrals")}><CardContent className="flex items-center gap-3 p-3.5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Gift className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">Refer &amp; Earn ₦500</span><span className="mt-1 block text-[11px] leading-relaxed text-slate-500">Invite friends and earn when they become paid members.</span></span><ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+            </CardContent></Card>
+            <Card data-tour="ai-tutor" className="cursor-pointer rounded-2xl border border-slate-100 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md" onClick={() => navigate("/ai-tutor")}><CardContent className="flex items-center gap-3 p-3.5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Sparkles className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">AI Tutor</span><span className="mt-1 block text-[11px] leading-relaxed text-slate-500">Get instant help with any topic. Your personal AI study companion is ready!</span></span><Badge className="shrink-0 rounded-full border-0 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50">• Online</Badge>
+            </CardContent></Card>
+          </div>
 
-        <Card className="border-border/50 shadow-sm rounded-2xl"><CardContent className="p-3"><div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
-          {statCards.map((stat) => <div key={stat.label} className="px-2 py-2 text-center sm:py-0"><stat.icon className={`h-4 w-4 lg:h-5 lg:w-5 mx-auto mb-1 ${stat.color}`} /><p className="text-base lg:text-lg font-bold leading-tight">{stat.value}</p><p className="text-[10px] text-muted-foreground">{stat.label}</p></div>)}
-        </div></CardContent></Card>
+          {!isPro && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3"><Card className="cursor-pointer rounded-2xl border border-blue-100 bg-blue-50/70 shadow-sm" onClick={() => setShowSubscription(true)}><CardContent className="flex items-center gap-3 p-3.5"><Crown className="h-5 w-5 shrink-0 text-blue-600" /><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-900">Upgrade to Pro — ₦2,500</span><span className="mt-1 block text-[10px] text-slate-500">Unlock unlimited exams, AI tutor &amp; more</span></span><ChevronRight className="h-4 w-4 text-slate-400" /></CardContent></Card></motion.div>}
 
-        {!isPro && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Card className="border-primary/20 bg-primary/5 shadow-sm cursor-pointer hover:shadow-md transition-shadow rounded-2xl" onClick={() => setShowSubscription(true)}><CardContent className="p-3 flex items-center gap-3"><Crown className="h-5 w-5 text-primary shrink-0" /><div className="flex-1"><p className="text-xs font-semibold">Upgrade to Pro — ₦2,500</p><p className="text-[10px] text-muted-foreground">Unlock unlimited exams, AI tutor & more</p></div><ChevronRight className="h-4 w-4 text-muted-foreground" /></CardContent></Card></motion.div>}
+          <section data-tour="exam-modes" className="mt-6">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-extrabold tracking-tight text-slate-900">Exam Modes</h2><span className="text-[11px] font-medium text-slate-400">Choose how to study</span></div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+              {allModeCards.map((mode) => { const Icon = mode.icon; const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz"; return <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-quiz" ? "set-quiz" : mode.id === "live-quiz" ? "live-quiz" : undefined}><Card className="h-full cursor-pointer rounded-2xl border border-slate-100 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md" onClick={() => { if (locked) { setShowSubscription(true); return; } mode.action(); }}><CardContent className="p-3.5">
+                <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon className="h-5 w-5" /></span>
+                <span className="flex items-center justify-between gap-1"><span className="text-[13px] font-bold text-slate-900">{mode.name}</span>{locked ? <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : null}</span>
+                <span className="mt-1 block text-[11px] leading-4 text-slate-500">{mode.description}</span>
+              </CardContent></Card></motion.div>; })}
+            </div>
+          </section>
 
-        <div data-tour="exam-modes"><h2 className="text-base lg:text-lg font-bold mb-3">Exam Modes</h2><div className="grid grid-cols-2 gap-2.5 lg:gap-3">
-          {allModeCards.map((mode) => { const Icon = mode.icon; const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz"; return <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "set-quiz" ? "set-quiz" : mode.id === "live-quiz" ? "live-quiz" : undefined}><Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl h-full" onClick={() => { if (locked) { setShowSubscription(true); return; } mode.action(); }}><CardContent className="p-3 lg:p-4 flex items-center gap-3"><div className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Icon className="h-4 w-4 lg:h-5 lg:w-5 text-primary" /></div><div className="flex-1 min-w-0"><p className="font-bold text-xs lg:text-sm">{mode.name}</p><p className="text-[10px] lg:text-[11px] text-muted-foreground truncate">{mode.description}</p></div>{locked ? <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}</CardContent></Card></motion.div>; })}
-        </div></div>
-
-        <div data-tour="subjects"><div className="flex items-center justify-between mb-3"><h2 className="text-base lg:text-lg font-bold">Subjects</h2></div><div className="grid grid-cols-2 min-[420px]:grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
-          {SUBJECTS.map((subject) => <motion.div key={subject.id} whileTap={{ scale: 0.96 }}><Card className="cursor-pointer border-border/50 hover:border-primary/30 transition-all shadow-sm hover:shadow-md rounded-xl" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}><CardContent className="p-2.5 lg:p-3 flex items-center gap-2"><div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><subject.icon className="h-4 w-4 text-primary" /></div><div className="min-w-0"><p className="text-[11px] lg:text-xs font-semibold truncate">{subject.name}</p><p className="text-[9px] text-muted-foreground truncate">{subject.name} ›</p></div></CardContent></Card></motion.div>)}
-        </div></div>
+          <section data-tour="subjects" className="mt-6">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-extrabold tracking-tight text-slate-900">Subjects</h2><span className="text-[11px] font-medium text-slate-400">{SUBJECTS.length} subjects</span></div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+              {SUBJECTS.map((subject, index) => <motion.div key={subject.id} whileTap={{ scale: 0.97 }}><Card className="cursor-pointer rounded-2xl border border-slate-100 bg-white shadow-sm transition hover:border-blue-200" onClick={() => navigate(`/select-subjects?mode=practice&subject=${subject.id}`)}><CardContent className="flex items-center gap-2.5 p-3">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${["bg-blue-50 text-blue-600","bg-indigo-50 text-indigo-600","bg-cyan-50 text-cyan-700","bg-violet-50 text-violet-600","bg-emerald-50 text-emerald-600"][index % 5]}`}><subject.icon className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-slate-800">{subject.name}</span><span className="mt-0.5 block truncate text-[10px] text-slate-400">Explore questions</span></span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+              </CardContent></Card></motion.div>)}
+            </div>
+          </section>
+        </div>
       </main>
       <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} />
       <OnboardingTour active={tour.active} onDismiss={tour.dismiss} />

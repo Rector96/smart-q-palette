@@ -188,12 +188,12 @@ const AITutor = () => {
 
   if (showTutorWelcome) {
     return (
-      <div className="relative flex min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] items-center justify-center overflow-y-auto bg-gradient-to-br from-[#f8f5ff] via-background to-[#eef6ff] px-4 py-6 sm:py-8 lg:min-h-[100dvh]">
+      <div className="relative flex min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] items-center justify-center overflow-y-auto bg-gradient-to-br from-[#eff6ff] via-background to-[#eef4ff] px-4 py-6 sm:py-8 lg:min-h-[100dvh]">
         <div aria-hidden="true" className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
         <motion.section initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45 }} className="relative my-auto w-full max-w-lg rounded-[2rem] border border-white/70 bg-card/90 p-5 text-center shadow-[0_24px_80px_rgba(70,40,130,0.13)] backdrop-blur-xl sm:p-9">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-primary to-violet-500 text-primary-foreground shadow-lg shadow-primary/25 sm:h-20 sm:w-20"><Sparkles className="h-8 w-8 sm:h-9 sm:w-9" /></div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">Your learning companion</p>
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] text-white shadow-lg shadow-blue-900/20 sm:h-20 sm:w-20"><Sparkles className="h-8 w-8 sm:h-9 sm:w-9" /></div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#2563EB]">Your learning companion</p>
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Welcome {firstName === "there" ? "" : firstName}!</h1>
           <p className="mt-4 text-base font-semibold leading-relaxed text-foreground">Hello! I am ROCKCBT AI, and I am here to help you learn, solve problems, and understand things with confidence.</p>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">No question is too small. Whether you need help with Mathematics, English, Science, or any topic at all, we will take it one step at a time. I will explain patiently, work through examples with you, and help you get better every day.</p>
@@ -209,14 +209,14 @@ const AITutor = () => {
 
   return (
     <section className="flex h-[calc(100dvh_-_5.25rem_-_env(safe-area-inset-bottom,0px))] min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background lg:h-dvh">
-      <header className="z-10 shrink-0 border-b border-border/80 bg-card/90 backdrop-blur-xl">
+      <header className="z-10 shrink-0 bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] text-white shadow-md shadow-blue-950/10">
         <div className="mx-auto flex w-full max-w-4xl items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4 safe-area-top">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-500 shadow-md shadow-primary/15"><Sparkles className="h-5 w-5 text-primary-foreground" /></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] shadow-md shadow-blue-900/20"><Sparkles className="h-5 w-5 text-white" /></div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold sm:text-base">ROCKCBT AI Tutor</p>
-            <p className="truncate text-[11px] text-muted-foreground sm:text-xs">Your friendly, personal study companion</p>
+            <p className="truncate text-sm font-bold text-white sm:text-base">ROCKCBT AI Tutor</p>
+            <p className="truncate text-[11px] text-blue-100 sm:text-xs">Your friendly, personal study companion</p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 sm:text-xs"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Ready to help</span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-1.5 text-[10px] font-semibold text-white sm:text-xs"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Ready to help</span>
         </div>
       </header>
 
@@ -261,7 +261,7 @@ const AITutor = () => {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMessage(); } }}
               placeholder="Message ROCKCBT AI…"
               aria-label="Write your message to ROCKCBT AI"
               rows={1}
