@@ -223,6 +223,9 @@ const AdminContent = () => {
       toast({ title: "Fill required fields", variant: "destructive" }); return;
     }
     let diagramFile: string | null = null;
+    if (manualImage && (!IMAGE_TYPES.includes(manualImage.type) || manualImage.size > MAX_IMAGE_SIZE)) {
+      toast({ title: "Unsupported image", description: "Use PNG, JPG, WEBP or GIF up to 8 MB.", variant: "destructive" }); return;
+    }
     if (manualImage) {
       const path = form.examination + "/" + questionYear + "/" + form.subject + "/" + crypto.randomUUID() + "-" + manualImage.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const { error: imageError } = await supabase.storage.from("question-diagrams").upload(path, manualImage, { contentType: manualImage.type, upsert: false, cacheControl: "31536000" });
@@ -230,8 +233,10 @@ const AdminContent = () => {
       diagramFile = path;
     }
     const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination, diagram_file: diagramFile } as any);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else {
+    if (error) {
+      if (diagramFile) await supabase.storage.from("question-diagrams").remove([diagramFile]);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
       toast({ title: "Question added!" });
       setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
       setManualImage(null); if (manualImageRef.current) manualImageRef.current.value = "";
@@ -241,7 +246,7 @@ const AdminContent = () => {
 
   const parseDataFile = async (file: File, extraImages: File[] = []) => {
     if (file.size > MAX_FILE_SIZE) throw new Error("The question file is larger than 30 MB.");
-    const text = await file.text();
+    const text = (await file.text()).replace(/^\\uFEFF/, "");
     let rawItems: any[];
     if (file.name.toLowerCase().endsWith(".json") || file.type.includes("json")) {
       const parsed = JSON.parse(text);
