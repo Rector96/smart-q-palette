@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Home, BookOpenCheck, Sparkles, User, Gift, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -17,7 +16,6 @@ const NAV_ITEMS = [
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [hidden, setHidden] = useState(false);
   const lastScrollY = useRef(0);
   const { isAdmin } = useAdmin();
