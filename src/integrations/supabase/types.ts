@@ -317,6 +317,7 @@ export type Database = {
           option_b: string
           option_c: string
           option_d: string
+          option_e: string | null
           passage: string | null
           question_text: string
           question_type: string | null
@@ -342,6 +343,7 @@ export type Database = {
           option_b: string
           option_c: string
           option_d: string
+          option_e?: string | null
           passage?: string | null
           question_text: string
           question_type?: string | null
