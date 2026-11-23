@@ -115,6 +115,7 @@ function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: str
 
 function validateQuestion(q: ImportQuestion): string | null {
   if (!q.subject) return "Subject is required";
+  if (!SUBJECTS.some((item) => item.id === q.subject)) return "Unknown subject. Use a supported subject name such as Biology, English Language or Financial Accounting.";
   if (!["JAMB", "WAEC", "NECO"].includes(q.examination)) return "Exam must be JAMB, WAEC or NECO";
   if (!Number.isInteger(q.year) || q.year < 2000 || q.year > new Date().getFullYear()) return "Year must be between 2000 and " + new Date().getFullYear();
   if (!q.question_text) return "Question text is required";
