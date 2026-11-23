@@ -165,8 +165,7 @@ Your goal is to help each learner understand, remember and solve the next questi
             messages: [{ role: "system", content: systemPrompt }, ...safeMessages],
             stream: false,
             temperature: 0.5,
-            max_completion_tokens: 1800,
-            max_tokens: 1800,
+            ...(provider.name.startsWith("Groq") ? { max_completion_tokens: 1800 } : { max_tokens: 1800 }),
             response_format: { type: "json_object" },
           }),
         });
