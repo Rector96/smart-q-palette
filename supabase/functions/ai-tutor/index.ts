@@ -19,15 +19,29 @@ function validateTutorJson(raw: string): string | null {
     if (value?.type !== "lesson" || typeof value.title !== "string" || typeof value.summary !== "string") return null;
     if (!Array.isArray(value.cards) || value.cards.length < 2 || value.cards.length > 5) return null;
     if (!value.cards.every((card: any) =>
-      typeof card.badge === "string" &&
-      typeof card.heading === "string" &&
-      typeof card.explanation === "string" &&
-      (card.formula === null || typeof card.formula === "string") &&
-      typeof card.is_final_answer === "boolean"
+      card && typeof card.heading === "string" && typeof card.explanation === "string" &&
+      (card.formula === undefined || card.formula === null || typeof card.formula === "string")
     )) return null;
-    if (!value.callout || typeof value.callout.label !== "string" || typeof value.callout.text !== "string") return null;
+    if (!value.callout || typeof value.callout.text !== "string") return null;
     if (!value.practice || typeof value.practice.question !== "string" || typeof value.practice.hint !== "string") return null;
-    return JSON.stringify(value);
+    const normalized = {
+      type: "lesson",
+      title: value.title,
+      summary: value.summary,
+      cards: value.cards.map((card: any, index: number) => ({
+        badge: typeof card.badge === "string" ? card.badge : `Step ${index + 1}`,
+        heading: card.heading,
+        explanation: card.explanation,
+        formula: typeof card.formula === "string" ? card.formula : null,
+        is_final_answer: card.is_final_answer === true,
+      })),
+      callout: {
+        label: typeof value.callout.label === "string" ? value.callout.label : "Exam tip",
+        text: value.callout.text,
+      },
+      practice: { question: value.practice.question, hint: value.practice.hint },
+    };
+    return JSON.stringify(normalized);
   } catch {
     return null;
   }
