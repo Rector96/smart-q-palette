@@ -73,15 +73,18 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
       messages: [{ role: "system", content: systemPrompt }, ...safeMessages],
       stream: false,
       temperature: 0.7,
+      max_completion_tokens: 1200,
     };
 
+    const configuredGroqModel = Deno.env.get("GROQ_MODEL")?.trim();
+    const groqModels = [...new Set([configuredGroqModel || "openai/gpt-oss-20b", "openai/gpt-oss-20b"].filter(Boolean))];
     const providers = [
-      groqKey && {
-        name: "Groq",
+      ...(groqKey ? groqModels.map((model, index) => ({
+        name: index === 0 ? "Groq" : "Groq fallback",
         url: "https://api.groq.com/openai/v1/chat/completions",
         key: groqKey,
-        model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile",
-      },
+        model,
+      })) : []),
       geminiKey && {
         name: "Gemini",
         url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
