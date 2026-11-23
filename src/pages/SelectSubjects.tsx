@@ -11,7 +11,6 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const QUESTION_PRESETS = [10, 20, 40, 60];
 type ExamType = "JAMB" | "WAEC" | "NECO";
@@ -78,15 +77,12 @@ const SelectSubjects = () => {
     return () => { active = false; };
   }, []);
 
-  const availableYears = useMemo(() => {
-    return [...new Set(catalog.filter((item) => item.examination === examination).map((item) => item.year))]
-      .sort((a, b) => b - a);
-  }, [catalog, examination]);
+  // Render a stable year catalogue independently of question availability.
+  const availableYears = useMemo(() => Array.from({ length: 2025 - 1983 + 1 }, (_, i) => 2025 - i), []);
 
   const availableSubjects = useMemo(() => {
-    const rows = catalog.filter((item) =>
-      item.examination === examination && (selectedYear === "all" || item.year === Number(selectedYear))
-    );
+    // Subjects remain selectable even when the selected year has not been populated yet.
+    const rows = catalog.filter((item) => item.examination === examination);
     return [...new Map(rows.map((item) => [item.subject.toLowerCase(), item.subject])).values()]
       .sort((a, b) => a.localeCompare(b));
   }, [catalog, examination, selectedYear]);
@@ -201,21 +197,32 @@ const SelectSubjects = () => {
                       <CalendarDays className="h-4 w-4 text-primary" />
                       <Label className="text-sm font-semibold">Select Year</Label>
                     </div>
-                    <Select value={selectedYear} onValueChange={handleYearChange}>
-                      <SelectTrigger aria-label="Select year" className="h-10 w-full">
-                        <SelectValue placeholder="Select year" />
-                      </SelectTrigger>
-                      <SelectContent
-                        align="start"
-                        side="bottom"
-                        sideOffset={4}
-                        className="w-[var(--radix-select-trigger-width)] min-w-0"
-                      >
-                        <SelectItem value="all">All available years</SelectItem>
-                        {availableYears.map((year) => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-[10px] text-muted-foreground">Choose a year or practise across all available years.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pt-2">
+                      {availableYears.map((year) => {
+                        const isSelected = selectedYear === String(year);
+                        const isHot = year >= 2021;
+                        return (
+                          <motion.div key={year} whileTap={{ scale: 0.97 }}>
+                            <Card
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Select ${year}`}
+                              aria-pressed={isSelected}
+                              onClick={() => handleYearChange(String(year))}
+                              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleYearChange(String(year)); } }}
+                              className={cn("relative min-h-[112px] cursor-pointer rounded-2xl border transition-all hover:border-primary/50 hover:shadow-sm", isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60")}
+                            >
+                              {isHot && <span className="absolute -top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">HOT</span>}
+                              <CardContent className="flex min-h-[112px] flex-col items-center justify-center p-3 text-center">
+                                <p className="text-2xl sm:text-3xl font-bold tracking-tight">{year}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">Questions</p>
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Select any year. Question collections are being added progressively.</p>
                   </CardContent>
                 </Card>
               </motion.div>
