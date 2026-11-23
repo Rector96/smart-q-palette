@@ -73,7 +73,6 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
       messages: [{ role: "system", content: systemPrompt }, ...safeMessages],
       stream: false,
       temperature: 0.7,
-      max_completion_tokens: 1200,
     };
 
     const configuredGroqModel = Deno.env.get("GROQ_MODEL")?.trim();
@@ -106,7 +105,7 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
             Authorization: `Bearer ${provider.key}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ ...payload, model: provider.model }),
+          body: JSON.stringify({ ...payload, ...(provider.name.startsWith("Groq") ? { max_completion_tokens: 1200 } : { max_tokens: 1200 }), model: provider.model }),
         });
 
         if (!candidate.ok) {
