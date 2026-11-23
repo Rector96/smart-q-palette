@@ -196,7 +196,6 @@ const AdminContent = () => {
   const [defaultSubject, setDefaultSubject] = useState("");
   const [defaultExam, setDefaultExam] = useState("JAMB");
   const [defaultYear, setDefaultYear] = useState("");
-  const [publishOnImport, setPublishOnImport] = useState(true);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
 
   const fetchCounts = async () => {
@@ -411,7 +410,7 @@ const AdminContent = () => {
           correct_answer: q.correct_answer, difficulty: q.difficulty || "medium", explanation: q.explanation,
           passage: q.passage || null, exam_hint: q.exam_hint || null, question_type: q.question_type || "standard",
           diagram_file: diagram, question_number: q.question_number ?? null, source_pdf: q.source_pdf || null, source_page: q.source_page ?? null,
-          answer_status: "UNVERIFIED", is_published: publishOnImport,
+          answer_status: "UNVERIFIED", is_published: true,
         };
       });
       const { error } = await supabase.from("questions").insert(batch as any);
@@ -472,7 +471,7 @@ const AdminContent = () => {
                 <input ref={fileRef} type="file" accept=".json,.csv,.zip,application/json,text/csv,application/zip" className="hidden" onChange={handleFile} />
                 <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{importData.length} valid questions</Badge><Badge variant="outline">{importImages.length} images attached</Badge><Badge variant="outline">{importErrors.length} validation errors</Badge></div>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3"><label className="flex items-center gap-2 text-xs font-medium"><input type="checkbox" checked={publishOnImport} onChange={(e) => setPublishOnImport(e.target.checked)} className="h-4 w-4 accent-primary" /> Make imported questions available to students immediately</label><span className="text-[10px] text-muted-foreground">Imported answers remain marked UNVERIFIED until reviewed.</span></div>
+              <p className="rounded-lg bg-muted/50 p-3 text-[11px] text-muted-foreground">Imported questions become available to students after saving. Their answer status remains UNVERIFIED so your team can keep track of answer-key review.</p>
               <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => { const rows = [["subject","exam","year","question_number","topic","question","option_a","option_b","option_c","option_d","correct_answer","difficulty","explanation","image","source_pdf","source_page"],["biology","JAMB","2015","1","Cells","Which structure controls cell activities?","Nucleus","Cell wall","Cytoplasm","Vacuole","A","medium","The nucleus controls cell activities.","q1.png","JAMB_2015_Biology.pdf","2"]]; const csv = rows.map((row) => row.map((value) => '"' + String(value).replace(/"/g, '""') + '"').join(",")).join("\n"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const a = document.createElement("a"); a.href = url; a.download = "smart-q-palette-question-template.csv"; a.click(); URL.revokeObjectURL(url); }}>Download CSV template</Button><Button size="sm" variant="outline" onClick={() => { const sample = [{ subject: "biology", exam: "JAMB", year: 2015, question_number: 1, topic: "Cells", question: "Which structure controls cell activities?", option_a: "Nucleus", option_b: "Cell wall", option_c: "Cytoplasm", option_d: "Vacuole", correct_answer: "A", difficulty: "medium", explanation: "The nucleus controls cell activities.", image: "q1.png", source_pdf: "JAMB_2015_Biology.pdf", source_page: 2 }]; const url = URL.createObjectURL(new Blob([JSON.stringify(sample, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "smart-q-palette-question-template.json"; a.click(); URL.revokeObjectURL(url); }}>Download JSON template</Button></div>
               <div className="rounded-xl border border-border p-3 space-y-2">
                 <div className="flex items-center gap-2"><ClipboardPaste className="h-4 w-4 text-primary" /><p className="text-xs font-semibold">Or paste a JSON array</p></div>
