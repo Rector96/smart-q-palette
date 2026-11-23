@@ -124,6 +124,7 @@ const AITutor = () => {
         },
         body: JSON.stringify({
           studentName,
+          structured: true,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         }),
       });
