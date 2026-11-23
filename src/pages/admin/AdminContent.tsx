@@ -145,11 +145,12 @@ async function readZip(file: File): Promise<{ dataFile: File; images: File[] }> 
     const localExtraLength = view.getUint16(localOffset + 28, true);
     const start = localOffset + 30 + localNameLength + localExtraLength;
     const compressed = bytes.slice(start, start + compressedSize);
-    let content: BlobPart;
-    if (method === 0) content = compressed;
+    let content: ArrayBuffer;
+    const compressedBuffer = compressed.buffer.slice(compressed.byteOffset, compressed.byteOffset + compressed.byteLength) as ArrayBuffer;
+    if (method === 0) content = compressedBuffer;
     else if (method === 8) {
       if (typeof DecompressionStream === "undefined") throw new Error("Your browser cannot extract ZIP files. Please upload the CSV/JSON and images separately.");
-      const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw" as CompressionFormat));
+      const stream = new Blob([compressedBuffer]).stream().pipeThrough(new DecompressionStream("deflate-raw" as CompressionFormat));
       content = await new Response(stream).arrayBuffer();
     } else throw new Error("ZIP compression method is not supported.");
     const lower = name.toLowerCase();
@@ -335,13 +336,14 @@ const AdminContent = () => {
     for (const [groupKey, questions] of groups) {
       const parts = groupKey.split("|");
       const existing = new Set<string>();
+      let duplicateCheckFailed = false;
       for (let offset = 0; ; offset += 1000) {
         const { data, error } = await supabase.from("questions").select("question_text")
           .eq("examination", parts[0]).eq("subject", parts[1]).eq("year", Number(parts[2]))
           .range(offset, offset + 999);
         if (error) {
           questions.forEach((q) => failures.push({ row: q.rowNumber, question: q.question_text, reason: "Could not check duplicates: " + error.message }));
-          failed += questions.length; break;
+          failed += questions.length; duplicateCheckFailed = true; break;
         }
         (data || []).forEach((row) => existing.add(String(row.question_text || "").trim().toLowerCase().replace(/\s+/g, " ")));
         if (!data || data.length < 1000) break;
