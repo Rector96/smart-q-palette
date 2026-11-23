@@ -36,20 +36,12 @@ const AITutor = () => {
   const [blocked, setBlocked] = useState(false);
   const [isPro, setIsPro] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const [showTutorWelcome, setShowTutorWelcome] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
-    setShowTutorWelcome(window.localStorage.getItem("rockcbt-tutor-welcomed-" + user.id) !== "true");
     setMessages([{ role: "assistant", content: welcomeMessage }]);
   }, [user?.id]);
-
-  const proceedToTutor = () => {
-    if (user?.id) window.localStorage.setItem("rockcbt-tutor-welcomed-" + user.id, "true");
-    setShowTutorWelcome(false);
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -182,27 +174,6 @@ const AITutor = () => {
           <Button variant="ghost" className="w-full" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
         </motion.div>
         <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
-      </div>
-    );
-  }
-
-  if (showTutorWelcome) {
-    return (
-      <div className="relative flex min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] items-center justify-center overflow-y-auto bg-gradient-to-br from-[#eff6ff] via-background to-[#eef4ff] px-4 py-6 sm:py-8 lg:min-h-[100dvh]">
-        <div aria-hidden="true" className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
-        <motion.section initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45 }} className="relative my-auto w-full max-w-lg rounded-[2rem] border border-white/70 bg-card/90 p-5 text-center shadow-[0_24px_80px_rgba(70,40,130,0.13)] backdrop-blur-xl sm:p-9">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] text-white shadow-lg shadow-blue-900/20 sm:h-20 sm:w-20"><Sparkles className="h-8 w-8 sm:h-9 sm:w-9" /></div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#2563EB]">Your learning companion</p>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Welcome {firstName === "there" ? "" : firstName}!</h1>
-          <p className="mt-4 text-base font-semibold leading-relaxed text-foreground">Hello! I am ROCKCBT AI, and I am here to help you learn, solve problems, and understand things with confidence.</p>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">No question is too small. Whether you need help with Mathematics, English, Science, or any topic at all, we will take it one step at a time. I will explain patiently, work through examples with you, and help you get better every day.</p>
-          <div className="mt-6 grid grid-cols-1 gap-2 text-left sm:grid-cols-3">
-            {[{ title: "Learn clearly", detail: "Simple explanations" }, { title: "Solve together", detail: "Step-by-step help" }, { title: "Grow in confidence", detail: "Practice without fear" }].map((item) => <div key={item.title} className="rounded-2xl border border-border/70 bg-background/80 px-3 py-3"><p className="text-xs font-bold text-foreground">{item.title}</p><p className="mt-1 text-[11px] text-muted-foreground">{item.detail}</p></div>)}
-          </div>
-          <Button onClick={proceedToTutor} className="mt-7 h-12 w-full rounded-full text-sm font-bold shadow-lg shadow-primary/20">Proceed to Tutor <Send className="ml-2 h-4 w-4" /></Button>
-          <p className="mt-3 text-[11px] text-muted-foreground">I am glad you are here. Let us make learning easier together. 💜</p>
-        </motion.section>
       </div>
     );
   }
