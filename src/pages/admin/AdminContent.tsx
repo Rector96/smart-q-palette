@@ -275,6 +275,7 @@ const AdminContent = () => {
         option_b: item.optionb || item.option_b,
         option_c: item.optionc || item.option_c,
         option_d: item.optiond || item.option_d,
+        option_e: item.optione || item.option_e,
         correct_answer: item.correctanswer || item.correct_answer || item.answer,
         difficulty: item.difficulty,
         explanation: item.explanation,
