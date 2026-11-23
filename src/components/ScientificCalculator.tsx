@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Calculator, X, Minus, Delete } from "lucide-react";
+import { Calculator, X, Delete } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const keys = [
   ["sin(", "cos(", "tan(", "√(", "π"],
@@ -38,14 +39,12 @@ const calculate = (expression: string) => {
   return Number(result.toPrecision(12)).toString();
 };
 
-export default function ScientificCalculator() {
+export default function ScientificCalculator({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [minimized, setMinimized] = useState(false);
   const [expression, setExpression] = useState("");
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
 
-  const close = () => { setOpen(false); setMinimized(false); };
   const press = (key: string) => {
     setError("");
     if (key === "=") {
@@ -63,76 +62,62 @@ export default function ScientificCalculator() {
   };
 
   return (
-    <>
-      <Button
-        type="button"
-        variant={open ? "default" : "outline"}
-        size="sm"
-        className="h-9 rounded-xl gap-2 px-3 shrink-0"
-        onClick={() => { setOpen((value) => !value); setMinimized(false); }}
-        aria-expanded={open}
-        aria-label={open ? "Close calculator" : "Open scientific calculator"}
-        title="Open scientific calculator"
-      >
-        <Calculator className="h-4 w-4" />
-        <span className="text-xs font-semibold">Calculator</span>
-      </Button>
-
-      {open && minimized && (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button
           type="button"
-          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 z-[60] h-11 rounded-full px-4 shadow-xl"
-          onClick={() => setMinimized(false)}
-          aria-label="Restore calculator"
+          variant={open ? "default" : "outline"}
+          size={compact ? "icon" : "sm"}
+          className={compact ? "h-9 w-9 shrink-0 rounded-xl p-0" : "h-9 shrink-0 gap-2 rounded-xl px-3"}
+          aria-expanded={open}
+          aria-label={open ? "Close calculator" : "Open scientific calculator"}
+          title="Open scientific calculator"
         >
-          <Calculator className="mr-2 h-4 w-4" /> Calculator
+          <Calculator className="h-4 w-4" />
+          {!compact && <span className="text-xs font-semibold">Calculator</span>}
         </Button>
-      )}
-
-      {open && !minimized && (
-        <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-2 z-[60] w-[min(19rem,calc(100vw-1rem))] sm:right-5 sm:bottom-5 sm:w-[20rem]">
-          <Card className="overflow-hidden border-primary/25 bg-card/95 shadow-2xl backdrop-blur-md">
-            <CardContent className="max-h-[min(68dvh,34rem)] space-y-2.5 overflow-y-auto p-2.5 sm:p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Calculator className="h-4 w-4" /></span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold sm:text-sm">Scientific calculator</p>
-                    <p className="text-[9px] text-muted-foreground sm:text-[10px]">Use it without leaving your exam</p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setMinimized(true)} aria-label="Minimise calculator" title="Minimise">
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={close} aria-label="Close calculator" title="Close">
-                    <X className="h-4 w-4" />
-                  </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="end"
+        sideOffset={8}
+        className="z-[60] w-[min(20rem,calc(100vw-1rem))] rounded-2xl border-0 bg-transparent p-0 shadow-none"
+      >
+        <Card className="overflow-hidden border-primary/25 bg-card/95 shadow-2xl backdrop-blur-md">
+          <CardContent className="max-h-[min(80dvh,36rem)] space-y-2.5 overflow-y-auto p-2.5 sm:p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Calculator className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold sm:text-sm">Scientific calculator</p>
+                  <p className="text-[9px] text-muted-foreground sm:text-[10px]">Use it without leaving your exam</p>
                 </div>
               </div>
-              <div className="min-h-14 rounded-xl bg-secondary/80 px-3 py-2 text-right">
-                <p className="min-h-4 break-all text-[10px] text-muted-foreground sm:text-xs">{expression || "0"}</p>
-                <p className="min-h-6 break-all text-lg font-bold tabular-nums sm:text-xl">{error || result || " "}</p>
-              </div>
-              <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
-                {keys.flat().map((key) => (
-                  <Button
-                    key={key}
-                    type="button"
-                    size="sm"
-                    variant={key === "=" ? "default" : key === "C" ? "destructive" : "secondary"}
-                    className="h-9 min-w-0 rounded-lg px-0.5 text-[11px] font-semibold sm:h-10 sm:text-xs"
-                    onClick={() => press(key)}
-                  >
-                    {key === "⌫" ? <Delete className="h-4 w-4" /> : key}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-center text-[9px] text-muted-foreground">Minimise to see your question, or close to return to the exam.</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </>
+              <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setOpen(false)} aria-label="Close calculator" title="Close">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="min-h-14 rounded-xl bg-secondary/80 px-3 py-2 text-right">
+              <p className="min-h-4 break-all text-[10px] text-muted-foreground sm:text-xs">{expression || "0"}</p>
+              <p className="min-h-6 break-all text-lg font-bold tabular-nums sm:text-xl">{error || result || " "}</p>
+            </div>
+            <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
+              {keys.flat().map((key) => (
+                <Button
+                  key={key}
+                  type="button"
+                  size="sm"
+                  variant={key === "=" ? "default" : key === "C" ? "destructive" : "secondary"}
+                  className="h-9 min-w-0 rounded-lg px-0.5 text-[11px] font-semibold sm:h-10 sm:text-xs"
+                  onClick={() => press(key)}
+                >
+                  {key === "⌫" ? <Delete className="h-4 w-4" /> : key}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </PopoverContent>
+    </Popover>
   );
 }

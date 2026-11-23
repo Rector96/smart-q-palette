@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, CheckCircle2, Award, X, FileText } from "lucide-react";
-import DesktopHeader from "@/components/DesktopHeader";
+import { Copy, Share2, Wallet, Loader2, Landmark, ArrowDownToLine, CheckCircle2, Coins, Gift, UserPlus, TrendingUp, ArrowLeft, FileText } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import logoImg from "@/assets/logo.png";
 import { shareTransactionReceipt } from "@/lib/transactionReceipt";
+import "./Referral.css";
 
 // The referral tables are introduced by the accompanying migration and are not
 // yet present in the generated client types on the default branch.
@@ -32,6 +32,7 @@ const money = (value: number) => new Intl.NumberFormat("en-NG", {
 
 const Referral = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<ReferralProfile | null>(null);
   const [wallet, setWallet] = useState<WalletRow>({ pending_balance: 0, available_balance: 0, lifetime_earned: 0, lifetime_paid: 0 });
@@ -266,106 +267,127 @@ const Referral = () => {
   const latestWithdrawalBank = latestOpenWithdrawal ? bankAccounts.find((account) => account.id === latestOpenWithdrawal.bank_account_id) : null;
 
   return (
-    <div className="min-h-[100dvh] bg-[#F8FAFC]">
+    <div className="min-h-[100dvh] bg-[#f4f7fb]">
       <SEOHead title="ROCKCBT – Referral Wallet" description="Practise for exams and still earn with ROCKCBT referral rewards." path="/referrals" />
-      <DesktopHeader profileName={user?.user_metadata?.full_name || null} isPro={false} />
-      <main className="mx-auto max-w-2xl space-y-4 px-3 py-4 sm:space-y-5 sm:px-5 sm:py-6">
-        {!loading && !loadError && (
-                      <Card className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] text-white shadow-sm">
-                        <CardContent className="space-y-4 p-4 sm:p-5">
-                          <div className="flex items-center justify-between gap-3">
-                            <div><p className="text-xs font-medium text-blue-100">Available to withdraw</p><p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{money(wallet.available_balance)}</p></div>
-                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15"><Wallet className="h-6 w-6 text-white" /></div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-[11px] text-blue-100">Pending rewards</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.pending_balance)}</p></div>
-                            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-[11px] text-blue-100">Lifetime earned</p><p className="mt-1 text-lg font-bold text-white">{money(wallet.lifetime_earned)}</p></div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-xs text-blue-100"><span className="text-blue-100">Withdrawal minimum: ₦1,000</span><span className="font-semibold">{Math.round(minimumProgress)}%</span></div>
-                            <div className="h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${minimumProgress}%` }} /></div>
-                            <p className="text-xs text-blue-100">{Number(wallet.available_balance) >= 1000 ? "You have reached the withdrawal minimum." : `${money(Math.max(0, 1000 - Number(wallet.available_balance)))} more in available rewards to reach the withdrawal minimum.`}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-        )}
-        <div>
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#2563EB]">ROCKCBT · Refer & Earn</p>
-            <h1 className="mt-1 text-lg font-extrabold leading-tight text-slate-900">Practise for exams. Earn by sharing ROCKCBT.</h1>
-            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">Invite people preparing for exams. When someone subscribes through your link, you earn <span className="font-bold text-slate-900">₦500</span>.</p>
-            <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">1. Share your link</span>
-              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">2. They subscribe</span>
-              <span className="rounded-full bg-background/80 px-3 py-1.5 font-semibold">3. You earn ₦500</span>
-            </div>
-          </div>
+      <header className="sticky top-0 z-20 border-b border-[#e6eaf0] bg-white/95 backdrop-blur">
+        <div className="mx-auto grid max-w-[1080px] grid-cols-[40px_1fr_40px] items-center px-4 py-3 sm:px-6">
+          <Button variant="ghost" size="icon" aria-label="Go back" className="h-9 w-9 rounded-full" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-center text-lg font-bold text-[#171b2d]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Refer & Earn</h1>
+          <span aria-hidden="true" />
         </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading your referral wallet…</div>
-        ) : loadError ? (
-          <Card className="rounded-2xl"><CardContent className="space-y-3 p-5 text-center">
-            <p className="font-semibold">Your referral wallet is not ready yet</p>
-            <p className="text-sm text-muted-foreground">The referral database setup is still being prepared. Your account and practice progress are not affected.</p>
-            <Button variant="outline" onClick={() => void loadReferralData()}>Try again</Button>
-          </CardContent></Card>
-        ) : (
-          <>
-            {withdrawalConfirmation && (
-              <div role="dialog" aria-modal="true" aria-labelledby="withdrawal-result-title" className="fixed inset-0 z-[100] flex min-h-[100dvh] items-stretch justify-center overflow-y-auto bg-slate-950/75 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-                <section className={`relative flex min-h-[100dvh] w-full flex-col overflow-y-auto px-5 pb-6 pt-5 shadow-2xl sm:min-h-0 sm:max-w-lg sm:rounded-[2rem] sm:px-7 sm:py-7 ${withdrawalConfirmation.status === "success" ? "bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 text-white" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "bg-card text-card-foreground" : "bg-card text-card-foreground"}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2"><img src={logoImg} alt="ROCKCBT" className="h-9 w-auto rounded-lg bg-white p-1.5" /><span className="text-xs font-bold tracking-[0.16em] opacity-75">TRANSACTION RECEIPT</span></div>
-                    <Button type="button" size="icon" variant="ghost" aria-label="Close withdrawal receipt" className={withdrawalConfirmation.status === "success" ? "rounded-full text-white hover:bg-white/10 hover:text-white" : "rounded-full"} onClick={() => setWithdrawalConfirmation(null)}><X className="h-5 w-5" /></Button>
-                  </div>
-                  <div className="flex flex-1 flex-col justify-center py-8 text-center sm:py-7">
-                    <div className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ring-8 ${withdrawalConfirmation.status === "success" ? "bg-emerald-400/15 text-emerald-300 ring-emerald-400/10" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "bg-destructive/10 text-destructive ring-destructive/5" : "bg-primary/10 text-primary ring-primary/5"}`}>
-                      {withdrawalConfirmation.status === "success" ? <Award className="h-11 w-11" /> : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? <X className="h-10 w-10" /> : <Loader2 className="h-9 w-9 animate-spin" />}
-                    </div>
-                    <Badge className="mx-auto mb-3" variant={withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "destructive" : "secondary"}>{withdrawalConfirmation.status === "success" ? "Payment successful" : withdrawalStatusLabel(withdrawalConfirmation.status)}</Badge>
-                    <h2 id="withdrawal-result-title" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{withdrawalConfirmation.status === "success" ? "Withdrawal successful!" : withdrawalConfirmation.status === "failed" ? "Withdrawal not completed" : withdrawalConfirmation.status === "reversed" ? "Transfer reversed" : "Your money is on its way"}</h2>
-                    <p className={`mx-auto mt-2 max-w-sm text-sm leading-6 ${withdrawalConfirmation.status === "success" ? "text-white/70" : "text-muted-foreground"}`}>{withdrawalConfirmation.status === "success" ? "Your referral earnings have been sent to your bank account. Thank you for growing with ROCKCBT." : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "The transfer did not complete. Your available balance is being restored according to the withdrawal process." : "Your withdrawal request has been received and is being processed securely."}</p>
-                    <p className="mt-6 text-4xl font-black tracking-tight sm:text-5xl">{money(withdrawalConfirmation.amount)}</p>
-                    <p className={`mt-1 text-xs font-semibold uppercase tracking-[0.18em] ${withdrawalConfirmation.status === "success" ? "text-emerald-200/75" : "text-muted-foreground"}`}>Amount withdrawn</p>
-                  </div>
-                  <div className={`space-y-3 rounded-2xl p-4 text-left ${withdrawalConfirmation.status === "success" ? "border border-white/10 bg-white/[0.08]" : "border bg-muted/40"}`}>
-                    <div className="flex items-start justify-between gap-3"><span className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Sent to</span><span className="max-w-[65%] text-right text-sm font-semibold">{withdrawalConfirmation.accountName}</span></div>
-                    <div className="flex items-start justify-between gap-3"><span className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Bank account</span><span className="max-w-[65%] text-right text-sm font-semibold">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</span></div>
-                    <div className="flex items-start justify-between gap-3"><span className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Date</span><span className="text-right text-sm font-semibold">{new Date(withdrawalConfirmation.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</span></div>
-                    <div className="flex items-start justify-between gap-3"><span className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Reference</span><span className="max-w-[65%] break-all text-right font-mono text-xs font-semibold">{withdrawalConfirmation.reference || "Referral withdrawal"}</span></div>
-                  </div>
-                  {withdrawalConfirmation.testMode && <p className="mt-3 text-center text-xs text-amber-500">Paystack test mode: no real money was sent.</p>}
-                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                    <Button className={withdrawalConfirmation.status === "success" ? "h-12 rounded-xl bg-white font-bold text-emerald-950 hover:bg-emerald-50" : "h-12 rounded-xl"} onClick={() => void shareReceipt({ type: "Referral earnings withdrawal", amount: withdrawalConfirmation.amount, status: withdrawalConfirmation.status, date: withdrawalConfirmation.createdAt, reference: withdrawalConfirmation.reference, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-2 h-4 w-4" />Share receipt</Button>
-                    <Button variant={withdrawalConfirmation.status === "success" ? "ghost" : "outline"} className={withdrawalConfirmation.status === "success" ? "h-12 rounded-xl text-white hover:bg-white/10 hover:text-white" : "h-12 rounded-xl"} onClick={() => setWithdrawalConfirmation(null)}>Back to referral wallet</Button>
-                  </div>
-                  <p className={`mt-3 text-center text-[11px] ${withdrawalConfirmation.status === "success" ? "text-white/50" : "text-muted-foreground"}`}>Keep this receipt for your records.</p>
-                </section>
-              </div>
-            )}
-            {!withdrawalConfirmation && latestOpenWithdrawal && <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]"><CardContent className="space-y-2 p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-primary" /><h2 className="font-bold">Withdrawal request received</h2></div><p className="text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(latestOpenWithdrawal.amount)}</span> has been submitted.</p><p className="text-xs text-muted-foreground">{latestWithdrawalBank?.account_name || "Your saved account"} · {latestWithdrawalBank?.bank_name || "Bank transfer"} · {latestWithdrawalBank?.account_number_masked || ""}</p><p className="text-xs text-muted-foreground">{latestOpenWithdrawal.status === "otp" ? "Your request is awaiting secure platform authorisation. You do not need to enter the Paystack code. Once approved, Paystack will process the transfer." : "Your payout is being processed. The money will be delivered to the bank account above after Paystack confirms the transfer."}</p></CardContent></Card>}
-            <Card className="rounded-2xl shadow-sm">
-              <CardContent className="space-y-3 p-4">
-                <div><h2 className="font-bold">Share your practice link</h2><p className="text-xs text-muted-foreground">Earn ₦500 for every successful subscription through your link.</p></div>
-                <div className="flex min-w-0 items-center gap-2 rounded-xl border bg-muted/40 p-2">
-                  <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralShareUrl || "Your ROCKCBT invite link will appear here once your referral profile is ready."}</span>
-                  <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => void copyLink()} disabled={!referralShareUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
+      </header>
+      <main className="mx-auto w-full max-w-[1080px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-3">
+        <div className="referral-layout">
+          <section className="referral-hero relative overflow-hidden rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/[0.14] via-card to-card p-5 sm:p-6">
+            <div className="referral-hero-glow" />
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 max-w-2xl">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                  <Gift className="h-3.5 w-3.5" /> Refer & Earn
                 </div>
-                <Button className="w-full rounded-xl" onClick={() => void shareLink()} disabled={!referralShareUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
-                {profile?.referral_code && <p className="text-center text-[11px] text-muted-foreground">Your referral code: <span className="font-semibold text-foreground">{profile.referral_code}</span></p>}
+                <h1 className="text-2xl font-extrabold leading-[1.08] sm:text-3xl">Practise for exams.<br className="hidden sm:block" /> Earn by sharing ROCKCBT.</h1>
+                <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  Invite people preparing for exams. Earn <span className="font-bold text-foreground">₦500</span> for every successful subscription.
+                </p>
+              </div>
+              <div className="referral-steps shrink-0">
+                <div><span>1</span><p>Share</p></div>
+                <i />
+                <div><span>2</span><p>Subscribe</p></div>
+                <i />
+                <div><span>3</span><p>Earn ₦500</p></div>
+              </div>
+            </div>
+          </section>
+
+          {loading ? (
+            <div className="referral-wallet flex min-h-32 items-center justify-center rounded-2xl border bg-card text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading your referral wallet…
+            </div>
+          ) : loadError ? (
+            <Card className="referral-wallet rounded-2xl">
+              <CardContent className="space-y-3 p-5 text-center">
+                <p className="font-semibold">Your referral wallet is not ready yet</p>
+                <p className="text-sm text-muted-foreground">The referral database setup is still being prepared. Your account and practice progress are not affected.</p>
+                <Button variant="outline" onClick={() => void loadReferralData()}>Try again</Button>
               </CardContent>
             </Card>
+          ) : (
+            <>
+              <Card className="referral-wallet referral-card overflow-hidden rounded-3xl border-primary/20 bg-gradient-to-br from-primary/[0.09] via-card to-card">
+                <CardContent className="space-y-4 p-4 sm:p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">Available to withdraw</p>
+                      <p className="mt-1 text-3xl font-extrabold leading-tight sm:text-4xl">{money(wallet.available_balance)}</p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"><Wallet className="h-6 w-6" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="referral-stat"><Coins className="h-4 w-4 text-amber-500" /><p>Pending</p><strong>{money(wallet.pending_balance)}</strong></div>
+                    <div className="referral-stat"><TrendingUp className="h-4 w-4 text-emerald-500" /><p>Lifetime earned</p><strong>{money(wallet.lifetime_earned)}</strong></div>
+                    <div className="referral-stat"><UserPlus className="h-4 w-4 text-primary" /><p>People referred</p><strong>{referralCount}</strong></div>
+                    <div className="referral-stat"><Gift className="h-4 w-4 text-violet-500" /><p>Available rewards</p><strong>{rewards.filter((item) => item.status === "available").length}</strong></div>
+                  </div>
+                  <div>
+                    <div className="mb-2 flex justify-between gap-2 text-[11px]">
+                      <span className="text-muted-foreground">Progress to ₦1,000 minimum</span><span className="font-semibold">{Math.round(minimumProgress)}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${minimumProgress}%` }} /></div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">{Number(wallet.available_balance) >= 1000 ? "You have reached the withdrawal minimum." : `${money(Math.max(0, 1000 - Number(wallet.available_balance)))} more to reach the withdrawal minimum.`}</p>
+                  </div>
+                </CardContent>
+              </Card>
 
+              <Card className="referral-share referral-card rounded-3xl">
+                <CardContent className="flex h-full flex-col justify-between space-y-4 p-4 sm:p-5">
+                  <div>
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10"><Share2 className="h-5 w-5 text-primary" /></div>
+                    <h2 className="text-lg font-bold">Share your practice link</h2>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Invite a friend and earn ₦500 for every successful subscription through your link.</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-border bg-muted/40 p-2">
+                      <span className="min-w-0 flex-1 truncate px-1 text-xs">{referralShareUrl || "Referral link unavailable"}</span>
+                      <Button size="icon" variant="outline" className="h-9 w-9 shrink-0 rounded-xl" onClick={() => void copyLink()} disabled={!referralShareUrl} aria-label="Copy referral link"><Copy className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button className="h-11 flex-1 rounded-xl" onClick={() => void shareLink()} disabled={!referralShareUrl}><Share2 className="mr-2 h-4 w-4" />Share referral link</Button>
+                      {profile?.referral_code && <Badge variant="secondary" className="h-11 shrink-0 items-center rounded-xl px-3">Code: {profile.referral_code}</Badge>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="rounded-2xl border border-slate-100 shadow-sm"><CardContent className="flex items-center gap-3 p-3 sm:p-4"><Users className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="text-xl font-bold">{referralCount}</p><p className="text-[11px] leading-4 text-muted-foreground">People referred</p></div></CardContent></Card>
-              <Card className="rounded-2xl border border-slate-100 shadow-sm"><CardContent className="flex items-center gap-3 p-3 sm:p-4"><Gift className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="text-xl font-bold">{rewards.filter((item) => item.status === "available").length}</p><p className="text-[11px] leading-4 text-muted-foreground">Available rewards</p></div></CardContent></Card>
-            </div>
-
-            <Card className="rounded-2xl shadow-sm">
-              <CardContent className="space-y-4 p-4">
+            {withdrawalConfirmation && <Card className={"referral-state overflow-hidden rounded-3xl border-0 shadow-xl " + (withdrawalConfirmation.status === "success" ? "bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white" : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "border border-destructive/40 bg-destructive/5" : "border border-primary/20 bg-card")}>
+              <CardContent className="space-y-5 p-5 sm:p-7">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2"><img src={logoImg} alt="ROCKCBT" className="h-9 w-auto rounded-md bg-white p-1" /><span className="text-xs font-semibold tracking-wide opacity-80">REFERRAL WALLET</span></div>
+                  <Badge variant={withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "destructive" : "secondary"}>{withdrawalConfirmation.status === "success" ? "Successful" : withdrawalStatusLabel(withdrawalConfirmation.status)}</Badge>
+                </div>
+                <div className="py-3 text-center">
+                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">{withdrawalConfirmation.status === "success" ? <CheckCircle2 className="h-9 w-9" /> : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? <span className="text-3xl font-bold">!</span> : <Loader2 className="h-8 w-8 animate-spin" />}</div>
+                  <h2 className="text-xl font-bold sm:text-2xl">{withdrawalConfirmation.status === "success" ? "Your withdrawal was successful!" : withdrawalConfirmation.status === "failed" ? "Withdrawal not completed" : withdrawalConfirmation.status === "reversed" ? "Transfer reversed" : "Your money is on its way"}</h2>
+                  <p className={`mx-auto mt-2 max-w-md text-sm ${withdrawalConfirmation.status === "success" ? "text-white/70" : "text-muted-foreground"}`}>{withdrawalConfirmation.status === "success" ? "Well done! Your referral earnings have reached your bank. Keep practising, keep sharing, and keep earning." : withdrawalConfirmation.status === "failed" || withdrawalConfirmation.status === "reversed" ? "The transfer was not completed. Your available balance will be restored automatically." : "Your withdrawal request has been received and is being processed securely."}</p>
+                  <p className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">{money(withdrawalConfirmation.amount)}</p>
+                  <p className={`mt-1 text-xs font-semibold uppercase tracking-[0.2em] ${withdrawalConfirmation.status === "success" ? "text-emerald-200/80" : "text-muted-foreground"}`}>Referral earnings withdrawal</p>
+                </div>
+                <div className={`grid gap-3 rounded-2xl p-4 text-sm sm:grid-cols-2 ${withdrawalConfirmation.status === "success" ? "bg-white/10" : "bg-muted/60"}`}>
+                  <div><p className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Sent to</p><p className="mt-1 font-semibold">{withdrawalConfirmation.accountName}</p></div>
+                  <div><p className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Bank account</p><p className="mt-1 font-semibold">{withdrawalConfirmation.bankName} · {withdrawalConfirmation.accountNumberMasked}</p></div>
+                  <div><p className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Date</p><p className="mt-1 font-semibold">{new Date(withdrawalConfirmation.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p></div>
+                  <div><p className={`text-xs ${withdrawalConfirmation.status === "success" ? "text-white/60" : "text-muted-foreground"}`}>Reference</p><p className="mt-1 break-all font-mono text-xs">{withdrawalConfirmation.reference || "Referral withdrawal"}</p></div>
+                </div>
+                {withdrawalConfirmation.testMode && <p className="text-xs text-amber-200">Paystack test mode: no real money is sent.</p>}
+                <div className="space-y-3"><Button className="w-full rounded-xl bg-white text-emerald-950 hover:bg-emerald-50" onClick={() => void shareReceipt({ type: "Referral earnings withdrawal", amount: withdrawalConfirmation.amount, status: withdrawalConfirmation.status, date: withdrawalConfirmation.createdAt, reference: withdrawalConfirmation.reference, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-2 h-4 w-4" />Share transaction receipt</Button><p className={`text-center text-xs ${withdrawalConfirmation.status === "success" ? "text-white/65" : "text-muted-foreground"}`}>Practise for exams and still earn. Thank you for growing with us.</p></div>
+                <Button variant="ghost" className={`w-full ${withdrawalConfirmation.status === "success" ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`} onClick={() => setWithdrawalConfirmation(null)}>Back to referral wallet</Button>
+              </CardContent>
+            </Card>}
+            {!withdrawalConfirmation && latestOpenWithdrawal && <Card className="referral-state rounded-2xl border-primary/20 bg-primary/[0.03]"><CardContent className="space-y-2 p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-primary" /><h2 className="font-bold">Withdrawal request received</h2></div><p className="text-sm text-muted-foreground">Your request for <span className="font-semibold text-foreground">{money(latestOpenWithdrawal.amount)}</span> has been submitted.</p><p className="text-xs text-muted-foreground">{latestWithdrawalBank?.account_name || "Your saved account"} · {latestWithdrawalBank?.bank_name || "Bank transfer"} · {latestWithdrawalBank?.account_number_masked || ""}</p><p className="text-xs text-muted-foreground">{latestOpenWithdrawal.status === "otp" ? "Your request is awaiting secure platform authorisation. You do not need to enter the Paystack code. Once approved, Paystack will process the transfer." : "Your payout is being processed. The money will be delivered to the bank account above after Paystack confirms the transfer."}</p></CardContent></Card>}
+            <Card className="referral-bank rounded-2xl shadow-sm">
+              <CardContent className="space-y-3 p-3 sm:p-4">
                 <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Bank account</h2><p className="text-xs text-muted-foreground">Verify the account name before saving your payout account.</p></div></div>
                 {bankAccounts.map((account) => (
                   <div key={account.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
@@ -399,8 +421,8 @@ const Referral = () => {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow-sm">
-              <CardContent className="space-y-3 p-4">
+            <Card className="referral-withdraw rounded-2xl shadow-sm">
+              <CardContent className="space-y-2.5 p-3 sm:p-4">
                 <div className="flex items-center gap-2"><ArrowDownToLine className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Withdraw referral earnings</h2><p className="text-xs text-muted-foreground">Minimum withdrawal is ₦1,000.</p></div></div>
                 {bankAccounts.length > 0 ? <>
                   <div className="mb-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Withdrawal destination: <span className="font-semibold text-foreground">{bankAccounts.find((account) => account.id === withdrawBankId)?.account_name || "Select a verified bank account"}</span></div>
@@ -422,19 +444,21 @@ const Referral = () => {
               </CardContent>
             </Card>
 
-            <Card id="rewards-history" className="rounded-2xl shadow-sm">
-              <CardContent className="space-y-3 p-4">
-                <div className="flex items-center justify-between"><h2 className="font-bold">Referral earnings history</h2><Badge variant="secondary">₦500 each</Badge></div>
-                {rewards.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Your successful referrals and rewards will appear here.</p> : rewards.map((reward) => (
-                  <div key={reward.id} className="flex flex-col gap-3 border-b pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0"><p className="text-sm font-semibold">Referral reward</p><p className="text-[11px] text-muted-foreground">{new Date(reward.reversed_at || reward.available_at || reward.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={reward.status === "available" ? "default" : reward.status === "reversed" ? "destructive" : "secondary"}>{reward.status}</Badge></div>
-                    <div className="flex items-center justify-between gap-3 sm:justify-end"><p className="text-sm font-bold">+{money(reward.amount)}</p><Button size="sm" variant="outline" className="h-9 rounded-xl" onClick={() => void shareReceipt({ type: "Referral earnings", amount: reward.amount, status: reward.status, date: reward.reversed_at || reward.available_at || reward.created_at, reference: reward.id, description: "ROCKCBT referral reward" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button></div>
-                  </div>
-                ))}
+            <Card id="rewards-history" className="referral-rewards rounded-2xl shadow-sm">
+              <CardContent className="space-y-2 p-3 sm:p-4">
+                <div className="flex items-center justify-between"><h2 className="text-sm font-bold">Referral earnings history</h2><Badge variant="secondary">₦500 each</Badge></div>
+                <div className="referral-history-list space-y-2 pr-1">
+                  {rewards.length === 0 ? <p className="py-3 text-center text-sm text-muted-foreground">Your successful referrals and rewards will appear here.</p> : rewards.map((reward) => (
+                    <div key={reward.id} className="flex flex-col gap-2 border-b pb-2 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0"><p className="text-xs font-semibold">Referral reward</p><p className="text-[10px] text-muted-foreground">{new Date(reward.reversed_at || reward.available_at || reward.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={reward.status === "available" ? "default" : reward.status === "reversed" ? "destructive" : "secondary"}>{reward.status}</Badge></div>
+                      <div className="flex items-center justify-between gap-2 sm:justify-end"><p className="text-xs font-bold">+{money(reward.amount)}</p><Button size="sm" variant="outline" className="h-8 rounded-xl text-xs" onClick={() => void shareReceipt({ type: "Referral earnings", amount: reward.amount, status: reward.status, date: reward.reversed_at || reward.available_at || reward.created_at, reference: reward.id, description: "ROCKCBT referral reward" })}><Share2 className="mr-1 h-3 w-3" />Share receipt</Button></div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
-            <Card id="withdrawal-history" className="rounded-2xl shadow-sm">
+            <Card id="withdrawal-history" className="referral-withdrawals rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-4">
                 <div><h2 className="font-bold">Withdrawal history</h2><p className="text-xs text-muted-foreground">Every withdrawal request and its latest status.</p></div>
                 {withdrawals.length === 0 ? <p className="py-3 text-center text-sm text-muted-foreground">You have not made a withdrawal yet.</p> : withdrawals.map((item) => (
@@ -462,7 +486,11 @@ const Referral = () => {
             </Card>
           </>
         )}
-        <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-xs lg:col-span-2"><Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link><span className="text-muted-foreground">Rewards are credited after a successful subscription. Minimum withdrawal: ₦1,000.</span></div>
+          <div className="referral-footer flex flex-wrap items-center justify-center gap-2 pb-1 text-center text-[10px]">
+            <Link to="/notifications" className="font-semibold text-primary hover:underline">View complete account history</Link>
+            <span className="text-muted-foreground">Rewards are credited after a successful subscription · Minimum withdrawal: ₦1,000</span>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,14 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ArrowRight, Flag, Clock, CheckCircle2, XCircle,
-  BookOpen, Send, Loader2, Share2, X, Shuffle
+  BookOpen, Send, Loader2, Share2, X, Shuffle, MoreHorizontal, ChevronDown
 } from "lucide-react";
 import ScientificCalculator from "@/components/ScientificCalculator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
+import OnboardingTour, { CBT_TOUR_STEPS, CBT_TOUR_STORAGE_KEY, useOnboardingTour } from "@/components/OnboardingTour";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import Logo from "@/components/Logo";
 import ExamSubmitOverlay from "@/components/ExamSubmitOverlay";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import "./Exam.css";
 
 const Exam = () => {
   const [searchParams] = useSearchParams();
@@ -34,6 +37,7 @@ const Exam = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const cbtTour = useOnboardingTour(CBT_TOUR_STORAGE_KEY);
 
   const questionCountParam = searchParams.get("count");
   const customDuration = timerParam ? Number(timerParam) * 60 : 60 * 60;
@@ -49,7 +53,9 @@ const Exam = () => {
   const [timeLeft, setTimeLeft] = useState(customDuration);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showNav, setShowNav] = useState(false);
+  const handleCBTTourStepChange = useCallback((step: number) => setShowNav(step === 4), []);
   const [showSubscription, setShowSubscription] = useState(false);
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [trialBlocked, setTrialBlocked] = useState(false);
   const [activeSubject, setActiveSubject] = useState(subjects[0] || "");
   const [profileName, setProfileName] = useState("");
@@ -164,6 +170,9 @@ const Exam = () => {
   }, [isTimed, loading, trialBlocked, sessionId]);
 
   const currentQuestion = hasMultipleSubjects ? displayedQuestions[currentIndex] : questions[currentIndex];
+  const navigatorQuestions = hasMultipleSubjects ? displayedQuestions : questions;
+  const totalQuestions = navigatorQuestions.length;
+  const answeredCount = navigatorQuestions.filter((question) => answers[question.id]).length;
 
   const selectAnswer = (questionId: string, label: string) => {
     if (showResult && isPractice) return;
@@ -219,6 +228,42 @@ const Exam = () => {
     setShowNav(false);
   };
 
+  useEffect(() => {
+    if (!currentQuestion || showConfirmSubmit || showSubscription || submitting) return;
+
+    const handleExamKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) return;
+
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+      if (event.key === "ArrowLeft" && currentIndex > 0) {
+        event.preventDefault();
+        goToQuestion(currentIndex - 1);
+        return;
+      }
+
+      if (event.key === "ArrowRight" && currentIndex < totalQuestions - 1) {
+        event.preventDefault();
+        goToQuestion(currentIndex + 1);
+        return;
+      }
+
+      const answerIndex = "abcd".indexOf(event.key.toLowerCase());
+      const option = answerIndex >= 0 ? currentQuestion.options[answerIndex] : undefined;
+      if (option) {
+        event.preventDefault();
+        selectAnswer(currentQuestion.id, option.label);
+      }
+    };
+
+    window.addEventListener("keydown", handleExamKeyDown);
+    return () => window.removeEventListener("keydown", handleExamKeyDown);
+  }, [currentQuestion, currentIndex, totalQuestions, answers, isPractice, showResult, showConfirmSubmit, showSubscription, submitting]);
+
   const handleShare = async () => {
     if (!sessionId || !user) return;
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -240,8 +285,6 @@ const Exam = () => {
       toast({ title: "Share link", description: url });
     }
   };
-
-  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
 
   const confirmAndSubmit = () => {
     // Check if user has answered at least one question
@@ -300,8 +343,6 @@ const Exam = () => {
     const s = seconds % 60;
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
-
-  const totalQuestions = hasMultipleSubjects ? displayedQuestions.length : questions.length;
 
   const getSubjectName = (id: string) => SUBJECTS.find(s => s.id === id)?.name || id;
 
@@ -371,50 +412,70 @@ const Exam = () => {
   return (
     <>
       {submitting && <ExamSubmitOverlay />}
-    <div className="min-h-[100dvh] overflow-x-clip bg-background flex flex-col">
+    <div className="exam-page min-h-[100dvh] overflow-x-clip bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2.5 flex items-center justify-between safe-area-top">
+      <header data-tour="exam-tools" className="exam-mobile-header border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20 lg:hidden">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2 flex items-center justify-between safe-area-top">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/dashboard")} aria-label="Back to dashboard">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Logo size="sm" showText />
           </div>
-          <div className="flex items-center gap-2">
-            <ScientificCalculator />
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/dashboard")}>
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <div data-tour="exam-calculator" className="shrink-0">
+              <ScientificCalculator compact />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-xl" aria-label="More exam actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={6}>
+                {!isTimed && (
+                  <DropdownMenuItem onSelect={shuffleQuestionSet}>
+                    <Shuffle className="mr-2 h-4 w-4" /> Shuffle questions
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={handleShare}>
+                  <Share2 className="mr-2 h-4 w-4" /> Share exam
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
-        {/* Mode / Timer / Progress bar */}
-        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-2 flex flex-wrap items-center gap-2">
-          <div className="flex min-h-8 items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full">
-            <BookOpen className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[10px] font-semibold capitalize">{mode} Mode</span>
-          </div>
-          <div className="min-h-8 px-2.5 py-1 bg-primary/10 text-primary rounded-full">
-            <span className="text-[10px] font-semibold">{examination}{selectedYear ? ` · ${selectedYear}` : " · All years"}</span>
-          </div>
-          {isTimed && (
-            <div className={cn("flex min-h-8 items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full", timeLeft < 300 && "text-destructive")}>
-              <Clock className="h-3.5 w-3.5" />
-              <span className="text-[10px] font-mono font-bold">{formatTime(timeLeft)}</span>
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+              <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="truncate capitalize">{mode} · {examination}{selectedYear ? ` ${selectedYear}` : " · All years"}</span>
+            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {isTimed && (
+                <span className={cn("flex h-8 items-center gap-1 rounded-full bg-secondary px-2.5 font-mono text-[10px] font-bold", timeLeft < 300 && "text-destructive")}>
+                  <Clock className="h-3.5 w-3.5" />{formatTime(timeLeft)}
+                </span>
+              )}
+              <button
+                type="button"
+                data-tour="exam-question-picker"
+                aria-expanded={showNav}
+                aria-controls="exam-mobile-nav"
+                aria-label={`Question ${currentIndex + 1} of ${totalQuestions}. Toggle question navigator`}
+                className="flex h-8 items-center gap-1 rounded-full bg-secondary px-2.5 text-[10px] font-semibold"
+                onClick={() => setShowNav(!showNav)}
+              >
+                {currentIndex + 1}/{totalQuestions}<ChevronDown className="h-3 w-3" />
+              </button>
             </div>
-          )}
-          {!isTimed && (
-            <Button variant="outline" size="sm" className="h-9 rounded-xl gap-1.5" onClick={shuffleQuestionSet} title="Shuffle question order">
-              <Shuffle className="h-3.5 w-3.5" /><span className="text-[10px]">Shuffle</span>
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleShare} title="Share exam">
-            <Share2 className="h-3.5 w-3.5" />
-          </Button>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full cursor-pointer" onClick={() => setShowNav(!showNav)}>
-            <span className="text-[10px] font-semibold">{currentIndex + 1}/{totalQuestions}</span>
           </div>
+          <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>{answeredCount} answered</span>
+            <span>{Math.max(0, totalQuestions - answeredCount)} remaining</span>
+          </div>
+          <Progress value={((currentIndex + 1) / totalQuestions) * 100} className="mt-1 h-1" />
         </div>
 
         {/* Subject Tabs */}
@@ -443,16 +504,75 @@ const Exam = () => {
           </div>
         )}
 
-        <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 pb-2 flex items-center justify-between text-[10px] text-muted-foreground"><span>{displayedQuestions.filter((question) => answers[question.id]).length} answered</span><span>{Math.max(0, totalQuestions - displayedQuestions.filter((question) => answers[question.id]).length)} remaining</span></div><Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-1.5" />
+      </header>
+
+      <header className="exam-desktop-header sticky top-0 z-30 hidden border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl lg:block">
+        <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-5 py-3">
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigate("/dashboard")} aria-label="Back to dashboard">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Logo size="sm" showText />
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="max-w-[300px] truncate rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800">
+              {subjects.map(getSubjectName).join(" · ") || "All subjects"}{examination ? ` · ${examination}` : ""}{selectedYear ? ` ${selectedYear}` : ""}
+            </span>
+            <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold capitalize text-slate-700">{mode} Mode</span>
+            {!isTimed && (
+              <Button variant="outline" size="sm" className="h-9 shrink-0 rounded-xl gap-1.5" onClick={shuffleQuestionSet} title="Shuffle question order">
+                <Shuffle className="h-3.5 w-3.5" /><span className="text-xs">Shuffle</span>
+              </Button>
+            )}
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-xl" onClick={handleShare} title="Share exam" aria-label="Share exam">
+              <Share2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <ScientificCalculator />
+            {isTimed && (
+              <span className={cn("flex h-9 items-center gap-1.5 rounded-xl border px-3 font-mono text-sm font-bold tabular-nums", timeLeft < 300 ? "border-red-200 bg-red-50 text-red-600" : "border-slate-200 bg-slate-50 text-slate-700")} aria-live="polite">
+                <Clock className="h-4 w-4" />{formatTime(timeLeft)}
+              </span>
+            )}
+            <Button className="h-9 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700" onClick={confirmAndSubmit} disabled={submitting}>
+              <Send className="mr-2 h-4 w-4" /> Submit Exam
+            </Button>
+          </div>
+        </div>
+        {hasMultipleSubjects && (
+          <div className="mx-auto flex max-w-[1440px] gap-2 overflow-x-auto px-5 pb-2 scrollbar-hide">
+            {subjects.map((subj) => {
+              const SubjIcon = SUBJECTS.find((subject) => subject.id === subj)?.icon || BookOpen;
+              return (
+                <button
+                  key={subj}
+                  type="button"
+                  onClick={() => { setActiveSubject(subj); setCurrentIndex(0); setShowResult(false); }}
+                  className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors", activeSubject === subj ? "bg-primary text-primary-foreground" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+                >
+                  <SubjIcon className="h-3.5 w-3.5" />{getSubjectName(subj)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="mx-auto max-w-[1440px] px-5 pb-2">
+          <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-500">
+            <span>{answeredCount} of {totalQuestions} answered</span>
+            <span>Question {currentIndex + 1} of {totalQuestions}</span>
+          </div>
+          <Progress value={totalQuestions ? (answeredCount / totalQuestions) * 100 : 0} className="h-1.5" />
+        </div>
       </header>
 
       {/* Question Nav Grid */}
       <AnimatePresence>
         {showNav && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-card border-b border-border overflow-hidden">
-            <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-3">
+          <motion.div id="exam-mobile-nav" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="exam-mobile-nav overflow-hidden border-b border-border bg-card lg:hidden">
+            <div data-tour="exam-question-grid" className="max-h-[35dvh] max-w-4xl mx-auto w-full overflow-y-auto px-3 py-3 sm:px-4">
               <div className="flex flex-wrap gap-1.5">
-                {(hasMultipleSubjects ? displayedQuestions : questions).map((q, idx) => (
+                {navigatorQuestions.map((q, idx) => (
                   <button key={q.id} onClick={() => goToQuestion(idx)} className={cn("h-9 w-9 rounded-xl text-[11px] font-semibold transition-colors", idx === currentIndex && "ring-2 ring-primary", answers[q.id] ? "bg-primary text-primary-foreground" : flagged.has(q.id) ? "bg-warning text-warning-foreground" : "bg-secondary text-secondary-foreground")}>
                     {idx + 1}
                   </button>
@@ -464,10 +584,11 @@ const Exam = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full">
-        {currentQuestion && (
-          <AnimatePresence mode="wait">
-            <motion.div key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
+      <div className="exam-workspace flex-1">
+        <main className="exam-question-main w-full px-3 py-4 sm:px-4 sm:py-6">
+          {currentQuestion && (
+            <AnimatePresence mode="wait">
+              <motion.div data-tour="exam-question" className="exam-question-card" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
               {currentQuestion.passage && (
                 <Card className="mb-3 border-border/50">
                   <CardContent className="p-4 max-h-[40vh] overflow-y-auto">
@@ -476,16 +597,27 @@ const Exam = () => {
                   </CardContent>
                 </Card>
               )}
+              {currentQuestion.diagram_url && (
+                <figure className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-card p-2 sm:p-3">
+                  <img
+                    src={currentQuestion.diagram_url}
+                    alt={`Diagram for ${currentQuestion.topic || "this question"}`}
+                    className="mx-auto max-h-[50vh] w-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </figure>
+              )}
               <div className="mb-5 rounded-2xl border border-border/60 bg-card p-4 sm:mb-4 sm:border-0 sm:bg-transparent sm:p-0">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <span className="text-[10px] text-muted-foreground">Q{currentIndex + 1} · {currentQuestion.topic} · {currentQuestion.difficulty}</span>
-                  <button onClick={toggleFlag} className="shrink-0">
+                  <button type="button" aria-label={flagged.has(currentQuestion.id) ? "Remove question flag" : "Flag question for review"} onClick={toggleFlag} className="shrink-0 rounded-lg p-2 hover:bg-secondary">
                     <Flag className={cn("h-3.5 w-3.5", flagged.has(currentQuestion.id) ? "text-warning fill-warning" : "text-muted-foreground")} />
                   </button>
                 </div>
                 <p className="text-[15px] sm:text-base font-semibold leading-7">{currentQuestion.question_text}</p>
               </div>
-              <div className="space-y-2">
+              <div className="exam-answer-list space-y-2">
                 {currentQuestion.options.map((option) => {
                   const isSelected = answers[currentQuestion.id] === option.label;
                   const isCorrect = option.label === currentQuestion.correct_answer;
@@ -493,7 +625,7 @@ const Exam = () => {
                   return (
                     <div key={option.label}>
                       <motion.button whileTap={{ scale: 0.99 }} onClick={() => selectAnswer(currentQuestion.id, option.label)}
-                        className={cn("w-full min-h-[58px] text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all text-sm leading-relaxed flex items-center gap-3 active:scale-[0.995]",
+                        className={cn("exam-answer-option w-full min-h-[58px] text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all text-sm leading-relaxed flex items-center gap-3 active:scale-[0.995]",
                           showFeedback && isCorrect ? "border-[hsl(var(--success))] bg-[hsl(var(--success))]/10" : showFeedback && isSelected && !isCorrect ? "border-destructive bg-destructive/10" : isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")}>
                         <span className={cn("shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold", isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>{option.label}</span>
                         <span className="flex-1">{option.text}</span>
@@ -530,11 +662,79 @@ const Exam = () => {
               )}
             </motion.div>
           </AnimatePresence>
-        )}
-      </main>
+          )}
+        </main>
+        <aside className="exam-desktop-navigator" aria-label="Question navigator">
+          <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm">
+            <CardContent className="p-4">
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Question Navigator</h2>
+                  <p className="mt-1 text-[11px] text-slate-500">Jump to any question</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-800">{answeredCount}/{totalQuestions} Answered</span>
+              </div>
+              <Progress value={totalQuestions ? (answeredCount / totalQuestions) * 100 : 0} className="mb-4 h-1.5" />
+              <div className="exam-question-grid">
+                {navigatorQuestions.map((question, index) => {
+                  const isCurrent = index === currentIndex;
+                  const isFlagged = flagged.has(question.id);
+                  const isAnswered = Boolean(answers[question.id]);
+                  return (
+                    <button
+                      type="button"
+                      key={question.id}
+                      aria-current={isCurrent ? "step" : undefined}
+                      aria-label={`Question ${index + 1}${isCurrent ? ", current" : ""}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", flagged for review" : ""}`}
+                      onClick={() => goToQuestion(index)}
+                      className={cn("exam-question-number", isCurrent ? "is-current" : isFlagged ? "is-flagged" : isAnswered ? "is-answered" : "is-unanswered")}
+                    >
+                      {index + 1}
+                      {isFlagged && <Flag className="absolute right-1 top-1 h-2.5 w-2.5 fill-current" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-slate-600">
+                <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-600" />Current</span>
+                <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Answered</span>
+                <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-amber-500" />Flagged</span>
+                <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-slate-300" />Unanswered</span>
+              </div>
+            </CardContent>
+            <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-center text-[10px] text-slate-500">
+              A–D to answer <span className="mx-1 text-slate-300">·</span> ← → to navigate
+            </div>
+          </Card>
+        </aside>
+      </div>
+
+      <div className="exam-desktop-controls">
+        <div className="exam-desktop-controls-inner">
+          <div className="exam-desktop-controls-actions">
+            <Button variant="outline" className="h-10 rounded-xl" disabled={currentIndex === 0} onClick={() => goToQuestion(currentIndex - 1)}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+            </Button>
+            <Button variant="outline" className={cn("h-10 rounded-xl", flagged.has(currentQuestion.id) && "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100")} onClick={toggleFlag}>
+              <Flag className={cn("mr-2 h-4 w-4", flagged.has(currentQuestion.id) && "fill-current")} />{flagged.has(currentQuestion.id) ? "Flagged" : "Flag for Review"}
+            </Button>
+            <span className="flex-1" />
+            {currentIndex === totalQuestions - 1 ? (
+              <Button className="h-10 rounded-xl bg-primary px-5" onClick={confirmAndSubmit} disabled={submitting}>
+                Submit Exam <Send className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button className="h-10 rounded-xl px-5" onClick={() => goToQuestion(currentIndex + 1)}>
+                Next Question <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div aria-hidden="true" />
+        </div>
+      </div>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/95 backdrop-blur-xl sticky bottom-0 z-20 safe-area-bottom shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+      <footer data-tour="exam-bottom-nav" className="exam-mobile-footer border-t border-border bg-card/95 backdrop-blur-xl sticky bottom-0 z-20 safe-area-bottom shadow-[0_-8px_24px_rgba(15,23,42,0.06)] lg:hidden">
         <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
           <Button variant="ghost" size="sm" className="h-8 text-xs" disabled={currentIndex === 0} onClick={() => goToQuestion(currentIndex - 1)}>
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Prev
@@ -551,6 +751,12 @@ const Exam = () => {
         </div>
       </footer>
     </div>
+      <OnboardingTour
+        active={cbtTour.active && Boolean(currentQuestion)}
+        onDismiss={() => { setShowNav(false); cbtTour.dismiss(); }}
+        onStepChange={handleCBTTourStepChange}
+        steps={CBT_TOUR_STEPS}
+      />
       {/* Submit Confirmation Dialog */}
       {showConfirmSubmit && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">

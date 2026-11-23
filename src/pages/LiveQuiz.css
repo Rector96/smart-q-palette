@@ -1,0 +1,44 @@
+.live-quiz-create {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.live-quiz-create > *,
+.live-quiz-preview-column > * {
+  min-width: 0;
+}
+
+.live-quiz-create-heading {
+  grid-column: 1 / -1;
+}
+
+.live-quiz-preview-list {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .live-quiz-create {
+    grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+    align-items: start;
+    column-gap: 1.25rem;
+    row-gap: 1rem;
+  }
+
+  .live-quiz-setup,
+  .live-quiz-preview-column {
+    min-width: 0;
+  }
+
+  .live-quiz-setup {
+    position: sticky;
+    top: 5.5rem;
+  }
+
+  .live-quiz-preview-list {
+    max-height: min(58vh, 620px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.25rem;
+  }
+}

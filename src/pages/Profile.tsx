@@ -8,19 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Trophy, Target, Clock, Flame, ChevronRight, LogOut,
-  User, Bell, HelpCircle, Pencil, Award, Camera
+  User, Bell, HelpCircle, Pencil, Award, Camera, Check
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from "recharts";
 import Logo from "@/components/Logo";
 import { useToast } from "@/hooks/use-toast";
+import "./Profile.css";
 
 const Profile = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ full_name: string | null; is_subscribed: boolean; trial_count: number } | null>(null);
   const [stats, setStats] = useState({ sessions: 0, avgScore: 0, totalQuestions: 0, streak: 0 });
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<{ name: string; score: number }[]>([]);
   const [bestSubject, setBestSubject] = useState<string | null>(null);
   const [weakSubject, setWeakSubject] = useState<string | null>(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -143,47 +144,258 @@ const Profile = () => {
   }
 
   const statCards = [
-    { icon: Trophy, value: stats.sessions, label: "Sessions", color: "text-primary" },
-    { icon: Target, value: `${stats.avgScore}%`, label: "Avg Score", color: "text-[hsl(var(--success))]" },
-    { icon: Clock, value: stats.totalQuestions, label: "Questions", color: "text-primary" },
-    { icon: Flame, value: `${stats.streak}`, label: "days", color: "text-warning" },
+    { icon: Trophy, value: stats.sessions, label: "Sessions", color: "text-violet-600" },
+    { icon: Target, value: `${stats.avgScore}%`, label: "Avg Score", color: "text-emerald-600" },
+    { icon: Clock, value: stats.totalQuestions, label: "Questions", color: "text-violet-600" },
+    { icon: Flame, value: stats.streak, label: "Days", color: "text-amber-500" },
   ];
+
+  const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Student";
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("") || "S";
 
   const handleSaveProfile = async () => {
     if (!user || !editName.trim()) return;
     setSaving(true);
-    await supabase.from("profiles").update({ full_name: editName.trim() } as any).eq("user_id", user.id);
-    setProfile(prev => prev ? { ...prev, full_name: editName.trim() } : prev);
-    setShowEditProfile(false);
-    setSaving(false);
-    toast({ title: "Profile updated!" });
+    try {
+      const { error } = await supabase.from("profiles").update({ full_name: editName.trim() }).eq("user_id", user.id);
+      if (error) {
+        toast({ title: "Unable to update profile", description: error.message, variant: "destructive" });
+        return;
+      }
+      setProfile(prev => prev ? { ...prev, full_name: editName.trim() } : prev);
+      setShowEditProfile(false);
+      toast({ title: "Profile updated!" });
+    } catch (error) {
+      toast({
+        title: "Unable to update profile",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const settingsItems = [
     { icon: User, label: "Account Settings", action: () => { setEditName(profile?.full_name || ""); setShowEditProfile(true); } },
     { icon: Bell, label: "Notification Preferences", action: () => toast({ title: "Coming soon", description: "Notification settings will be available soon." }) },
-    { icon: Clock, label: "Replay Dashboard Tour", action: () => { localStorage.removeItem("weblines_tour_completed"); navigate("/dashboard"); toast({ title: "Tour reset!", description: "The onboarding tour will play on your next dashboard visit." }); } },
+    { icon: Clock, label: "Replay Dashboard Tour (Mobile)", action: () => { localStorage.removeItem("weblines_tour_completed"); navigate("/dashboard"); toast({ title: "Tour reset!", description: "The onboarding tour will play on your next mobile dashboard visit." }); } },
     { icon: HelpCircle, label: "Help & Support", action: () => navigate("/contact") },
   ];
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.replace(/_/g, " ").slice(1);
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-[#F8FAFC]">
-      <header className="relative isolate overflow-hidden bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] pb-14 text-white">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full border border-white/15 bg-white/[0.04]"/><div className="pointer-events-none absolute right-12 top-24 h-40 w-40 rounded-full border border-white/10"/>
-        <div className="relative z-10 mx-auto max-w-lg px-4 pt-4"><div className="flex items-center justify-between"><Button variant="ghost" size="icon" className="rounded-full text-white hover:bg-white/15 hover:text-white" onClick={()=>navigate(-1)}><ArrowLeft className="h-5 w-5"/></Button><h1 className="text-base font-bold">Profile</h1><span className="rounded-full border border-white/20 bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">👑 {profile?.is_subscribed?"Pro":"Member"}</span></div>
-        <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} className="mt-6 flex flex-col items-center text-center"><div className="relative"><input ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void handleAvatarUpload(event)} /><img src={avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile?.full_name||user.email||"S")}&backgroundColor=eff6ff&textColor=1d4ed8`} alt="Profile avatar" className="h-20 w-20 rounded-full border-4 border-white/20 bg-white object-cover shadow-lg"/><button type="button" aria-label="Upload profile photo" disabled={avatarBusy} onClick={()=>avatarInputRef.current?.click()} className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-600 shadow-md disabled:opacity-60">{avatarBusy?<span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"/>:<Camera className="h-4 w-4"/>}</button></div><h2 className="mt-3 text-xl font-extrabold">{profile?.full_name||user.email?.split("@")[0]||"Student"}</h2><p className="mt-1 break-all text-sm text-blue-100">{user.email}</p><Button onClick={()=>{setEditName(profile?.full_name||"");setShowEditProfile(true);}} className="mt-4 h-9 rounded-full bg-white px-4 text-xs font-semibold text-[#1D4ED8] shadow-sm hover:bg-blue-50"><Pencil className="mr-2 h-3.5 w-3.5"/>Edit Profile</Button></motion.div></div>
+    <div className="min-h-[100dvh] bg-[#f4f7fb]">
+      <header className="sticky top-0 z-20 border-b border-[#e6eaf0] bg-white/95 backdrop-blur">
+        <div className="mx-auto grid max-w-[1080px] grid-cols-[40px_1fr_auto] items-center px-4 py-3 sm:px-6">
+          <Button variant="ghost" size="icon" aria-label="Go back" className="h-9 w-9 rounded-full" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-center text-lg font-bold text-[#171b2d]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Profile</h1>
+          <span className="justify-self-end rounded-full bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700">
+            {profile?.is_subscribed ? "Pro" : "Member"}
+          </span>
+        </div>
       </header>
-      <main className="relative z-10 mx-auto -mt-7 max-w-lg space-y-5 rounded-t-[28px] bg-[#F8FAFC] px-4 pt-5 pb-8">
-        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="grid grid-cols-2 gap-y-3 p-3 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-100">{statCards.map((s,i)=><div key={i} className="min-w-0 px-1 py-2 text-center"><s.icon className={`mx-auto mb-1.5 h-5 w-5 ${s.color}`}/><p className="text-lg font-extrabold text-slate-900">{s.value}</p><p className="text-[10px] text-slate-500">{i===3?"Streak":s.label}</p></div>)}</CardContent></Card>
-        <section><h2 className="mb-3 text-base font-bold text-slate-900">Performance Overview</h2><Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="p-3">{chartData.length>0?<ResponsiveContainer width="100%" height={180}><AreaChart data={chartData} margin={{top:8,right:8,left:0,bottom:0}}><defs><linearGradient id="profileScoreFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2563EB" stopOpacity={.22}/><stop offset="100%" stopColor="#2563EB" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="4 4" stroke="#E2E8F0"/><XAxis dataKey="name" tick={{fontSize:10}} stroke="#94A3B8"/><YAxis domain={[0,100]} ticks={[0,25,50,75,100]} tickFormatter={v=>`${v}%`} tick={{fontSize:10}} width={35} stroke="#94A3B8"/><Area type="monotone" dataKey="score" stroke="#2563EB" strokeWidth={2.5} fill="url(#profileScoreFill)" dot={{r:4,fill:"#2563EB"}}/></AreaChart></ResponsiveContainer>:<p className="py-8 text-center text-xs text-slate-500">Complete exams to see your performance chart.</p>}</CardContent></Card></section>
-        {bestSubject&&<Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="flex items-center justify-between gap-3 p-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-base font-extrabold text-[#2563EB]">A+</div><div><p className="text-xs text-slate-400">Best Subject</p><p className="text-base font-bold text-slate-900">{capitalize(bestSubject)}</p></div></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600">Top Strength</span></CardContent></Card>}
-        <section><h2 className="mb-3 text-base font-bold text-slate-900">Study Goals</h2><div className="space-y-2.5"><div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Award className="h-5 w-5"/></span><span className="flex-1 text-xs font-semibold text-slate-700">Complete 3 practice tests this week</span>{stats.sessions>=3?<span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">✓</span>:<span className="text-xs text-slate-500">{stats.sessions}/3</span>}</div><div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Flame className="h-5 w-5"/></span><span className="flex-1 text-xs font-semibold text-slate-700">Study for 5 hours this weekend</span><span className="h-6 w-6 rounded-full border-2 border-slate-200"/></div></div></section>
-        <section><h2 className="mb-3 text-base font-bold text-slate-900">Settings</h2><Card className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="divide-y divide-slate-100 p-0">{settingsItems.map(item=><button key={item.label} onClick={item.action} className="flex w-full items-center justify-between p-3.5 text-left transition hover:bg-slate-50"><span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><item.icon className="h-4 w-4"/></span><span className="text-sm font-semibold text-slate-700">{item.label}</span></span><ChevronRight className="h-4 w-4 text-slate-400"/></button>)}</CardContent></Card></section>
-        <Button variant="outline" className="w-full rounded-2xl border border-red-100 bg-red-50 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-100" onClick={handleSignOut}><LogOut className="mr-2 h-4 w-4"/>Sign Out</Button>
+
+      <main className="mx-auto w-full max-w-[1080px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-3">
+        <div className="profile-grid">
+          <motion.section
+            className="profile-grid-profile"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Card className="overflow-hidden rounded-[24px] border-white bg-white shadow-[0_8px_24px_rgba(27,39,61,0.06)]">
+              <CardContent className="flex flex-col items-center p-5 text-center sm:p-6">
+                <div className="flex w-full min-w-0 items-center gap-4 text-left">
+                  <div className="relative h-[76px] w-[76px] shrink-0 sm:h-[84px] sm:w-[84px]">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(event) => void handleAvatarUpload(event)}
+                    />
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Profile avatar" className="h-full w-full rounded-full object-cover shadow-sm" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#8735ec] to-[#6424d7] text-2xl font-semibold text-white shadow-sm sm:text-3xl">
+                        {initials}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      aria-label="Upload profile photo"
+                      disabled={avatarBusy}
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#7435df] text-white shadow-md disabled:opacity-60"
+                    >
+                      {avatarBusy
+                        ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        : <Camera className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-2xl font-bold leading-tight text-[#141725] sm:text-[28px]">{displayName}</h2>
+                    <p className="mt-1 truncate text-sm text-[#7b8494]">{user.email}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="mt-5 h-10 rounded-full border-[#d8dce4] px-5 text-sm font-medium hover:bg-[#f7f5fc]"
+                  onClick={() => { setEditName(profile?.full_name || displayName); setShowEditProfile(true); }}
+                >
+                  <Pencil className="mr-2 h-4 w-4" /> Edit Profile
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.section>
+
+          <Card className="profile-grid-stats rounded-[22px] border-white bg-white shadow-[0_5px_18px_rgba(27,39,61,0.06)]">
+            <CardContent className="p-3 sm:p-4">
+              <div className="grid grid-cols-2 divide-x divide-y divide-[#e8ebf0] sm:grid-cols-4 sm:divide-y-0 lg:grid-cols-[repeat(4,minmax(0,1fr))_1.7fr]">
+                {statCards.map((stat) => (
+                  <div key={stat.label} className="flex min-w-0 flex-col items-center justify-center px-2 py-2 text-center">
+                    <stat.icon aria-hidden="true" className={`mb-1 h-5 w-5 ${stat.color}`} />
+                    <p className="text-xl font-bold leading-6 text-[#171b2d]">{stat.value}</p>
+                    <p className="mt-0.5 text-[11px] leading-4 text-[#687386]">{stat.label}</p>
+                  </div>
+                ))}
+                <div className="col-span-2 flex min-w-0 items-center justify-center gap-3 px-3 py-3 text-left sm:col-span-4 lg:col-span-1 lg:justify-start lg:pl-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#7435df] text-sm font-bold text-white">
+                    {bestSubject ? "A+" : "—"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] leading-4 text-[#687386]">Best Subject</p>
+                    <p className="truncate text-sm font-bold text-[#171b2d]">{bestSubject ? capitalize(bestSubject) : "Keep practicing"}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <section className="profile-grid-performance">
+            <h2 className="mb-3 text-lg font-bold text-[#171b2d]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Performance Overview</h2>
+            <Card className="rounded-[22px] border-white bg-white shadow-[0_5px_18px_rgba(27,39,61,0.06)]">
+              <CardContent className="p-3 sm:p-4">
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={210}>
+                    <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="profileScoreFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#7835e6" stopOpacity={0.22} />
+                          <stop offset="95%" stopColor="#7835e6" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e1e4e9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#171b2d" />
+                      <YAxis width={38} tick={{ fontSize: 11 }} stroke="#171b2d" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                      <Area type="monotone" dataKey="score" stroke="#7835e6" strokeWidth={2.5} fill="url(#profileScoreFill)" dot={{ r: 4, fill: "#a276f0", stroke: "#7835e6", strokeWidth: 2 }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="py-12 text-center text-sm text-[#7b8494]">Complete exams to see your performance chart.</p>
+                )}
+              </CardContent>
+            </Card>
+            {weakSubject && (
+              <p className="mt-2 text-xs text-[#687386]">
+                Focus area: <span className="font-semibold text-[#171b2d]">{capitalize(weakSubject)}</span>
+              </p>
+            )}
+          </section>
+
+          <section className="profile-grid-goals">
+            <h2 className="mb-3 text-lg font-bold text-[#171b2d]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Study Goals</h2>
+            <Card className="rounded-[22px] border-white bg-white shadow-[0_5px_18px_rgba(27,39,61,0.06)]">
+              <CardContent className="divide-y divide-[#e8ebf0] p-0">
+                <div className="flex min-h-[62px] items-center gap-3 px-4 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+                    <Award className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <span className="min-w-0 flex-1 text-sm font-medium text-[#252b3a]">Complete 3 practice tests this week</span>
+                  {stats.sessions >= 3 ? <Check className="h-5 w-5 shrink-0 text-emerald-600" /> : <span className="text-xs font-medium text-[#7b8494]">{stats.sessions}/3</span>}
+                </div>
+                <div className="flex min-h-[62px] items-center gap-3 px-4 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-50">
+                    <Flame className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <span className="min-w-0 flex-1 text-sm font-medium text-[#252b3a]">Study for 5 hours this weekend</span>
+                  <span className="text-xs text-[#7b8494]">In progress</span>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="profile-grid-settings">
+            <h2 className="mb-3 text-lg font-bold text-[#171b2d]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Settings</h2>
+            <Card className="overflow-hidden rounded-[22px] border-white bg-white shadow-[0_5px_18px_rgba(27,39,61,0.06)]">
+              <CardContent className="divide-y divide-[#e8ebf0] p-0">
+                {settingsItems.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={item.action}
+                    className="flex min-h-[54px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f8f7fb]"
+                  >
+                    <item.icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0 text-[#8a919e]" />
+                    <span className="flex-1 text-sm font-medium text-[#252b3a]">{item.label}</span>
+                    <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-[#8a919e]" />
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          </section>
+
+          <Button
+            variant="outline"
+            className="profile-grid-signout h-12 w-full rounded-xl border-[#d89a9a] text-base font-medium text-[#ad4545] hover:bg-red-50"
+            onClick={handleSignOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Sign Out
+          </Button>
+        </div>
       </main>
-      {showEditProfile&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"><motion.div initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl"><h3 className="mb-4 text-base font-bold">Edit Profile</h3><div className="space-y-3"><div className="space-y-1.5"><Label className="text-xs">Full Name</Label><Input value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Enter your name" className="h-10 text-sm"/></div><div className="space-y-1.5"><Label className="text-xs">Email</Label><Input value={user.email||""} disabled className="h-10 bg-secondary text-sm"/></div></div><div className="mt-4 flex gap-3"><Button variant="outline" className="h-10 flex-1 rounded-xl text-sm" onClick={()=>setShowEditProfile(false)}>Cancel</Button><Button className="h-10 flex-1 rounded-xl text-sm" onClick={handleSaveProfile} disabled={saving||!editName.trim()}>{saving?"Saving...":"Save"}</Button></div></motion.div></div>}
+
+      {/* Edit Profile Dialog */}
+      {showEditProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <motion.div role="dialog" aria-modal="true" aria-labelledby="edit-profile-title" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <h3 id="edit-profile-title" className="mb-4 text-base font-bold">Edit Profile</h3>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-profile-name" className="text-xs">Full Name</Label>
+                <Input
+                  id="edit-profile-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="h-10 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-profile-email" className="text-xs">Email</Label>
+                <Input id="edit-profile-email" value={user.email || ""} disabled className="h-10 bg-secondary text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" className="flex-1 h-10 text-sm rounded-xl" onClick={() => setShowEditProfile(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1 h-10 text-sm rounded-xl" onClick={handleSaveProfile} disabled={saving || !editName.trim()}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

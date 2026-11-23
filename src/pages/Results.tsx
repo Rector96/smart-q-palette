@@ -273,6 +273,16 @@ const Results = () => {
                         <p className="text-sm font-semibold leading-snug">{q?.question_text || "Question"}</p>
                       </div>
 
+                      {q?.diagram_url && (
+                        <img
+                          src={q.diagram_url}
+                          alt="Question diagram"
+                          className="ml-8 mb-2 max-h-64 max-w-[calc(100%-2rem)] rounded-lg border border-border/50 object-contain"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      )}
+
                       {/* User's wrong answer */}
                       {!h.is_correct && userOptionText && (
                         <div className="ml-8 mb-1.5 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/20 px-3 py-2">

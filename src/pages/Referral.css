@@ -1,0 +1,224 @@
+.referral-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "hero"
+    "wallet"
+    "share"
+    "status"
+    "bank"
+    "withdraw"
+    "rewards"
+    "withdrawals"
+    "footer";
+  gap: 14px;
+}
+
+.referral-layout > * {
+  min-width: 0;
+}
+
+.referral-hero {
+  grid-area: hero;
+}
+
+.referral-wallet {
+  grid-area: wallet;
+}
+
+.referral-share {
+  grid-area: share;
+}
+
+.referral-state {
+  grid-area: status;
+}
+
+.referral-bank {
+  grid-area: bank;
+}
+
+.referral-withdraw {
+  grid-area: withdraw;
+}
+
+.referral-rewards {
+  grid-area: rewards;
+}
+
+.referral-withdrawals {
+  grid-area: withdrawals;
+}
+
+.referral-footer {
+  grid-area: footer;
+}
+
+.referral-history-list {
+  min-height: 0;
+}
+
+.referral-card {
+  border: 1px solid #fff;
+  box-shadow: 0 8px 24px rgba(27, 39, 61, 0.06);
+  background: #fff;
+}
+
+.referral-hero-glow {
+  position: absolute;
+  right: -70px;
+  bottom: -120px;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.12);
+  filter: blur(4px);
+}
+
+.referral-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 18px;
+  background: hsl(var(--background) / 0.78);
+  padding: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.referral-steps div {
+  min-width: 68px;
+  text-align: center;
+}
+
+.referral-steps span {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.referral-steps p {
+  margin-top: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.referral-steps i {
+  display: block;
+  width: 18px;
+  height: 1px;
+  background: hsl(var(--border));
+}
+
+.referral-stat {
+  min-height: 72px;
+  border: 1px solid hsl(var(--border) / 0.75);
+  border-radius: 14px;
+  background: hsl(var(--background) / 0.82);
+  padding: 10px;
+}
+
+.referral-stat p {
+  margin-top: 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.referral-stat strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+@media (min-width: 1024px) {
+  .referral-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "hero hero"
+      "wallet share"
+      "status status"
+      "bank withdraw"
+      "rewards withdrawals"
+      "footer footer";
+    align-items: start;
+    column-gap: 18px;
+    row-gap: 10px;
+  }
+
+  .referral-history-list {
+    max-height: 118px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .referral-hero {
+    border: 1px solid #fff;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #f2ebff 0%, #fff 58%, #edf7ff 100%);
+    box-shadow: 0 8px 24px rgba(27, 39, 61, 0.05);
+    min-height: 118px;
+    padding: 14px 22px;
+  }
+
+  .referral-hero h1 {
+    max-width: 520px;
+    font-size: 22px;
+    line-height: 1.12;
+  }
+
+  .referral-hero h1 br {
+    display: none;
+  }
+
+  .referral-hero p {
+    margin-top: 6px;
+  }
+
+  .referral-hero [class*="inline-flex"] {
+    margin-bottom: 8px;
+  }
+
+  .referral-steps {
+    background: rgba(255, 255, 255, 0.82);
+  }
+
+  .referral-wallet,
+  .referral-share,
+  .referral-bank,
+  .referral-withdraw,
+  .referral-rewards,
+  .referral-withdrawals {
+    border: 1px solid #fff;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(27, 39, 61, 0.06);
+  }
+
+  .referral-wallet {
+    min-height: 230px;
+  }
+
+  .referral-share {
+    min-height: 230px;
+  }
+
+  .referral-bank,
+  .referral-withdraw {
+    min-height: 210px;
+  }
+
+  .referral-rewards,
+  .referral-withdrawals {
+    min-height: 180px;
+  }
+}
