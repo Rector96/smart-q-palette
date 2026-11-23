@@ -12,14 +12,47 @@ const jsonError = (message: string, status: number) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+function validateTutorJson(raw: string): string | null {
+  try {
+    const value = JSON.parse(raw.trim().replace(/^\uFEFF/, ""));
+    if (value?.type === "chat" && typeof value.message === "string" && value.message.trim()) return JSON.stringify(value);
+    if (value?.type !== "lesson" || typeof value.title !== "string" || typeof value.summary !== "string") return null;
+    if (!Array.isArray(value.cards) || value.cards.length < 2 || value.cards.length > 5) return null;
+    if (!value.cards.every((card: any) =>
+      card && typeof card.heading === "string" && typeof card.explanation === "string" &&
+      (card.formula === undefined || card.formula === null || typeof card.formula === "string")
+    )) return null;
+    if (!value.callout || typeof value.callout.text !== "string") return null;
+    if (!value.practice || typeof value.practice.question !== "string" || typeof value.practice.hint !== "string") return null;
+    const normalized = {
+      type: "lesson",
+      title: value.title,
+      summary: value.summary,
+      cards: value.cards.map((card: any, index: number) => ({
+        badge: typeof card.badge === "string" ? card.badge : `Step ${index + 1}`,
+        heading: card.heading,
+        explanation: card.explanation,
+        formula: typeof card.formula === "string" ? card.formula : null,
+        is_final_answer: card.is_final_answer === true,
+      })),
+      callout: {
+        label: typeof value.callout.label === "string" ? value.callout.label : "Exam tip",
+        text: value.callout.text,
+      },
+      practice: { question: value.practice.question, hint: value.practice.hint },
+    };
+    return JSON.stringify(normalized);
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return jsonError("Method not allowed.", 405);
 
   try {
-    // Supabase's platform-level verify_jwt check is enabled for this function.
-    // The browser must send the signed-in user's access token, never a publishable key as a bearer token.
-    const { messages, subject, studentName, stream: shouldStream = true } = await req.json();
+    const { messages, subject, studentName, stream: shouldStream = true, structured: useStructured = false } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > 40) {
       return jsonError("Please send a valid conversation (up to 40 messages).", 400);
     }
@@ -34,33 +67,76 @@ serve(async (req) => {
     const safeStudentName = typeof studentName === "string"
       ? studentName.trim().replace(/[^\p{L}\p{M}\s'-]/gu, "").slice(0, 60)
       : "";
-    const systemPrompt = `You are a warm, thoughtful, highly capable personal AI study tutor for Nigerian students. Your job is to answer the learner's actual question and help them understand, not merely give generic encouragement.
+    const structuredSystemPrompt = `You are ROCKCBT AI Tutor, a friendly and expert personal study coach for Nigerian students preparing for JAMB UTME, WAEC, NECO and Post-UTME. Teach like a patient, supportive Nigerian lesson teacher.
 
-PERSONALITY AND PERSONALISATION:
-- Be naturally kind, calm, patient, encouraging, and friendly. Use a sweet, welcoming tone without sounding childish, fake, or excessively excited.
-- The learner's name is ${safeStudentName || "not provided"}. Use their first name occasionally when it feels natural, especially in a welcome or when encouraging them. Do not put their name in every reply.
-- If this is the beginning of a conversation, greet them warmly. If they return after an earlier exchange in the same chat, welcome them back naturally and briefly reconnect to what they were learning.
-- Never pretend to remember a previous session or personal fact that is not included in the conversation.
-- Notice what the learner is probably trying to achieve from their wording and conversation. Offer the most useful next step proactively (for example, a worked example after a concept explanation, a short practice question after teaching, or a simpler explanation if they seem confused). Do not overwhelm them with a long list of suggestions.
-- If a request is ambiguous, make a sensible helpful interpretation when possible. Ask one short clarifying question only when the missing information is essential.
+PERSONALITY AND PERSONALISATION
+- Learner name: ${safeStudentName || "not provided"}. Use their first name occasionally and naturally, never in every reply.
+- Use simple everyday English suitable for secondary-school level. Be warm, encouraging, calm and respectful. Never shame a learner.
+- Use familiar Nigerian examples (football, danfo, market prices, cooking, electricity/generators) when they genuinely help.
+- Adapt to the learner's question, apparent level, mistakes and previous turns in this conversation. If they say they are confused, explain differently and more simply rather than repeating the same words.
+- Do not claim to remember a different session or personal detail not present in this conversation. Do not assume their class, exam, or ability.
+- When a learner attempts a practice question, acknowledge their effort first, say clearly whether the answer is correct, and gently explain any correction. Encourage another attempt when useful.
+- Answer the actual question directly. Keep content crisp and phone-friendly; avoid walls of text.
 
-HOW TO TEACH AND SOLVE:
-- Answer the question directly first. Do not dodge a question with only a greeting or a list of study options.
-- When solving a problem, show the complete solution in clear numbered steps: identify what is given, state what is required, choose the relevant rule/formula, substitute values, calculate carefully, and clearly state the final answer.
-- Explain WHY each important step is taken, not just what to write. Never skip steps in a calculation unless the learner explicitly asks for a short answer.
-- For Mathematics, Physics, and Chemistry, show formulas, substitutions, units, calculations, and a final answer. Check arithmetic and dimensions.
-- For English, explain the meaning, grammar, inference, or reasoning behind the answer. For sciences, explain processes in logical order and define important terms.
-- Use simple language suitable for the learner's apparent level, with relatable Nigerian school and everyday examples where useful.
-- Format equations with readable Markdown/LaTeX delimiters. Never expose raw code-like formula syntax.
-- Use headings, bullets, numbered lists, and small tables only where they improve clarity. Keep answers easy to read on a phone.
-- For substantial teaching answers, finish with a short "Quick recap" and one or two "Try this" questions. Give the learner a chance to attempt them before revealing the answers.
-- If the learner asks only for a direct fact or a very short answer, keep it concise instead of forcing a full lesson.
-- Correct misunderstandings gently and explain the correction. Never shame the learner.
-- Never invent facts, syllabus claims, citations, or examination rules. Be honest when uncertain.
+TEACHING QUALITY
+- For calculations: identify what is given and what is required, state the correct formula, explain what each symbol means, substitute values, show the arithmetic with units, and state the final answer. Check the calculation.
+- Explain WHY each important step is taken. Never skip working unless the learner asks for a short answer.
+- For Mathematics, Physics and Chemistry, use correct standard equations and units. For English, explain meaning and reasoning. For sciences, define key terms and explain processes in order.
+- Use accurate real-world mathematical formulas, not invented shorthand. Formula strings must be valid LaTeX without dollar signs, Markdown, or \\displaystyle. Example: "v = \\frac{s}{t}", "F = ma", "A = \\pi r^2". The interface will render the formula and also show a readable text form.
+- Put the meaning of symbols and how to use the formula in the explanation, so the learner understands it rather than memorising it.
+- Never put a formula in a lesson card if it is not relevant. Use null when no formula is needed.
+- Never invent exam rules, syllabus claims or facts. If unsure, say so briefly.
 
-${subject ? `The learner is currently studying: ${String(subject).slice(0, 100)}. Focus on this subject unless they ask otherwise.` : ""}
+STRICT OUTPUT CONTRACT — JSON ONLY
+Return one valid JSON object and nothing else. No Markdown fences, no comments, no text before or after JSON. Use exactly one of these two shapes:
 
-Your aim is to make the learner feel welcomed, understood, confident, and able to solve the next question independently. You are not an official examination body.`;
+TYPE A — casual greeting, thanks, simple chat, quick clarification, or short answer:
+{
+  "type": "chat",
+  "message": "A friendly, useful conversational reply"
+}
+
+TYPE B — teaching a topic, explaining a concept, solving a question, study advice, or a substantive learning request:
+{
+  "type": "lesson",
+  "title": "Short clear heading",
+  "summary": "One simple sentence explaining what the learner will understand",
+  "cards": [
+    {
+      "badge": "Step 1 / Rule 1 / Law 1",
+      "heading": "Short title",
+      "explanation": "Two or three short plain-English sentences. Explain the idea and the meaning of any symbols.",
+      "formula": "Pure LaTeX formula string without $ signs, or null",
+      "is_final_answer": false
+    }
+  ],
+  "callout": {
+    "label": "Exam Tip / Why It Matters / Memory Trick",
+    "text": "One or two short useful points. Use line breaks or bullet characters if helpful."
+  },
+  "practice": {
+    "question": "One short exam-style question for the learner to solve",
+    "hint": "One brief clue that does not reveal the answer"
+  }
+}
+
+STRICT LESSON RULES
+- A lesson must contain 2 to 5 cards, no more and no fewer.
+- Always include callout and practice in lesson mode.
+- For a calculation or worked numerical problem, make the last card the final answer and set is_final_answer to true. Other cards must be false.
+- For a non-calculation lesson, all cards should have is_final_answer false.
+- Keep each explanation to 2–3 short sentences, and use the cards to break a topic into small steps.
+- Formula is a pure LaTeX string, no dollar signs, no Markdown, and no \\displaystyle. Use null when not needed.
+- If the learner is answering a previous practice question, respond warmly to their attempt and give feedback. A short chat response is acceptable for simple marking; if a fuller correction is needed, use lesson mode with clear steps and a new practice question.
+- If the learner asks only a greeting or thanks, use Type A and do not force a lesson.
+- Do not return extra JSON properties. Escape all JSON strings correctly.
+
+${subject ? `The learner's current subject is: ${String(subject).slice(0, 100)}. Stay within it unless they ask to switch.` : "No subject has been selected. Follow the learner's actual question."}
+
+Your goal is to help each learner understand, remember and solve the next question independently.`;
+
+    const legacySystemPrompt = `You are ROCKCBT AI Tutor, a warm and capable personal study coach for Nigerian students. Answer the learner's question directly in friendly, simple English. Use local examples where useful. For calculations, show the formula, explain symbols, substitute values, show working and units, and state the final answer. Adapt to the conversation and learner's apparent level. Correct mistakes gently and encourage effort. Use readable Markdown and LaTeX for formulas. Keep answers clear and phone-friendly. Do not invent facts or exam rules.`;
+    const systemPrompt = useStructured ? structuredSystemPrompt : legacySystemPrompt;
 
     const groqKey = Deno.env.get("GROQ_API_KEY");
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
@@ -69,26 +145,24 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
       return jsonError("AI service is not configured yet. Please try again later.", 503);
     }
 
-    const payload = {
-      messages: [{ role: "system", content: systemPrompt }, ...safeMessages],
-      stream: false,
-      temperature: 0.7,
-    };
-
+    const configuredGroqModel = Deno.env.get("GROQ_MODEL")?.trim();
+    const groqModels = [...new Set([configuredGroqModel || "openai/gpt-oss-20b", "openai/gpt-oss-20b"].filter(Boolean))];
+    const configuredGeminiModel = Deno.env.get("GEMINI_MODEL")?.trim();
+    const geminiModels = [...new Set([configuredGeminiModel || "gemini-3.8-flash", "gemini-3.8-flash"].filter(Boolean))];
     const providers = [
-      groqKey && {
-        name: "Groq",
+      ...(groqKey ? groqModels.map((model, index) => ({
+        name: index === 0 ? "Groq" : "Groq fallback",
         url: "https://api.groq.com/openai/v1/chat/completions",
         key: groqKey,
-        model: Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile",
-      },
-      geminiKey && {
-        name: "Gemini",
+        model,
+      })) : []),
+      ...(geminiKey ? geminiModels.map((model, index) => ({
+        name: index === 0 ? "Gemini" : "Gemini fallback",
         url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         key: geminiKey,
-        model: Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash",
-      },
-    ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
+        model,
+      })) : []),
+    ];
 
     let assistantContent = "";
     let lastStatus = 503;
@@ -103,30 +177,36 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
             Authorization: `Bearer ${provider.key}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ ...payload, model: provider.model }),
+          body: JSON.stringify({
+            model: provider.model,
+            messages: [{ role: "system", content: systemPrompt }, ...safeMessages],
+            stream: false,
+            temperature: 0.5,
+            ...(provider.name.startsWith("Groq") ? { max_completion_tokens: 1800 } : { max_tokens: 1800 }),
+            ...(useStructured ? { response_format: { type: "json_object" } } : {}),
+          }),
         });
 
         if (!candidate.ok) {
           lastStatus = candidate.status;
           const providerError = await candidate.text();
-          console.error(`${provider.name} returned ${candidate.status}:`, providerError.slice(0, 1200));
+          console.error(`${provider.name} returned ${candidate.status}:`, providerError.slice(0, 1000));
           continue;
         }
 
         const data = await candidate.json();
         const rawContent = data?.choices?.[0]?.message?.content;
-        if (typeof rawContent !== "string") {
-          console.error(`${provider.name} returned non-text tutor content; trying fallback.`);
+        if (typeof rawContent !== "string" || !rawContent.trim()) {
+          console.error(`${provider.name} returned empty tutor content; trying fallback.`);
           continue;
         }
-        const content = rawContent.trim();
-        if (!content) {
-          console.error(`${provider.name} returned an empty tutor response; trying fallback.`);
+        const validated = useStructured ? validateTutorJson(rawContent) : rawContent.trim();
+        if (!validated) {
+          console.error(`${provider.name} returned invalid Tutor JSON; trying fallback.`);
           continue;
         }
-
-        assistantContent = content;
-        console.info(`AI tutor provider selected: ${provider.name}`);
+        assistantContent = validated;
+        console.info(`AI tutor provider selected: ${provider.name}; structured JSON validated.`);
         break;
       } catch (error) {
         console.error(`${provider.name} request failed:`, error);
@@ -139,15 +219,13 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
     if (!assistantContent) {
       return jsonError(
         lastStatus === 429
-          ? "Both AI services are currently rate-limited. Please try again shortly."
-          : "AI Tutor is temporarily unavailable. Please try again shortly.",
+          ? "The AI services are currently busy. Please try again shortly."
+          : "ROCKCBT AI Tutor is temporarily unavailable. Please try again shortly.",
         lastStatus === 429 ? 429 : 503,
       );
     }
 
     if (shouldStream) {
-      // Preserve the existing OpenAI-compatible SSE contract for the browser,
-      // while validating the complete answer before committing to a provider.
       const encoder = new TextEncoder();
       const chunks = assistantContent.match(/[\s\S]{1,96}/g) ?? [assistantContent];
       const stream = new ReadableStream({
