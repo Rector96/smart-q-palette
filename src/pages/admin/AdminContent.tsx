@@ -30,6 +30,9 @@ type ImportQuestion = {
   exam_hint?: string | null;
   question_type?: string | null;
   diagram_file?: string | null;
+  question_number?: number | null;
+  source_pdf?: string | null;
+  source_page?: number | null;
   imageName?: string | null;
   rowNumber: number;
 };
@@ -99,7 +102,10 @@ function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: str
     passage: String(get("passage") || "").trim() || null,
     exam_hint: String(get("exam_hint", "examHint") || "").trim() || null,
     question_type: String(get("question_type", "questionType") || "standard").trim(),
-    diagram_file: String(get("diagram_file", "diagramFile", "image_url", "imageUrl") || "").trim() || null,
+    diagram_file: String(get("diagram_file", "diagramFile", "image_url", "imageUrl") || "").trim() || (/^https?:\\/\\//i.test(String(get("image") || "")) ? String(get("image")) : null),
+    question_number: Number(get("question_number", "questionNumber", "number")) > 0 ? Number(get("question_number", "questionNumber", "number")) : null,
+    source_pdf: String(get("source_pdf", "sourcePdf") || "").trim() || null,
+    source_page: Number(get("source_page", "sourcePage")) > 0 ? Number(get("source_page", "sourcePage")) : null,
     imageName: image && !/^https?:\/\//i.test(image) ? image.split(/[\\/]/).pop() || image : null,
     rowNumber,
   };
@@ -187,6 +193,7 @@ const AdminContent = () => {
   const [defaultSubject, setDefaultSubject] = useState("");
   const [defaultExam, setDefaultExam] = useState("JAMB");
   const [defaultYear, setDefaultYear] = useState("");
+  const [publishOnImport, setPublishOnImport] = useState(true);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
 
   const fetchCounts = async () => {
@@ -264,7 +271,10 @@ const AdminContent = () => {
         explanation: item.explanation,
         passage: item.passage,
         exam_hint: item.examhint || item.exam_hint,
-        image: item.image || item.imagefile || item.diagramfile || item.diagram_file,
+        image: item.image || item.imagefile || item.imageurl || item.diagramfile || item.diagram_file,
+        question_number: item.questionnumber || item.number,
+        source_pdf: item.sourcepdf,
+        source_page: item.sourcepage,
       }));
     }
     const normalized = rawItems.map((item, index) => normalizeQuestion(item, index + 2, { subject: defaultSubject, examination: defaultExam, year: defaultYear }));
@@ -391,7 +401,8 @@ const AdminContent = () => {
           question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d,
           correct_answer: q.correct_answer, difficulty: q.difficulty || "medium", explanation: q.explanation,
           passage: q.passage || null, exam_hint: q.exam_hint || null, question_type: q.question_type || "standard",
-          diagram_file: diagram, answer_status: "UNVERIFIED", is_published: false,
+          diagram_file: diagram, question_number: q.question_number ?? null, source_pdf: q.source_pdf || null, source_page: q.source_page ?? null,
+          answer_status: "UNVERIFIED", is_published: publishOnImport,
         };
       });
       const { error } = await supabase.from("questions").insert(batch as any);
@@ -452,6 +463,8 @@ const AdminContent = () => {
                 <input ref={fileRef} type="file" accept=".json,.csv,.zip,application/json,text/csv,application/zip" className="hidden" onChange={handleFile} />
                 <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{importData.length} valid questions</Badge><Badge variant="outline">{importImages.length} images attached</Badge><Badge variant="outline">{importErrors.length} validation errors</Badge></div>
               </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3"><label className="flex items-center gap-2 text-xs font-medium"><input type="checkbox" checked={publishOnImport} onChange={(e) => setPublishOnImport(e.target.checked)} className="h-4 w-4 accent-primary" /> Make imported questions available to students immediately</label><span className="text-[10px] text-muted-foreground">Imported answers remain marked UNVERIFIED until reviewed.</span></div>
+              <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => { const rows = [["subject","exam","year","question_number","topic","question","option_a","option_b","option_c","option_d","correct_answer","difficulty","explanation","image","source_pdf","source_page"],["biology","JAMB","2015","1","Cells","Which structure controls cell activities?","Nucleus","Cell wall","Cytoplasm","Vacuole","A","medium","The nucleus controls cell activities.","q1.png","JAMB_2015_Biology.pdf","2"]]; const csv = rows.map((row) => row.map((value) => '"' + String(value).replace(/"/g, '""') + '"').join(",")).join("\n"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const a = document.createElement("a"); a.href = url; a.download = "smart-q-palette-question-template.csv"; a.click(); URL.revokeObjectURL(url); }}>Download CSV template</Button><Button size="sm" variant="outline" onClick={() => { const sample = [{ subject: "biology", exam: "JAMB", year: 2015, question_number: 1, topic: "Cells", question: "Which structure controls cell activities?", option_a: "Nucleus", option_b: "Cell wall", option_c: "Cytoplasm", option_d: "Vacuole", correct_answer: "A", difficulty: "medium", explanation: "The nucleus controls cell activities.", image: "q1.png", source_pdf: "JAMB_2015_Biology.pdf", source_page: 2 }]; const url = URL.createObjectURL(new Blob([JSON.stringify(sample, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "smart-q-palette-question-template.json"; a.click(); URL.revokeObjectURL(url); }}>Download JSON template</Button></div>
               <div className="rounded-xl border border-border p-3 space-y-2">
                 <div className="flex items-center gap-2"><ClipboardPaste className="h-4 w-4 text-primary" /><p className="text-xs font-semibold">Or paste a JSON array</p></div>
                 <Textarea rows={4} value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder='[{"subject":"biology","exam":"JAMB","year":2015,"topic":"Cells","question":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","correct_answer":"A"}]' className="text-xs font-mono" />
