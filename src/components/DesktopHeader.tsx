@@ -33,8 +33,8 @@ const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-9 max-w-[190px] gap-2 px-2 text-sm">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{getSurname(profileName).charAt(0).toUpperCase()}</div>
-              <span className="truncate">{getSurname(profileName)}</span>
-              <ChevronDown className="h-3 w-3 shrink-0" />
+              <span className="hidden truncate sm:inline">{getSurname(profileName)}</span>
+              <ChevronDown className="hidden h-3 w-3 shrink-0 sm:block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
