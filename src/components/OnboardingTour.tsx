@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { X, ChevronRight, ChevronLeft, Sparkles, Rocket, BookOpen, Brain, Clock, FileEdit, BookOpenCheck } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Sparkles, Rocket, BookOpen, Brain, Calculator, ListOrdered, Clock, FileEdit, BookOpenCheck, type LucideIcon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-interface TourStep {
+export interface TourStep {
   selector?: string;
   title: string;
   message: string;
-  icon: any;
+  icon: LucideIcon;
   position?: "center" | "auto";
 }
 
@@ -21,24 +22,39 @@ const DASHBOARD_STEPS: TourStep[] = [
   { selector: '[data-tour="subjects"]', title: "Subjects", message: "Choose a subject and focus your practice. Your progress is tracked as you improve.", icon: BookOpenCheck },
 ];
 
-const STORAGE_KEY = "weblines_tour_completed";
+export const CBT_TOUR_STEPS: TourStep[] = [
+  { title: "Your mobile CBT", message: "Take a quick guided tour of the tools that make your exam easier. You can skip any step.", icon: Sparkles, position: "center" },
+  { selector: '[data-tour="exam-question"]', title: "Read, answer, review", message: "Choose an option to answer. Tap the flag beside the question to mark it for review.", icon: BookOpen },
+  { selector: '[data-tour="exam-calculator"]', title: "Calculator, right when you need it", message: "Open the scientific calculator here. It appears over the exam, so you can calculate without losing your place.", icon: Calculator },
+  { selector: '[data-tour="exam-question-picker"]', title: "Jump to any question", message: "Tap this question counter to open the question navigator and see your progress at a glance.", icon: ListOrdered },
+  { selector: '[data-tour="exam-question-grid"]', title: "Your question navigator", message: "The navigator is open for you. Tap a number to jump directly to that question; answered and flagged questions are easy to spot.", icon: ListOrdered },
+  { selector: '[data-tour="exam-bottom-nav"]', title: "Move through your exam", message: "Previous and Next stay within reach at the bottom. Submit appears when you reach the final question.", icon: Rocket },
+];
 
-export const useOnboardingTour = () => {
+export const DASHBOARD_TOUR_STORAGE_KEY = "weblines_tour_completed";
+export const CBT_TOUR_STORAGE_KEY = "rockcbt_cbt_tour_v2_completed";
+
+export const useOnboardingTour = (storageKey = DASHBOARD_TOUR_STORAGE_KEY) => {
   const [active, setActive] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
-    const done = localStorage.getItem(STORAGE_KEY);
-    if (!done) {
-      const timer = setTimeout(() => setActive(true), 800);
-      return () => clearTimeout(timer);
+    if (!isMobile || localStorage.getItem(storageKey)) {
+      setActive(false);
+      return;
     }
-  }, []);
 
-  const start = useCallback(() => setActive(true), []);
+    const timer = setTimeout(() => setActive(true), 800);
+    return () => clearTimeout(timer);
+  }, [isMobile, storageKey]);
+
+  const start = useCallback(() => {
+    if (isMobile) setActive(true);
+  }, [isMobile]);
   const dismiss = useCallback(() => {
     setActive(false);
-    localStorage.setItem(STORAGE_KEY, "true");
-  }, []);
+    if (isMobile) localStorage.setItem(storageKey, "true");
+  }, [isMobile, storageKey]);
 
   return { active, start, dismiss };
 };
@@ -46,18 +62,20 @@ export const useOnboardingTour = () => {
 interface Props {
   active: boolean;
   onDismiss: () => void;
+  steps?: TourStep[];
+  onStepChange?: (step: number) => void;
 }
 
-const OnboardingTour = ({ active, onDismiss }: Props) => {
+const OnboardingTour = ({ active, onDismiss, steps = DASHBOARD_STEPS, onStepChange }: Props) => {
   const [step, setStep] = useState(0);
   const [highlight, setHighlight] = useState<DOMRect | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const currentStep = DASHBOARD_STEPS[step];
-  const isCenter = step === 0 || currentStep.position === "center";
-  const isLast = step === DASHBOARD_STEPS.length - 1;
-  const total = DASHBOARD_STEPS.length;
+  const currentStep = steps[step];
+  const isCenter = currentStep.position === "center";
+  const isLast = step === steps.length - 1;
+  const total = steps.length;
 
   useEffect(() => {
     if (!active || isCenter) { setHighlight(null); return; }
@@ -82,11 +100,16 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
     }, 2000);
   };
 
+  const changeStep = (nextStep: number) => {
+    setStep(nextStep);
+    onStepChange?.(nextStep);
+  };
+
   const next = () => {
     if (isLast) { finish(); return; }
-    setStep(s => s + 1);
+    changeStep(step + 1);
   };
-  const prev = () => setStep(s => Math.max(0, s - 1));
+  const prev = () => changeStep(Math.max(0, step - 1));
   const skip = () => { onDismiss(); setStep(0); };
 
   useEffect(() => {
@@ -131,7 +154,7 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
       {/* Tour overlay */}
       <AnimatePresence>
         {active && (
-          <motion.div ref={overlayRef} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100]" onClick={(e) => { if (e.target === overlayRef.current) skip(); }}>
+          <motion.div ref={overlayRef} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`fixed inset-0 z-[100] ${isCenter ? "flex items-center justify-center p-4" : ""}`} onClick={(e) => { if (e.target === overlayRef.current) skip(); }}>
             {/* Dimming overlay with cutout */}
             <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }}>
               <defs>
@@ -169,45 +192,48 @@ const OnboardingTour = ({ active, onDismiss }: Props) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className={`absolute bg-card border border-border rounded-3xl shadow-2xl p-5 z-[101] overflow-y-auto ${isCenter ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[92vw] w-[340px]" : "max-w-[92vw] w-[320px]"}`}
+                className={`${isCenter ? "relative max-w-full w-[340px]" : "absolute max-w-[92vw] w-[320px]"} overflow-y-auto rounded-3xl border border-primary/15 bg-card/95 p-5 shadow-[0_24px_90px_-20px_rgba(0,0,0,0.55)] ring-1 ring-white/20 backdrop-blur-xl z-[101]`}
               style={{ ...(!isCenter ? tooltipStyle : {}), maxHeight: "calc(100dvh - 32px)" }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="tour-step-title"
             >
               {/* Close btn */}
-              <button onClick={skip} className="absolute top-3 right-3 h-11 w-11 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
+                <button onClick={skip} aria-label="Skip tour" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-secondary/80 transition-colors hover:bg-secondary">
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
 
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-5 w-5 text-primary" />
+                <div className="mb-4 flex items-start justify-between gap-3 pr-9">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 text-primary shadow-inner">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">ROCKCBT QUICK TOUR</p>
+                      <h3 id="tour-step-title" className="text-sm font-bold leading-tight">{currentStep.title}</h3>
+                    </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold">{currentStep.title}</h3>
-                  <p className="text-[10px] text-muted-foreground">Step {step + 1} of {total}</p>
-                </div>
+                  <span className="shrink-0 rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tabular-nums text-muted-foreground">{String(step + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</span>
               </div>
 
-              <p className="text-sm text-muted-foreground leading-relaxed mb-4">{currentStep.message}</p>
+                <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{currentStep.message}</p>
 
-              {/* Progress dots */}
-              <div className="flex items-center gap-1 mb-3">
-                {DASHBOARD_STEPS.map((_, i) => (
-                  <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? "w-4 bg-primary" : i < step ? "w-1.5 bg-primary/40" : "w-1.5 bg-border"}`} />
-                ))}
+                <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-label="Tour progress" aria-valuemin={1} aria-valuemax={total} aria-valuenow={step + 1}>
+                  <motion.div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary" animate={{ width: `${((step + 1) / total) * 100}%` }} transition={{ duration: 0.3 }} />
               </div>
 
               {/* Buttons */}
               <div className="flex items-center gap-2">
                 {step === 0 ? (
                   <>
-                    <Button variant="ghost" size="sm" className="h-12 text-sm flex-1" onClick={skip}>Skip</Button>
-                    <Button size="sm" className="h-12 text-sm flex-1 gap-1" onClick={next}>Start Tour <ChevronRight className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className="h-11 flex-1 text-sm" onClick={skip}>Skip tour</Button>
+                      <Button size="sm" className="h-11 flex-1 gap-1 text-sm shadow-lg shadow-primary/20" onClick={next}>Start tour <ChevronRight className="h-3.5 w-3.5" /></Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="ghost" size="sm" className="h-11 min-w-11 text-xs" onClick={prev}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="sm" className="h-11 text-sm" onClick={skip}>Skip</Button>
-                    <Button size="sm" className="h-11 text-sm flex-1 gap-1" onClick={next}>
+                      <Button variant="outline" size="icon" aria-label="Previous tour step" className="h-11 w-11 shrink-0 rounded-xl" onClick={prev}><ChevronLeft className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" className="h-11 px-2 text-xs" onClick={skip}>Skip</Button>
+                      <Button size="sm" className="h-11 flex-1 gap-1 rounded-xl text-sm shadow-lg shadow-primary/20" onClick={next}>
                       {isLast ? "Finish 🎉" : "Next"} {!isLast && <ChevronRight className="h-3.5 w-3.5" />}
                     </Button>
                   </>

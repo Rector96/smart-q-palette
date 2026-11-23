@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Copy, Share2, Play, Trophy, Clock, AlertTriangle, Crown, CheckCircle2, XCircle, ArrowLeft } from "lucide-react";
+import ScientificCalculator from "@/components/ScientificCalculator";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,8 @@ interface QuizQuestion {
   option_b: string;
   option_c: string;
   option_d: string;
+  option_e?: string | null;
+  diagram_url?: string | null;
   correct_answer: string;
   explanation?: string;
   exam_hint?: string;
@@ -487,7 +491,8 @@ const QuizRoom = () => {
   const sorted = [...participants].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="quiz-live-shell min-h-screen bg-gradient-to-b from-background via-background to-primary/[0.045] flex flex-col pb-[env(safe-area-inset-bottom)]">
+    <>
+    <div className={cn("quiz-live-shell min-h-screen bg-gradient-to-b from-background via-background to-primary/[0.045] flex flex-col pb-[env(safe-area-inset-bottom)]", showResult && "quiz-live-has-actions")}>
       {/* Tab warning */}
       <AnimatePresence>
         {tabWarning && (
@@ -511,6 +516,7 @@ const QuizRoom = () => {
           </div>
           </div>
           <div className="flex items-center gap-2">
+            <ScientificCalculator />
             <span className="hidden rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:inline-flex"><Users className="mr-1 h-3 w-3" />{participants.length} playing</span>
             <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5">
             <Clock className={cn("h-3.5 w-3.5", timeLeft <= 5 ? "text-destructive" : "text-muted-foreground")} />
@@ -529,13 +535,13 @@ const QuizRoom = () => {
       {/* Question */}
       <main className="quiz-live-main mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-5 px-4 py-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_280px]"><section className="quiz-live-question-column min-w-0 space-y-5">
         <motion.div className="quiz-live-question-motion" key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-          <div className="quiz-live-question-card relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-lg shadow-primary/5 sm:p-9"><div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/[0.07] blur-2xl" /><div className="relative"><div className="quiz-live-question-meta mb-4 flex items-center justify-between gap-3"><p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-bold text-muted-foreground">Question {currentQ + 1} of {questions.length}</span></div><p className="quiz-live-question-text text-lg font-semibold leading-relaxed sm:text-xl">{currentQuestion.question_text}</p></div></div>
+          <div className="quiz-live-question-card relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-lg shadow-primary/5 sm:p-9"><div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/[0.07] blur-2xl" /><div className="relative"><div className="quiz-live-question-meta mb-4 flex items-center justify-between gap-3"><p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-bold text-muted-foreground">Question {currentQ + 1} of {questions.length}</span></div><p className="quiz-live-question-text text-lg font-semibold leading-relaxed sm:text-xl">{currentQuestion.question_text}</p>{currentQuestion.diagram_url && <img src={currentQuestion.diagram_url} alt="Question diagram" className="mt-4 max-h-80 w-full rounded-xl object-contain" loading="lazy" decoding="async" />}</div></div>
         </motion.div>
 
         <div className="quiz-live-answer-section space-y-2">
           <p className="quiz-live-answer-label px-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Choose your answer</p>
           <div className="quiz-live-answer-grid">
-          {["A", "B", "C", "D"].map(opt => {
+          {["A", "B", "C", "D", ...(currentQuestion.option_e?.trim() ? ["E"] : [])].map(opt => {
             const optKey = `option_${opt.toLowerCase()}` as keyof QuizQuestion;
             const text = currentQuestion[optKey] as string;
             const isSelected = selectedOption === opt;
@@ -574,20 +580,6 @@ const QuizRoom = () => {
                 <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
                   <p className="text-xs font-semibold text-destructive">❌ Not quite. {currentQuestion.exam_hint || `The correct answer is ${currentQuestion.correct_answer}.`}</p>
                 </div>
-              )}
-
-              {isHost ? (
-                <Button className="w-full rounded-xl" onClick={advanceQuestion} disabled={isAdvancing || revealRemaining > 0}>
-                  {isAdvancing
-                    ? (advanceCommitted ? "Refreshing question..." : "Loading next question...")
-                    : revealRemaining > 0
-                      ? `Please wait ${revealRemaining}s to continue`
-                      : advanceCommitted
-                        ? "Refresh question"
-                        : currentQ === questions.length - 1 ? "Finish Quiz" : "Next Question"}
-                </Button>
-              ) : (
-                <p className="text-[10px] text-muted-foreground text-center">Waiting for the host to continue...</p>
               )}
             </motion.div>
           )}
@@ -631,6 +623,39 @@ const QuizRoom = () => {
       </aside>
     </main>
     </div>
+    {showResult && typeof document !== "undefined" && createPortal(
+      <AnimatePresence>
+        <motion.div
+          key={currentQ}
+          className="quiz-live-advance-bar"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.18 }}
+        >
+          <div className="quiz-live-advance-inner">
+            <div className="quiz-live-advance-actions">
+              {isHost ? (
+                <Button className="quiz-live-advance-button rounded-xl" onClick={advanceQuestion} disabled={isAdvancing || revealRemaining > 0}>
+                  {isAdvancing
+                    ? (advanceCommitted ? "Refreshing question..." : "Loading next question...")
+                    : revealRemaining > 0
+                      ? `Please wait ${revealRemaining}s to continue`
+                      : advanceCommitted
+                        ? "Refresh question"
+                        : currentQ === questions.length - 1 ? "Finish Quiz" : "Next Question"}
+                </Button>
+              ) : (
+                <p className="quiz-live-advance-waiting">Waiting for the host to continue...</p>
+              )}
+            </div>
+            <div aria-hidden="true" />
+          </div>
+        </motion.div>
+      </AnimatePresence>,
+      document.body
+    )}
+    </>
   );
 };
 

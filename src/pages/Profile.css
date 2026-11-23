@@ -1,0 +1,53 @@
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "profile"
+    "stats"
+    "performance"
+    "goals"
+    "settings"
+    "signout";
+  gap: 20px;
+}
+
+.profile-grid > * {
+  min-width: 0;
+}
+
+.profile-grid-profile {
+  grid-area: profile;
+}
+
+.profile-grid-stats {
+  grid-area: stats;
+}
+
+.profile-grid-performance {
+  grid-area: performance;
+}
+
+.profile-grid-goals {
+  grid-area: goals;
+}
+
+.profile-grid-settings {
+  grid-area: settings;
+}
+
+.profile-grid-signout {
+  grid-area: signout;
+}
+
+@media (min-width: 1024px) {
+  .profile-grid {
+    grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.25fr);
+    grid-template-areas:
+      "profile stats"
+      "settings performance"
+      "signout goals";
+    column-gap: 24px;
+    row-gap: 20px;
+    align-items: start;
+  }
+}

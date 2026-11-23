@@ -1,0 +1,141 @@
+.dashboard-overview {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-welcome {
+  min-height: 220px;
+}
+
+.dashboard-performance {
+  min-width: 0;
+}
+
+.dashboard-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-stat-item:nth-child(odd) {
+  border-right: 1px solid #e2e8f0;
+}
+
+.dashboard-stat-item:nth-child(-n + 2) {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dashboard-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-subject-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.dashboard-content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.dashboard-quick-links {
+  order: 0;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.dashboard-primary {
+  order: 1;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .dashboard-subject-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .dashboard-overview {
+    grid-template-columns: minmax(0, 1.4fr) minmax(330px, 0.95fr);
+    align-items: stretch;
+    gap: 1.25rem;
+  }
+
+  .dashboard-welcome {
+    min-height: 220px;
+  }
+
+  .dashboard-performance {
+    display: flex;
+    align-items: center;
+  }
+
+  .dashboard-performance > div {
+    width: 100%;
+  }
+
+  .dashboard-mode-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-subject-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-content-grid {
+    display: grid;
+    grid-template-areas: "primary quicklinks";
+    grid-template-columns: minmax(0, 1fr) minmax(270px, 300px);
+    align-items: start;
+    gap: 1.5rem;
+  }
+
+  .dashboard-quick-links {
+    position: sticky;
+    top: 6rem;
+    grid-area: quicklinks;
+  }
+
+  .dashboard-primary {
+    grid-area: primary;
+  }
+}
+
+@media (min-width: 1500px) {
+  .dashboard-mode-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-subject-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-subject-arrow {
+    display: none;
+  }
+
+  .dashboard-subject-content {
+    gap: 0.375rem;
+    padding: 0.5rem;
+  }
+
+  .dashboard-subject-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .dashboard-subject-name {
+    font-size: 0.6875rem;
+  }
+}
+
+.dashboard-ai-card {
+  background: linear-gradient(140deg, #eef2ff 0%, #f5f3ff 55%, #f8fafc 100%);
+}
