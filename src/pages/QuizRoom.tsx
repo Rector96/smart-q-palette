@@ -8,6 +8,7 @@ import { Users, Copy, Share2, Play, Trophy, Clock, AlertTriangle, Crown, CheckCi
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import "./QuizRoom.css";
 
 interface Participant {
   id: string;
@@ -295,55 +296,75 @@ const QuizRoom = () => {
     const sorted = [...participants].sort((a, b) => b.score - a.score);
     const winner = sorted[0];
     const myRank = sorted.findIndex((p) => p.user_id === user?.id) + 1;
+    const myScore = sorted.find((p) => p.user_id === user?.id)?.score ?? 0;
+    const isChampion = Boolean(winner && winner.user_id === user?.id);
     return (
-      <div className="min-h-screen bg-background px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-        <div className="max-w-xl mx-auto space-y-6">
-          <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-card p-7 text-center shadow-sm">
-            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
-            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><Trophy className="h-9 w-9 text-primary" /></div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Battle finished</p>
-            <h1 className="mt-2 text-2xl font-extrabold tracking-tight">Quiz Complete!</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Here is how everyone performed</p>
+      <div className="quiz-results-page min-h-screen bg-[#f4f7fb] px-4 py-5 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-7">
+        <main className="quiz-results-layout mx-auto max-w-6xl">
+          <section className={cn("quiz-results-hero", isChampion && "quiz-results-hero-champion")}>
+            <div className="quiz-results-glow quiz-results-glow-one" />
+            <div className="quiz-results-glow quiz-results-glow-two" />
+            <div className="quiz-results-hero-content">
+              <div className="quiz-results-trophy" aria-hidden="true">
+                {isChampion ? <Trophy className="h-9 w-9" /> : <CheckCircle2 className="h-8 w-8" />}
+              </div>
+              <p className="quiz-results-eyebrow">{isChampion ? "Victory secured" : "Battle finished"}</p>
+              <h1>{isChampion ? "You’re the champion!" : "Quiz complete!"}</h1>
+              <p className="quiz-results-subtitle">{isChampion ? "Excellent work — you came out on top." : "Great effort. Here’s how everyone performed."}</p>
+            </div>
+
             {winner && (
-              <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-primary/20 bg-background/70 p-4">
-                <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10"><Crown className="h-5 w-5 text-primary" /></div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Quiz champion</p>
-                <p className="mt-1 text-lg font-extrabold">{winner.display_name}{winner.user_id === user?.id ? " · You" : ""}</p>
-                <p className="text-sm font-semibold text-muted-foreground">{winner.score} points</p>
-                {myRank > 0 && <p className="mt-3 border-t border-border/60 pt-3 text-xs font-semibold text-foreground">Your finish: #{myRank} of {participants.length}</p>}
+              <div className="quiz-results-champion-card">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="quiz-results-crown"><Crown className="h-5 w-5" /></div>
+                  <div className="min-w-0 text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Quiz champion</p>
+                    <p className="truncate text-lg font-extrabold">{winner.display_name}{isChampion ? " · You" : ""}</p>
+                  </div>
+                </div>
+                <p className="shrink-0 text-xl font-extrabold text-primary">{winner.score}<span className="ml-1 text-xs font-semibold">pts</span></p>
               </div>
             )}
-            <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs">
-              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">{participants.length} players</span>
-              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">{questions.length} questions</span>
-              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 font-semibold text-foreground">Final leaderboard</span>
+
+            <div className="quiz-results-stats">
+              <div><span>Your score</span><strong>{myScore} <small>pts</small></strong></div>
+              <div><span>Your place</span><strong>{myRank > 0 ? `#${myRank}` : "—"} <small>{participants.length ? `/ ${participants.length}` : ""}</small></strong></div>
+              <div><span>Questions</span><strong>{questions.length}</strong></div>
             </div>
-          </div>
-          <div className="space-y-2">
-            {sorted.map((p, i) => (
-              <Card key={p.id} className={cn("overflow-hidden rounded-2xl border-border/60 shadow-sm transition-transform", i === 0 && "border-primary/50 bg-primary/5 ring-1 ring-primary/20", p.user_id === user?.id && "ring-1 ring-primary/30")}>
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0", i === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground")}>
-                    {i === 0 ? <Crown className="h-4 w-4" /> : i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{p.display_name} {p.user_id === user?.id && "(You)"}</p>
-                    {i === 0 && <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-primary"><Crown className="h-3 w-3" /> Champion</span>}
-                    {p.user_id === user?.id && <span className="mt-0.5 block text-[10px] font-semibold text-primary">Your result</span>}
-                  </div>
-                  <p className="text-sm font-bold text-primary">{p.score} pts</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {isHost && <Button className="h-12 w-full rounded-xl text-base font-bold shadow-md sm:col-span-2" onClick={handleRematch} disabled={rematchLoading || participants.length === 0}>
+          </section>
+
+          <section className="quiz-results-leaderboard">
+            <div className="quiz-results-section-heading">
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Final standings</p><h2 className="text-lg font-extrabold">Leaderboard</h2></div>
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{participants.length} players</span>
+            </div>
+            <div className="quiz-results-player-list space-y-2">
+              {sorted.map((p, i) => (
+                <Card key={p.id} className={cn("quiz-results-player overflow-hidden rounded-2xl border-border/60 shadow-none", i === 0 && "quiz-results-player-winner", p.user_id === user?.id && "quiz-results-player-self")}>
+                  <CardContent className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
+                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold", i === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground")}>
+                      {i === 0 ? <Crown className="h-5 w-5" /> : i + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold">{p.display_name} {p.user_id === user?.id && "(You)"}</p>
+                      {i === 0 && <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-primary"><Crown className="h-3 w-3" /> Champion</span>}
+                      {p.user_id === user?.id && <span className="mt-0.5 block text-[10px] font-semibold text-primary">Your result</span>}
+                    </div>
+                    <p className="shrink-0 text-sm font-extrabold tabular-nums text-primary">{p.score} pts</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+
+          <div className="quiz-results-actions">
+            {isHost && <Button className="quiz-results-rematch h-12 w-full rounded-xl text-base font-bold shadow-md" onClick={handleRematch} disabled={rematchLoading || participants.length === 0}>
               {rematchLoading ? "Preparing rematch..." : "Rematch with same players"}
             </Button>}
             <Button variant="outline" className="h-12 w-full rounded-xl text-base font-bold" onClick={() => navigate("/live-quiz")}>Create another quiz</Button>
             <Button variant="outline" className="h-12 w-full rounded-xl text-base font-bold" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
@@ -351,64 +372,76 @@ const QuizRoom = () => {
   // WAITING ROOM
   if (room.status === "waiting") {
     return (
-      <div className="min-h-screen bg-background px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-        <div className="mx-auto max-w-xl space-y-6">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/live-quiz")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-
-          <div className="text-center space-y-3">
-            <div className="mx-auto mb-2 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Room is open</div>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 shadow-inner">
-              <Users className="h-7 w-7 text-primary" />
-            </div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Waiting Room</h2>
-            <p className="text-sm text-muted-foreground capitalize">{room.subject} <span className="mx-1">·</span> {room.room_code?.startsWith("D") ? "1-vs-1 Friend Battle" : "Group Quiz"} <span className="mx-1">·</span> {questions.length} questions <span className="mx-1">·</span> {room.time_per_question}s per question</p>
-          </div>
-
-          {/* Room Code */}
-          <Card className="overflow-hidden rounded-3xl border-primary/20 bg-gradient-to-br from-primary/10 to-card shadow-sm">
-            <CardContent className="space-y-3 p-6 text-center">
-              <p className="text-xs text-muted-foreground font-medium">Room Code</p>
-              <p className="text-4xl font-black tracking-[0.35em] text-primary sm:text-5xl">{roomCode}</p>
-              <p className="text-xs text-muted-foreground">Invite friends to join this room and compete in real time.</p>
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl px-4 text-xs" onClick={copyRoomCode}>
-                  <Copy className="h-3 w-3" /> {copied ? "Copied!" : "Copy Code"}
-                </Button>
-                <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl px-4 text-xs" onClick={shareLink}>
-                  <Share2 className="h-3 w-3" /> Share Link
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Participants */}
-          <div>
-            <div className="mb-3 flex items-center justify-between gap-2"><div><p className="text-sm font-bold">Players in the room</p><p className="text-xs text-muted-foreground">Your competition is gathering</p></div><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{participants.length} joined</span></div>
-            <div className="space-y-1.5">
-              {participants.map(p => (
-                <Card key={p.id} className="rounded-xl border-border/60 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-sm font-extrabold text-primary">
-                      {p.display_name[0]}
-                    </div>
-                    <p className="text-sm font-medium flex-1">{p.display_name}</p>
-                    {p.user_id === room.host_id && <span className="text-[10px] text-primary font-semibold">HOST</span>}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {isHost && (
-            <Button className="h-12 w-full gap-2 rounded-xl text-base font-bold shadow-md" onClick={handleStart} disabled={room.room_code?.startsWith("D") ? participants.length !== 2 : participants.length < 1}>
-              <Play className="h-4 w-4" /> {room.room_code?.startsWith("D") ? "Start Friend Battle" : "Start Quiz"}
+      <div className="quiz-waiting-room min-h-screen bg-[#f4f7fb] px-4 py-5 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-7">
+        <main className="quiz-waiting-layout mx-auto max-w-6xl">
+          <header className="quiz-waiting-header">
+            <Button variant="ghost" size="icon" aria-label="Back to live quiz" className="h-10 w-10 shrink-0 rounded-full bg-white shadow-sm" onClick={() => navigate("/live-quiz")}>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-          )}
-          {room.room_code?.startsWith("D") && participants.length < 2 && <p className="text-center text-xs text-muted-foreground">Share your challenge code. The battle starts when your friend joins.</p>}
-          {!isHost && <p className="text-center text-xs text-muted-foreground">Waiting for host to start...</p>}
-        </div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-primary"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Room is open</div>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Waiting Room</h1>
+              <div className="quiz-waiting-meta mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>{room.subject}</span><span aria-hidden="true">·</span>
+                <span>{room.room_code?.startsWith("D") ? "1-vs-1 Friend Battle" : "Group Quiz"}</span><span aria-hidden="true">·</span>
+                <span>{questions.length} questions</span><span aria-hidden="true">·</span>
+                <span>{room.time_per_question}s per question</span>
+              </div>
+            </div>
+          </header>
+
+          <div className="quiz-waiting-grid">
+            <Card className="quiz-waiting-code overflow-hidden rounded-3xl border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
+              <CardContent className="flex h-full flex-col items-center justify-center gap-4 p-5 text-center sm:p-8 lg:p-10">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Users className="h-6 w-6 text-primary" /></div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Room code</p>
+                  <p className="mt-2 break-all text-5xl font-black tracking-[0.22em] text-primary sm:text-6xl">{roomCode}</p>
+                  <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">Invite friends to join this room and compete in real time.</p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button variant="outline" className="h-11 gap-2 rounded-xl px-5" onClick={copyRoomCode}>
+                    <Copy className="h-4 w-4" /> {copied ? "Copied!" : "Copy Code"}
+                  </Button>
+                  <Button variant="outline" className="h-11 gap-2 rounded-xl px-5" onClick={shareLink}>
+                    <Share2 className="h-4 w-4" /> Share Link
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <section className="quiz-waiting-players rounded-3xl border border-white bg-white p-4 shadow-[0_8px_24px_rgba(27,39,61,0.06)] sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div><h2 className="text-base font-bold">Players in the room</h2><p className="mt-0.5 text-xs text-muted-foreground">Your competition is gathering</p></div>
+                <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">{participants.length} joined</span>
+              </div>
+              <div className="quiz-waiting-player-list space-y-2">
+                {participants.map((p, index) => (
+                  <Card key={p.id} className="rounded-2xl border-border/60 shadow-none">
+                    <CardContent className="flex min-w-0 items-center gap-3 p-3">
+                      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold", p.user_id === room.host_id ? "bg-primary/10 text-primary" : "bg-secondary text-foreground")}>
+                        {p.display_name[0]?.toUpperCase() || "?"}
+                      </div>
+                      <p className="min-w-0 flex-1 truncate text-sm font-semibold">{p.display_name}</p>
+                      {p.user_id === room.host_id ? <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">HOST</span> : <span className="text-xs text-muted-foreground">Player {index + 1}</span>}
+                    </CardContent>
+                  </Card>
+                ))}
+                {participants.length === 0 && <p className="rounded-xl bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">Waiting for players to join…</p>}
+              </div>
+            </section>
+
+            <section className="quiz-waiting-action space-y-3">
+              {isHost ? (
+                <Button className="h-14 w-full gap-2 rounded-2xl text-base font-bold shadow-md" onClick={handleStart} disabled={room.room_code?.startsWith("D") ? participants.length !== 2 : participants.length < 1}>
+                  <Play className="h-5 w-5" /> {room.room_code?.startsWith("D") ? "Start Friend Battle" : "Start Quiz"}
+                </Button>
+              ) : <div className="rounded-2xl border bg-white px-4 py-4 text-center text-sm font-semibold text-muted-foreground">Waiting for host to start…</div>}
+              {room.room_code?.startsWith("D") && participants.length < 2 && <p className="text-center text-xs text-muted-foreground">Share your challenge code. The battle starts when your friend joins.</p>}
+              {isHost && !room.room_code?.startsWith("D") && <p className="text-center text-xs text-muted-foreground">You can start the quiz when you’re ready.</p>}
+            </section>
+          </div>
+        </main>
       </div>
     );
   }
@@ -420,7 +453,7 @@ const QuizRoom = () => {
   const sorted = [...participants].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/[0.045] flex flex-col pb-[env(safe-area-inset-bottom)]">
+    <div className="quiz-live-shell min-h-screen bg-gradient-to-b from-background via-background to-primary/[0.045] flex flex-col pb-[env(safe-area-inset-bottom)]">
       {/* Tab warning */}
       <AnimatePresence>
         {tabWarning && (
@@ -432,7 +465,7 @@ const QuizRoom = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="sticky top-0 z-30 border-b border-border/70 bg-card/95 px-4 py-3 shadow-sm backdrop-blur-xl">
+      <div className="quiz-live-header sticky top-0 z-30 border-b border-border/70 bg-card/95 px-4 py-3 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">{room.subject} · Live battle</span>
@@ -460,13 +493,14 @@ const QuizRoom = () => {
       </div>
 
       {/* Question */}
-      <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-5 px-4 py-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_280px]"><section className="min-w-0 space-y-5">
-        <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-          <div className="relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-lg shadow-primary/5 sm:p-9"><div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/[0.07] blur-2xl" /><div className="relative"><div className="mb-4 flex items-center justify-between gap-3"><p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-bold text-muted-foreground">Question {currentQ + 1} of {questions.length}</span></div><p className="text-lg font-semibold leading-relaxed sm:text-xl">{currentQuestion.question_text}</p></div></div>
+      <main className="quiz-live-main mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-5 px-4 py-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_280px]"><section className="quiz-live-question-column min-w-0 space-y-5">
+        <motion.div className="quiz-live-question-motion" key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+          <div className="quiz-live-question-card relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-lg shadow-primary/5 sm:p-9"><div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/[0.07] blur-2xl" /><div className="relative"><div className="quiz-live-question-meta mb-4 flex items-center justify-between gap-3"><p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Your question</p><span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-bold text-muted-foreground">Question {currentQ + 1} of {questions.length}</span></div><p className="quiz-live-question-text text-lg font-semibold leading-relaxed sm:text-xl">{currentQuestion.question_text}</p></div></div>
         </motion.div>
 
-        <div className="space-y-2">
-          <p className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Choose your answer</p>
+        <div className="quiz-live-answer-section space-y-2">
+          <p className="quiz-live-answer-label px-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Choose your answer</p>
+          <div className="quiz-live-answer-grid">
           {["A", "B", "C", "D"].map(opt => {
             const optKey = `option_${opt.toLowerCase()}` as keyof QuizQuestion;
             const text = currentQuestion[optKey] as string;
@@ -481,8 +515,8 @@ const QuizRoom = () => {
             }
 
             return (
-              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("cursor-pointer rounded-2xl border-2 transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none", !answered && "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5")} onClick={() => handleAnswer(opt)}>
-                <CardContent className="flex min-h-[64px] items-center gap-4 p-4 sm:p-5">
+              <Card key={opt} role="button" tabIndex={answered ? -1 : 0} aria-disabled={answered} className={cn("quiz-live-answer cursor-pointer rounded-2xl border-2 transition-all duration-200 active:scale-[0.99] sm:rounded-2xl", optionClass, answered && "pointer-events-none", !answered && "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5")} onClick={() => handleAnswer(opt)}>
+                <CardContent className="quiz-live-answer-content flex min-h-[64px] items-center gap-4 p-4 sm:p-5">
                   <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold", showResult && isCorrect ? "bg-[hsl(var(--success))] text-white" : showResult && isSelected ? "bg-destructive text-white" : "bg-secondary")}>
                     {showResult && isCorrect ? <CheckCircle2 className="h-4 w-4" /> : showResult && isSelected ? <XCircle className="h-4 w-4" /> : opt}
                   </div>
@@ -491,12 +525,13 @@ const QuizRoom = () => {
               </Card>
             );
           })}
+          </div>
         </div>
 
         {/* Result feedback */}
         <AnimatePresence>
           {showResult && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+            <motion.div className="quiz-live-result space-y-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               {selectedOption === currentQuestion.correct_answer ? (
                 <div className="rounded-2xl border border-[hsl(var(--success))]/20 bg-[hsl(var(--success))]/10 p-4">
                   <p className="text-xs font-semibold text-[hsl(var(--success))]">✅ Correct! {currentQuestion.exam_hint || MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)]}</p>
@@ -519,7 +554,7 @@ const QuizRoom = () => {
         </AnimatePresence>
       </section>
 
-      <aside className="space-y-3 lg:sticky lg:top-28 lg:self-start">
+      <aside className="quiz-live-sidebar space-y-3 lg:sticky lg:top-28 lg:self-start">
         <Card className="overflow-hidden rounded-3xl border-border/60 bg-card/90 shadow-sm backdrop-blur">
           <CardContent className="space-y-4 p-4">
             <div className="flex items-center justify-between gap-2">
@@ -529,7 +564,7 @@ const QuizRoom = () => {
               </div>
               <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{participants.length}</span>
             </div>
-            <div className="space-y-2">
+            <div className="quiz-live-leaderboard-list space-y-2">
               {sorted.map((participant, index) => (
                 <div key={participant.id} className={cn("flex items-center gap-2 rounded-xl px-2.5 py-2", participant.user_id === user?.id ? "bg-primary/10 ring-1 ring-primary/20" : "bg-secondary/50")}>
                   <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold", index === 0 ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground")}>{index + 1}</span>
