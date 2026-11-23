@@ -38,7 +38,7 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonError("Method not allowed.", 405);
 
   try {
-    const { messages, subject, studentName, stream: shouldStream = true } = await req.json();
+    const { messages, subject, studentName, stream: shouldStream = true, structured: useStructured = false } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > 40) {
       return jsonError("Please send a valid conversation (up to 40 messages).", 400);
     }
@@ -53,7 +53,7 @@ serve(async (req) => {
     const safeStudentName = typeof studentName === "string"
       ? studentName.trim().replace(/[^\p{L}\p{M}\s'-]/gu, "").slice(0, 60)
       : "";
-    const systemPrompt = `You are ROCKCBT AI Tutor, a friendly and expert personal study coach for Nigerian students preparing for JAMB UTME, WAEC, NECO and Post-UTME. Teach like a patient, supportive Nigerian lesson teacher.
+    const structuredSystemPrompt = `You are ROCKCBT AI Tutor, a friendly and expert personal study coach for Nigerian students preparing for JAMB UTME, WAEC, NECO and Post-UTME. Teach like a patient, supportive Nigerian lesson teacher.
 
 PERSONALITY AND PERSONALISATION
 - Learner name: ${safeStudentName || "not provided"}. Use their first name occasionally and naturally, never in every reply.
@@ -121,6 +121,9 @@ ${subject ? `The learner's current subject is: ${String(subject).slice(0, 100)}.
 
 Your goal is to help each learner understand, remember and solve the next question independently.`;
 
+    const legacySystemPrompt = `You are ROCKCBT AI Tutor, a warm and capable personal study coach for Nigerian students. Answer the learner's question directly in friendly, simple English. Use local examples where useful. For calculations, show the formula, explain symbols, substitute values, show working and units, and state the final answer. Adapt to the conversation and learner's apparent level. Correct mistakes gently and encourage effort. Use readable Markdown and LaTeX for formulas. Keep answers clear and phone-friendly. Do not invent facts or exam rules.`;
+    const systemPrompt = useStructured ? structuredSystemPrompt : legacySystemPrompt;
+
     const groqKey = Deno.env.get("GROQ_API_KEY");
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
     if (!groqKey && !geminiKey) {
@@ -166,7 +169,7 @@ Your goal is to help each learner understand, remember and solve the next questi
             stream: false,
             temperature: 0.5,
             ...(provider.name.startsWith("Groq") ? { max_completion_tokens: 1800 } : { max_tokens: 1800 }),
-            response_format: { type: "json_object" },
+            ...(useStructured ? { response_format: { type: "json_object" } } : {}),
           }),
         });
 
@@ -183,7 +186,7 @@ Your goal is to help each learner understand, remember and solve the next questi
           console.error(`${provider.name} returned empty tutor content; trying fallback.`);
           continue;
         }
-        const validated = validateTutorJson(rawContent);
+        const validated = useStructured ? validateTutorJson(rawContent) : rawContent.trim();
         if (!validated) {
           console.error(`${provider.name} returned invalid Tutor JSON; trying fallback.`);
           continue;
