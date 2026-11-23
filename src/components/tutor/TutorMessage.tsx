@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, Lightbulb, Pencil, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,54 +13,56 @@ export type TutorLesson = {
 export type TutorChat = { type: "chat"; message: string };
 export type TutorStructured = TutorLesson | TutorChat;
 
-const superscripts: Record<string, string> = { "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹","+":"⁺","-":"⁻","n":"ⁿ","i":"ⁱ" };
-const subscripts: Record<string, string> = { "0":"₀","1":"₁","2":"₂","3":"₃","4":"₄","5":"₅","6":"₆","7":"₇","8":"₈","9":"₉","+":"₊","-":"₋","n":"ₙ","i":"ᵢ" };
-
-function groupValue(source: string, start: number): [string, number] {
-  if (source[start] !== "{") return [source[start] || "", start + 1];
-  let depth = 0;
-  for (let i = start; i < source.length; i++) {
-    if (source[i] === "{") depth++;
-    if (source[i] === "}" && --depth === 0) return [source.slice(start + 1, i), i + 1];
-  }
-  return [source.slice(start + 1), source.length];
+function loadMathJax(): Promise<any> {
+  const w = window as any;
+  if (w.MathJax?.typesetPromise) return Promise.resolve(w.MathJax);
+  if (w.__rockcbtMathJaxPromise) return w.__rockcbtMathJaxPromise;
+  w.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]], packages: { "[+]": ["ams"] } },
+    options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
+    startup: { typeset: false },
+  };
+  w.__rockcbtMathJaxPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById("rockcbt-mathjax") as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener("load", () => resolve((window as any).MathJax), { once: true });
+      existing.addEventListener("error", reject, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "rockcbt-mathjax";
+    script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+    script.async = true;
+    script.onload = () => resolve((window as any).MathJax);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return w.__rockcbtMathJaxPromise;
 }
-function readableMath(input: string) {
-  let s = input.replace(/\\left|\\right/g, "").replace(/\\,/g, " ").replace(/\\;/g, " ");
-  s = s.replace(/\\frac\s*/g, "FRAC ").replace(/\\sqrt\s*/g, "ROOT ");
-  s = s.replace(/\\times/g, "×").replace(/\\cdot/g, "·").replace(/\\div/g, "÷")
-    .replace(/\\pi/g, "π").replace(/\\theta/g, "θ").replace(/\\Delta/g, "Δ")
-    .replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\mu/g, "μ")
-    .replace(/\\omega/g, "ω").replace(/\\lambda/g, "λ").replace(/\\rightarrow|\\to/g, "→")
-    .replace(/\\leq|\\le/g, "≤").replace(/\\geq|\\ge/g, "≥").replace(/\\neq/g, "≠")
-    .replace(/\\approx/g, "≈").replace(/\\pm/g, "±").replace(/\\infty/g, "∞")
-    .replace(/\\degree/g, "°").replace(/\\perp/g, "⊥").replace(/\\parallel/g, "∥");
-  let out = "";
-  for (let i = 0; i < s.length;) {
-    if (s.startsWith("FRAC ", i)) {
-      const [a, afterA] = groupValue(s, i + 5);
-      const [b, afterB] = groupValue(s, afterA);
-      out += "(" + readableMath(a) + ") / (" + readableMath(b) + ")";
-      i = afterB;
-    } else if (s.startsWith("ROOT ", i)) {
-      const [a, after] = groupValue(s, i + 5);
-      out += "√(" + readableMath(a) + ")";
-      i = after;
-    } else if (s[i] === "^" || s[i] === "_") {
-      const upper = s[i] === "^";
-      const [v, after] = groupValue(s, i + 1);
-      const map = upper ? superscripts : subscripts;
-      out += [...v].map(c => map[c] || c).join("");
-      i = after;
-    } else if (s[i] === "\\") {
-      const match = s.slice(i).match(/^\\([A-Za-z]+)/);
-      if (match) { out += match[1]; i += match[0].length; }
-      else { i++; }
-    } else if (s[i] !== "{" && s[i] !== "}") {
-      out += s[i++]; 
-    } else i++;
-  }
-  return out.replace(/\s+/g, " ").trim();
+
+function FormulaDisplay({ formula }: { formula: string }) {
+  const formulaRef = useRef<HTMLDivElement>(null);
+  const [mathReady, setMathReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    loadMathJax().then(async (mathJax) => {
+      if (cancelled || !formulaRef.current) return;
+      await mathJax.typesetPromise([formulaRef.current]);
+      if (!cancelled) setMathReady(true);
+    }).catch(() => setMathReady(false));
+    return () => {
+      cancelled = true;
+      const mathJax = (window as any).MathJax;
+      if (mathJax?.typesetClear && formulaRef.current) mathJax.typesetClear([formulaRef.current]);
+    };
+  }, [formula]);
+  return (
+    <div className="mt-3 overflow-x-auto rounded-xl border border-blue-100 bg-white px-3 py-3 text-center dark:border-blue-900 dark:bg-slate-950">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-300">Mathematical formula</div>
+      <div ref={formulaRef} className="mt-2 min-h-7 text-lg text-slate-900 dark:text-slate-100" aria-label={`Mathematical formula ${formula}`}>{`\\[${formula}\\]`}</div>
+      {!mathReady && <p className="mt-1 text-[10px] text-muted-foreground">Loading formatted equation…</p>}
+    </div>
+  );
 }
 
 export function TutorMessage({ response, onPracticeAnswer }: { response: TutorStructured; onPracticeAnswer: (answer: string) => void }) {
@@ -83,10 +85,7 @@ export function TutorMessage({ response, onPracticeAnswer }: { response: TutorSt
             </div>
             <h3 className="text-sm font-bold text-foreground">{card.heading}</h3>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{card.explanation}</p>
-            {card.formula && <div className="mt-3 overflow-x-auto rounded-xl border border-blue-100 bg-white px-3 py-3 text-center dark:border-blue-900 dark:bg-slate-950">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-300">Formula / working</div>
-              <div className="mt-1 whitespace-nowrap font-serif text-lg font-semibold tracking-wide text-slate-900 dark:text-slate-100" aria-label={`Formula: ${readableMath(card.formula)}`}>{readableMath(card.formula)}</div>
-            </div>}
+            {card.formula && <FormulaDisplay formula={card.formula} />}
           </article>
         ))}
       </div>
