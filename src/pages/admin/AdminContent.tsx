@@ -157,7 +157,9 @@ async function readZip(file: File): Promise<{ dataFile: File; images: File[] }> 
       if (dataFile) throw new Error("Keep only one .json or .csv question file inside the ZIP.");
       dataFile = new File([content], name.split("/").pop() || name, { type: lower.endsWith(".json") ? "application/json" : "text/csv" });
     } else if (/\.(png|jpe?g|webp|gif)$/i.test(name)) {
-      images.push(new File([content], name.split("/").pop() || name));
+      const imageName = name.split("/").pop() || name;
+      const imageType = /\.png$/i.test(name) ? "image/png" : /\.jpe?g$/i.test(name) ? "image/jpeg" : /\.webp$/i.test(name) ? "image/webp" : "image/gif";
+      images.push(new File([content], imageName, { type: imageType }));
     }
   }
   if (!dataFile) throw new Error("ZIP must contain one .json or .csv question file.");
@@ -310,8 +312,8 @@ const AdminContent = () => {
   const importQuestions = async () => {
     if (!importData.length || importing) return;
     setImporting(true); setProgress(0); setSummary(null);
-    const failures: ImportFailure[] = [];
-    let imported = 0; let duplicates = 0; let failed = importErrors.length;
+    const failures: ImportFailure[] = importErrors.map((message, index) => ({ row: Number(message.match(/Row (\\d+)/)?.[1] || index + 1), question: "", reason: message.replace(/^Row \\d+:\\s*/, "") }));
+    let imported = 0; let duplicates = 0; let failed = failures.length;
     const duplicateKeys = new Set<string>();
     const groups = new Map<string, ImportQuestion[]>();
     importData.forEach((q) => {
@@ -399,7 +401,8 @@ const AdminContent = () => {
     void fetchCounts();
   };
 
-  const yearOptions = useMemo(() => Object.entries(subjectCounts).flatMap(([subject, value]) => Object.keys(value.byYear).map((year) => subject + " " + year)), [subjectCounts]);
+  const imagePreviews = useMemo(() => importImages.map((file) => ({ name: file.name.toLowerCase(), url: URL.createObjectURL(file) })), [importImages]);
+  useEffect(() => () => imagePreviews.forEach((preview) => URL.revokeObjectURL(preview.url)), [imagePreviews]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -453,7 +456,7 @@ const AdminContent = () => {
                   <div className="max-h-72 overflow-auto rounded-lg border border-border">
                     <table className="w-full text-[11px]">
                       <thead className="sticky top-0 bg-muted"><tr><th className="p-2 text-left">Row</th><th className="p-2 text-left">Exam / Year</th><th className="p-2 text-left">Subject</th><th className="p-2 text-left">Question</th><th className="p-2 text-left">Answer</th><th className="p-2 text-left">Image</th></tr></thead>
-                      <tbody>{importData.slice(0, 100).map((q) => <tr key={q.rowNumber} className="border-t border-border/60"><td className="p-2">{q.rowNumber}</td><td className="p-2 whitespace-nowrap">{q.examination} {q.year}</td><td className="p-2">{q.subject}</td><td className="p-2 max-w-[260px]"><span className="line-clamp-2">{q.question_text}</span></td><td className="p-2">{q.correct_answer}</td><td className="p-2">{q.imageName || q.diagram_file ? <Badge variant="secondary">Attached</Badge> : "—"}</td></tr>)}</tbody>
+                      <tbody>{importData.slice(0, 100).map((q) => <tr key={q.rowNumber} className="border-t border-border/60"><td className="p-2">{q.rowNumber}</td><td className="p-2 whitespace-nowrap">{q.examination} {q.year}</td><td className="p-2">{q.subject}</td><td className="p-2 max-w-[260px]"><span className="line-clamp-2">{q.question_text}</span></td><td className="p-2">{q.correct_answer}</td><td className="p-2">{q.imageName ? <div className="flex items-center gap-2"><img src={imagePreviews.find((item) => item.name === q.imageName?.toLowerCase())?.url} alt="" className="h-10 w-12 rounded object-contain bg-muted" /> <span className="max-w-[100px] truncate">{q.imageName}</span></div> : q.diagram_file ? <Badge variant="secondary">Image URL</Badge> : "—"}</td></tr>)}</tbody>
                     </table>
                     {importData.length > 100 && <p className="p-2 text-[10px] text-muted-foreground">Showing first 100 of {importData.length} questions.</p>}
                   </div>
