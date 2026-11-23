@@ -85,7 +85,7 @@ function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: str
   const subject = subjectAliases[rawSubject] || SUBJECTS.find((item) => item.id === rawSubject || item.name.toLowerCase() === rawSubject)?.id || rawSubject;
   const examination = String(get("examination", "exam") || defaults.examination).trim().toUpperCase();
   const year = Number(get("year") || defaults.year);
-  const correct = String(get("correct_answer", "correctAnswer", "answer", "correct")).trim().toUpperCase().replace(/^OPTION\s+/, "");
+  const correct = String(get("correct_answer", "correctAnswer", "answer", "correct")).trim().toUpperCase().replace(/^OPTION\s+/, "").replace(/[.)\s]+$/, "");
   const question = String(get("question_text", "question", "questionText", "text")).trim();
   const image = String(get("imageName", "image_file", "image", "diagram_file", "diagram", "image_url") || "").trim();
   return {
