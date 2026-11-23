@@ -38,7 +38,7 @@ const SelectSubjects = () => {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
   const [examination, setExamination] = useState<ExamType | "">("");
-  const [selectedYear, setSelectedYear] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [customMinutes, setCustomMinutes] = useState(60);
   const [questionCount, setQuestionCount] = useState(60);
@@ -63,6 +63,7 @@ const SelectSubjects = () => {
           const match = availableCatalog.find((item) => item.subject.toLowerCase() === preselected.toLowerCase());
           if (match) {
             setExamination(match.examination);
+            setSelectedYear(String(match.year));
             setSelected([match.subject]);
           }
         } else if (mode === "revision" && availableCatalog.length > 0) {
@@ -77,12 +78,20 @@ const SelectSubjects = () => {
     return () => { active = false; };
   }, []);
 
-  // Render a stable year catalogue independently of question availability.
-  const availableYears = useMemo(() => Array.from({ length: 2025 - 1983 + 1 }, (_, i) => 2025 - i), []);
+  // Only show years that have published questions for this examination.
+  const availableYears = useMemo(
+    () => [...new Set(catalog
+      .filter((item) => item.examination === examination)
+      .map((item) => Number(item.year))
+      .filter((year) => Number.isInteger(year) && year > 0))]
+      .sort((a, b) => b - a),
+    [catalog, examination],
+  );
 
+  // Subjects are scoped to the selected examination AND year.
   const availableSubjects = useMemo(() => {
-    // Subjects remain selectable even when the selected year has not been populated yet.
-    const rows = catalog.filter((item) => item.examination === examination);
+    if (!examination || !selectedYear) return [];
+    const rows = catalog.filter((item) => item.examination === examination && String(item.year) === selectedYear);
     return [...new Map(rows.map((item) => [item.subject.toLowerCase(), item.subject])).values()]
       .sort((a, b) => a.localeCompare(b));
   }, [catalog, examination, selectedYear]);
@@ -108,7 +117,7 @@ const SelectSubjects = () => {
       return;
     }
     setExamination(value);
-    setSelectedYear("all");
+    setSelectedYear("");
     setSelected([]);
   };
 
@@ -118,7 +127,7 @@ const SelectSubjects = () => {
   };
 
   const handleStart = () => {
-    if (!examination || selected.length === 0) return;
+    if (!examination || !selectedYear || selected.length === 0) return;
     if (!Number.isInteger(questionCount) || questionCount < 1) {
       toast({ title: "Choose a valid question count", description: "Enter a number between 1 and 60.", variant: "destructive" });
       return;
@@ -197,6 +206,9 @@ const SelectSubjects = () => {
                       <CalendarDays className="h-4 w-4 text-primary" />
                       <Label className="text-sm font-semibold">Select Year</Label>
                     </div>
+                    {availableYears.length === 0 ? (
+                      <p className="pt-2 text-xs text-muted-foreground">No years are available for {examination} yet.</p>
+                    ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pt-2">
                       {availableYears.map((year) => {
                         const isSelected = selectedYear === String(year);
@@ -222,25 +234,26 @@ const SelectSubjects = () => {
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Select any year. Question collections are being added progressively.</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground">Choose a year to view the subjects available for that year.</p>
                   </CardContent>
                 </Card>
               </motion.div>
             )}
 
-            {examination && (
+            {examination && selectedYear && (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h2 className="text-sm font-bold">Select {isMock ? "4 Subjects" : "Subject"}</h2>
-                    <p className="text-[11px] text-muted-foreground">{examination} · {selectedYear === "all" ? "All available years" : selectedYear} · {selected.length}/{maxSubjects} selected</p>
+                    <p className="text-[11px] text-muted-foreground">{examination} · {selectedYear} · {selected.length}/{maxSubjects} selected</p>
                   </div>
                 </div>
                 {availableSubjects.length === 0 ? (
                   <Card className="border-dashed border-border/70"><CardContent className="p-5 text-center">
                     <BookOpen className="h-7 w-7 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm font-semibold">No {examination} questions available yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">We are adding verified past questions. Choose another examination or come back when this subject collection is ready.</p>
+                    <p className="text-sm font-semibold">No subjects available for {selectedYear}</p>
+                    <p className="text-xs text-muted-foreground mt-1">There are no published {examination} questions for this year yet. Choose another year to continue.</p>
                   </CardContent></Card>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -307,15 +320,22 @@ const SelectSubjects = () => {
             <Card className="border-border/50 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3"><Clock className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Set Duration</Label></div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {[30, 45, 60, 90, 120].map((minutes) => (
+                    <Button key={minutes} type="button" size="sm" variant={customMinutes === minutes ? "default" : "outline"} className="h-8 text-xs" onClick={() => setCustomMinutes(minutes)}>
+                      {minutes} min
+                    </Button>
+                  ))}
+                </div>
                 <div className="flex items-center gap-3">
-                  <Input type="number" value={customMinutes || ""} onChange={(e) => setCustomMinutes(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))} className="h-9 w-24 text-sm" min={1} />
-                  <span className="text-xs text-muted-foreground">minutes</span>
+                  <Input type="number" value={customMinutes || ""} onChange={(e) => setCustomMinutes(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))} className="h-9 w-28 text-sm" min={1} step={1} />
+                  <span className="text-xs text-muted-foreground">minutes — choose a preset or enter any duration</span>
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex justify-center">
-              <Button onClick={handleStart} disabled={!examination || selected.length === 0 || (isMock && selected.length !== 4)} className="h-10 px-8 text-sm shadow-md">
+              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || !Number.isInteger(customMinutes) || customMinutes < 1 || !Number.isInteger(questionCount) || questionCount < 1} className="h-10 px-8 text-sm shadow-md">
                 Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"} — {questionCount} Questions
               </Button>
             </div>
