@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, CheckCircle2, Award, X } from "lucide-react";
+import { Copy, Share2, Users, Wallet, Gift, Loader2, Landmark, ArrowDownToLine, CheckCircle2, Award, X, FileText } from "lucide-react";
 import DesktopHeader from "@/components/DesktopHeader";
 import SEOHead from "@/components/SEOHead";
 import logoImg from "@/assets/logo.png";
@@ -440,7 +440,22 @@ const Referral = () => {
                 {withdrawals.length === 0 ? <p className="py-3 text-center text-sm text-muted-foreground">You have not made a withdrawal yet.</p> : withdrawals.map((item) => (
                   <div key={item.id} className="flex flex-col gap-3 border-b pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0"><p className="text-sm font-semibold">{money(item.amount)}</p><p className="text-[11px] text-muted-foreground">{new Date(item.completed_at || item.requested_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</p><Badge className="mt-1" variant={item.status === "success" ? "default" : item.status === "failed" || item.status === "reversed" ? "destructive" : "secondary"}>{withdrawalStatusLabel(item.status)}</Badge></div>
-                    <Button size="sm" variant="outline" className="h-9 rounded-xl self-start sm:self-auto" onClick={() => void shareReceipt({ type: "Referral withdrawal", amount: item.amount, status: item.status, date: item.completed_at || item.requested_at, reference: item.reference || item.id, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button>
+                    <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+                      <Button size="sm" variant="outline" className="h-9 rounded-xl" onClick={() => {
+                        const account = bankAccounts.find((entry) => entry.id === item.bank_account_id);
+                        setWithdrawalConfirmation({
+                          amount: item.amount,
+                          bankName: account?.bank_name || "Bank transfer",
+                          accountName: account?.account_name || "Account holder",
+                          accountNumberMasked: account?.account_number_masked || "",
+                          reference: item.reference || item.id,
+                          status: item.status,
+                          testMode: Boolean(account?.paystack_recipient_code?.startsWith("TEST:")),
+                          createdAt: item.completed_at || item.requested_at,
+                        });
+                      }}><FileText className="mr-1.5 h-3.5 w-3.5" />View receipt</Button>
+                      <Button size="sm" variant="outline" className="h-9 rounded-xl" onClick={() => void shareReceipt({ type: "Referral withdrawal", amount: item.amount, status: item.status, date: item.completed_at || item.requested_at, reference: item.reference || item.id, description: "ROCKCBT referral wallet payout" })}><Share2 className="mr-1.5 h-3.5 w-3.5" />Share receipt</Button>
+                    </div>
                   </div>
                 ))}
               </CardContent>
