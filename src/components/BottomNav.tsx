@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Home, BookOpenCheck, Sparkles, User, Gift } from "lucide-react";
+import { Home, BookOpenCheck, Sparkles, User, Gift, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useAdmin } from "@/hooks/useAdmin";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Home", icon: Home },
@@ -18,6 +19,8 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showTutorHint, setShowTutorHint] = useState(false);
+  const { isAdmin } = useAdmin();
+  const navItems = isAdmin ? [...NAV_ITEMS, { path: "/admin", label: "Admin", icon: Shield }] : NAV_ITEMS;
 
   useEffect(() => {
     if (!user?.id) return;
@@ -37,8 +40,8 @@ const BottomNav = () => {
       aria-label="Main navigation"
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/70 bg-card/95 shadow-[0_-8px_28px_rgba(15,23,42,0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/85"
     >
-      <div className="mx-auto grid max-w-xl {isAdmin ? "grid-cols-6" : "grid-cols-5"} px-1.5 pt-2 pb-1">
-        {NAV_ITEMS.map((item) => {
+      <div className={`mx-auto grid max-w-xl ${isAdmin ? "grid-cols-6" : "grid-cols-5"} px-1.5 pt-2 pb-1`}>
+        {navItems.map((item) => {
           const active = isActive(item.path);
           return (
             <button
