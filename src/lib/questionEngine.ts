@@ -13,6 +13,7 @@ export interface QuestionWithShuffledOptions {
   passage: string | null;
   question_type: string | null;
   exam_hint: string | null;
+  diagram_file?: string | null;
 }
 
 function shuffleArray<T>(array: T[]): T[] {
