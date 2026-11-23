@@ -38,7 +38,11 @@ const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")}><Shield className="mr-2 h-4 w-4" />Admin Dashboard</DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem onClick={() => navigate("/admin")}>
+                <Shield className="mr-2 h-4 w-4" />Admin Dashboard
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
             <DropdownMenuItem onClick={() => signOut()}>Sign Out</DropdownMenuItem>
           </DropdownMenuContent>
