@@ -312,7 +312,7 @@ const AdminContent = () => {
   const importQuestions = async () => {
     if (!importData.length || importing) return;
     setImporting(true); setProgress(0); setSummary(null);
-    const failures: ImportFailure[] = importErrors.map((message, index) => ({ row: Number(message.match(/Row (\\d+)/)?.[1] || index + 1), question: "", reason: message.replace(/^Row \\d+:\\s*/, "") }));
+    const failures: ImportFailure[] = importErrors.map((message, index) => ({ row: Number(message.match(/Row (\d+)/)?.[1] || index + 1), question: "", reason: message.replace(/^Row \d+:\s*/, "") }));
     let imported = 0; let duplicates = 0; let failed = failures.length;
     const duplicateKeys = new Set<string>();
     const groups = new Map<string, ImportQuestion[]>();
