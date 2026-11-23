@@ -348,6 +348,7 @@ const AdminContent = () => {
         (data || []).forEach((row) => existing.add(String(row.question_text || "").trim().toLowerCase().replace(/\s+/g, " ")));
         if (!data || data.length < 1000) break;
       }
+      if (duplicateCheckFailed) continue;
       questions.forEach((q) => {
         const key = q.question_text.trim().toLowerCase().replace(/\s+/g, " ");
         if (existing.has(key) || duplicateKeys.has(groupKey + "|" + key)) duplicates++;
