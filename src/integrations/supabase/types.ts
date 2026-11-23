@@ -318,6 +318,9 @@ export type Database = {
           passage: string | null
           question_text: string
           question_type: string | null
+          question_number: number | null
+          source_pdf: string | null
+          source_page: number | null
           subject: string
           topic: string
           year: number | null
@@ -338,6 +341,9 @@ export type Database = {
           passage?: string | null
           question_text: string
           question_type?: string | null
+          question_number?: number | null
+          source_pdf?: string | null
+          source_page?: number | null
           subject: string
           topic: string
           year?: number | null
@@ -358,6 +364,9 @@ export type Database = {
           passage?: string | null
           question_text?: string
           question_type?: string | null
+          question_number?: number | null
+          source_pdf?: string | null
+          source_page?: number | null
           subject?: string
           topic?: string
           year?: number | null
