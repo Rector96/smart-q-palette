@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Read the URL again at submit time so an in-app route/query change cannot drop the referral.
     const params = new URLSearchParams(window.location.search);
     const codeFromUrl = params.get("ref") || params.get("referral") || params.get("referral_code") || "";
-    const normalizedReferralCode = (referralCode || codeFromUrl).trim().toUpperCase();
+    const normalizedReferralCode = (referralCode?.trim() || codeFromUrl).trim().toUpperCase();
 
     const { error } = await supabase.auth.signUp({
       email,
