@@ -303,6 +303,7 @@ export type Database = {
       }
       questions: {
         Row: {
+          answer_status: string
           correct_answer: string
           created_at: string
           difficulty: string
@@ -311,6 +312,7 @@ export type Database = {
           exam_hint: string | null
           explanation: string | null
           id: string
+          is_published: boolean
           option_a: string
           option_b: string
           option_c: string
@@ -326,6 +328,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          answer_status?: string
           correct_answer: string
           created_at?: string
           difficulty?: string
@@ -334,6 +337,7 @@ export type Database = {
           exam_hint?: string | null
           explanation?: string | null
           id?: string
+          is_published?: boolean
           option_a: string
           option_b: string
           option_c: string
@@ -349,6 +353,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          answer_status?: string
           correct_answer?: string
           created_at?: string
           difficulty?: string
@@ -357,6 +362,7 @@ export type Database = {
           exam_hint?: string | null
           explanation?: string | null
           id?: string
+          is_published?: boolean
           option_a?: string
           option_b?: string
           option_c?: string
