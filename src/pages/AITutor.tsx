@@ -82,17 +82,22 @@ const AITutor = () => {
     setInput("");
     setIsLoading(true);
     let assistantSoFar = "";
+    let responseSucceeded = false;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Your session has expired. Please sign in again.");
+
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE;
+      if (!publishableKey) throw new Error("The app connection is not configured. Please contact support.");
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          apikey: publishableKey,
+          Accept: "text/event-stream",
         },
         body: JSON.stringify({ studentName, messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
       });
@@ -141,13 +146,15 @@ const AITutor = () => {
           }
         }
       }
+      if (!assistantSoFar.trim()) throw new Error("The AI service returned an empty response. Please try again.");
+      responseSucceeded = true;
     } catch (e: any) {
       toast({ title: "AI Error", description: e.message, variant: "destructive" });
       if (!assistantSoFar) setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again." }]);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
-      if (user && !isPro) {
+      if (user && !isPro && responseSucceeded) {
         const newCount = usageCount + 1;
         setUsageCount(newCount);
         await supabase.from("profiles").update({ ai_tutor_usage: newCount } as any).eq("user_id", user.id);
