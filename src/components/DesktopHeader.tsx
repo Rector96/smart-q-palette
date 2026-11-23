@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Crown, ChevronDown, Shield } from "lucide-react";
+import { Crown, ChevronDown, Shield, UserRound, LogOut } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 import NotificationBell from "@/components/NotificationBell";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,8 @@ const getSurname = (fullName: string | null) => {
 
 const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const { isAdmin } = useAdmin();
 
   return (
@@ -31,20 +32,19 @@ const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
         {isPro && <Badge variant="default" className="hidden h-6 gap-1 border-primary/20 bg-primary/10 text-xs text-primary sm:inline-flex"><Crown className="h-3 w-3" /> Pro</Badge>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-9 max-w-[190px] gap-2 px-2 text-sm">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{getSurname(profileName).charAt(0).toUpperCase()}</div>
-              <span className="hidden truncate sm:inline">{getSurname(profileName)}</span>
-              <ChevronDown className="hidden h-3 w-3 shrink-0 sm:block" />
+            <Button variant="ghost" size="icon" aria-label="Open profile menu" aria-haspopup="menu" className="relative h-10 w-10 shrink-0 rounded-full border border-border bg-background p-0 shadow-sm transition hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary">
+              {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary"><UserRound className="h-[18px] w-[18px]" /></span>}
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground"><ChevronDown className="h-2.5 w-2.5" /></span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" sideOffset={8} className="z-[70] w-[min(16rem,calc(100vw-1.5rem))] rounded-xl p-2">
             {isAdmin && (
               <DropdownMenuItem onClick={() => navigate("/admin")}>
                 <Shield className="mr-2 h-4 w-4" />Admin Dashboard
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => signOut()}>Sign Out</DropdownMenuItem>
+            <DropdownMenuItem className="min-h-10 rounded-lg" onClick={() => navigate("/profile")}><UserRound className="mr-2 h-4 w-4" />Profile & account</DropdownMenuItem>
+            <DropdownMenuItem className="min-h-10 rounded-lg" onClick={() => signOut()}><LogOut className="mr-2 h-4 w-4" />Sign out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
