@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Home, BookOpenCheck, Sparkles, User, Gift, Shield } from "lucide-react";
@@ -18,14 +18,24 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [showTutorHint, setShowTutorHint] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
   const { isAdmin } = useAdmin();
   const navItems = isAdmin ? [...NAV_ITEMS, { path: "/admin", label: "Admin", icon: Shield }] : NAV_ITEMS;
 
   useEffect(() => {
-    if (!user?.id) return;
-    setShowTutorHint(window.localStorage.getItem("rockcbt-tutor-welcomed-" + user.id) !== "true");
-  }, [user?.id, location.pathname]);
+    lastScrollY.current = window.scrollY;
+    const handleScroll = () => {
+      const currentY = Math.max(0, window.scrollY);
+      const delta = currentY - lastScrollY.current;
+      if (currentY < 40) setHidden(false);
+      else if (delta > 6) setHidden(true);
+      else if (delta < -6) setHidden(false);
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, []);
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return location.pathname === "/dashboard";
@@ -35,8 +45,9 @@ const BottomNav = () => {
   return (
     <motion.nav
       initial={{ y: 24, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      animate={{ y: hidden ? "110%" : 0, opacity: hidden ? 0 : 1 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      style={{ pointerEvents: hidden ? "none" : "auto" }}
       aria-label="Main navigation"
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/70 bg-card/95 shadow-[0_-8px_28px_rgba(15,23,42,0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/85"
     >
@@ -62,9 +73,6 @@ const BottomNav = () => {
                 />
               )}
               <item.icon className={cn("relative z-10 h-5 w-5", active && "stroke-[2.5]")} />
-              {item.path === "/ai-tutor" && showTutorHint && (
-                <span className="absolute -top-2 right-0 z-20 rounded-full bg-primary px-2 py-1 text-[8px] font-bold leading-none text-primary-foreground shadow-md shadow-primary/20">Say hello!</span>
-              )}
               <span className={cn("relative z-10 text-[9px] leading-none", active ? "font-bold" : "font-medium")}>
                 {item.label}
               </span>
