@@ -77,6 +77,8 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
 
     const configuredGroqModel = Deno.env.get("GROQ_MODEL")?.trim();
     const groqModels = [...new Set([configuredGroqModel || "openai/gpt-oss-20b", "openai/gpt-oss-20b"].filter(Boolean))];
+    const configuredGeminiModel = Deno.env.get("GEMINI_MODEL")?.trim();
+    const geminiModels = [...new Set([configuredGeminiModel || "gemini-3.8-flash", "gemini-3.8-flash"].filter(Boolean))];
     const providers = [
       ...(groqKey ? groqModels.map((model, index) => ({
         name: index === 0 ? "Groq" : "Groq fallback",
@@ -84,12 +86,12 @@ Your aim is to make the learner feel welcomed, understood, confident, and able t
         key: groqKey,
         model,
       })) : []),
-      geminiKey && {
-        name: "Gemini",
+      ...(geminiKey ? geminiModels.map((model, index) => ({
+        name: index === 0 ? "Gemini" : "Gemini fallback",
         url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         key: geminiKey,
-        model: Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash",
-      },
+        model,
+      })) : []),
     ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
 
     let assistantContent = "";
