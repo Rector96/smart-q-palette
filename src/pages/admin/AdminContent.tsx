@@ -102,7 +102,7 @@ function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: str
     passage: String(get("passage") || "").trim() || null,
     exam_hint: String(get("exam_hint", "examHint") || "").trim() || null,
     question_type: String(get("question_type", "questionType") || "standard").trim(),
-    diagram_file: String(get("diagram_file", "diagramFile", "image_url", "imageUrl") || "").trim() || (/^https?:\\/\\//i.test(String(get("image") || "")) ? String(get("image")) : null),
+    diagram_file: String(get("diagram_file", "diagramFile", "image_url", "imageUrl") || "").trim() || (/^https?:\/\//i.test(String(get("image") || "")) ? String(get("image")) : null),
     question_number: Number(get("question_number", "questionNumber", "number")) > 0 ? Number(get("question_number", "questionNumber", "number")) : null,
     source_pdf: String(get("source_pdf", "sourcePdf") || "").trim() || null,
     source_page: Number(get("source_page", "sourcePage")) > 0 ? Number(get("source_page", "sourcePage")) : null,
