@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, Plus, BookOpen, Upload, FileText, CheckCircle2, XCircle, ImagePlus, FileArchive, ClipboardPaste, Loader2 } from "lucide-react";
+import { Shield, ArrowLeft, Plus, BookOpen, Upload, CheckCircle2, XCircle, ImagePlus, FileArchive, ClipboardPaste, Loader2 } from "lucide-react";
 import { SUBJECTS } from "@/lib/subjects";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -300,6 +300,7 @@ const AdminContent = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
+      if (file.size > MAX_FILE_SIZE) throw new Error("The selected file is larger than 30 MB.");
       let dataFile = file;
       let images: File[] = [];
       if (file.name.toLowerCase().endsWith(".zip")) {
