@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, CreditCard, Gift, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ const NotificationBell = () => {
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const initialBaselineSet = useRef(false);
   const storageKey = user ? `sqp-notifications-read-${user.id}` : "";
 
   const load = useCallback(async () => {
@@ -49,12 +50,28 @@ const NotificationBell = () => {
       });
     });
     next.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    setItems(next.slice(0, 30));
+    const visibleItems = next.slice(0, 30);
+    // Existing account history is not a new alert. Only later arrivals light the dot.
+    if (!initialBaselineSet.current) {
+      let stored: string[] = [];
+      let hasStoredBaseline = false;
+      try {
+        const raw = localStorage.getItem(storageKey);
+        hasStoredBaseline = raw !== null;
+        stored = raw ? JSON.parse(raw) as string[] : [];
+      } catch { stored = []; }
+      const baseline = hasStoredBaseline ? stored : visibleItems.map((item) => item.id);
+      setReadIds(baseline);
+      try { localStorage.setItem(storageKey, JSON.stringify(baseline.slice(-300))); } catch {}
+      initialBaselineSet.current = true;
+    }
+    setItems(visibleItems);
     setLoading(false);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
+    initialBaselineSet.current = false;
     try { setReadIds(JSON.parse(localStorage.getItem(storageKey) || "[]")); } catch { setReadIds([]); }
     void load();
     const channel = supabase.channel(`account-notifications-${user.id}`)
@@ -87,8 +104,7 @@ const NotificationBell = () => {
   return (
     <Button type="button" variant="ghost" size="icon" className="relative h-10 w-10 shrink-0" aria-label={unread ? `${unread} unread notifications` : "Open notifications"} onClick={() => navigate("/notifications")}>
       <Bell className="h-5 w-5" />
-      {realtimeConnected && <span className="absolute bottom-0.5 left-0.5 h-2 w-2 rounded-full border border-background bg-emerald-500" title="Live updates connected" />}
-      {!loading && unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">{unread > 9 ? "9+" : unread}</span>}
+      {!loading && unread > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-destructive" aria-label="New notification" />}
     </Button>
   );
 };
