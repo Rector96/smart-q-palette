@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Trophy, Target, Clock, Flame, ChevronRight, LogOut,
-  User, Bell, HelpCircle, Pencil, Award
+  User, Bell, HelpCircle, Pencil, Award, Camera
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from "recharts";
@@ -26,7 +26,14 @@ const Profile = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setAvatarUrl(user?.user_metadata?.avatar_url || null);
+  }, [user?.id, user?.user_metadata?.avatar_url]);
 
   useEffect(() => {
     if (!user) return;
@@ -86,6 +93,34 @@ const Profile = () => {
     load();
   }, [user]);
 
+  const handleAvatarUpload = async (event: import("react").ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !user) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      toast({ title: "Choose a smaller profile photo", description: "Use a JPG, PNG or WEBP image up to 5 MB.", variant: "destructive" });
+      return;
+    }
+    setAvatarBusy(true);
+    const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const objectPath = `${user.id}/profile-${Date.now()}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(objectPath, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+    if (uploadError) {
+      setAvatarBusy(false);
+      toast({ title: "Photo upload failed", description: uploadError.message, variant: "destructive" });
+      return;
+    }
+    const publicUrl = supabase.storage.from("avatars").getPublicUrl(objectPath).data.publicUrl;
+    const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+    setAvatarBusy(false);
+    if (updateError) {
+      toast({ title: "Could not save profile photo", description: updateError.message, variant: "destructive" });
+      return;
+    }
+    setAvatarUrl(publicUrl);
+    toast({ title: "Profile photo updated" });
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/", { replace: true });
@@ -138,7 +173,7 @@ const Profile = () => {
       <header className="relative isolate overflow-hidden bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] pb-14 text-white">
         <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full border border-white/15 bg-white/[0.04]"/><div className="pointer-events-none absolute right-12 top-24 h-40 w-40 rounded-full border border-white/10"/>
         <div className="relative z-10 mx-auto max-w-lg px-4 pt-4"><div className="flex items-center justify-between"><Button variant="ghost" size="icon" className="rounded-full text-white hover:bg-white/15 hover:text-white" onClick={()=>navigate(-1)}><ArrowLeft className="h-5 w-5"/></Button><h1 className="text-base font-bold">Profile</h1><span className="rounded-full border border-white/20 bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">👑 {profile?.is_subscribed?"Pro":"Member"}</span></div>
-        <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} className="mt-6 flex flex-col items-center text-center"><div className="relative"><img src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile?.full_name||user.email||"S")}&backgroundColor=eff6ff&textColor=1d4ed8`} alt="Profile avatar" className="h-20 w-20 rounded-full border-4 border-white/20 bg-white object-cover shadow-lg"/><button aria-label="Edit avatar" onClick={()=>{setEditName(profile?.full_name||"");setShowEditProfile(true);}} className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-600"><Pencil className="h-3.5 w-3.5"/></button></div><h2 className="mt-3 text-xl font-extrabold">{profile?.full_name||user.email?.split("@")[0]||"Student"}</h2><p className="mt-1 break-all text-sm text-blue-100">{user.email}</p><Button onClick={()=>{setEditName(profile?.full_name||"");setShowEditProfile(true);}} className="mt-4 h-9 rounded-full bg-white px-4 text-xs font-semibold text-[#1D4ED8] shadow-sm hover:bg-blue-50"><Pencil className="mr-2 h-3.5 w-3.5"/>Edit Profile</Button></motion.div></div>
+        <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} className="mt-6 flex flex-col items-center text-center"><div className="relative"><input ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void handleAvatarUpload(event)} /><img src={avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile?.full_name||user.email||"S")}&backgroundColor=eff6ff&textColor=1d4ed8`} alt="Profile avatar" className="h-20 w-20 rounded-full border-4 border-white/20 bg-white object-cover shadow-lg"/><button type="button" aria-label="Upload profile photo" disabled={avatarBusy} onClick={()=>avatarInputRef.current?.click()} className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-600 shadow-md disabled:opacity-60">{avatarBusy?<span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"/>:<Camera className="h-4 w-4"/>}</button></div><h2 className="mt-3 text-xl font-extrabold">{profile?.full_name||user.email?.split("@")[0]||"Student"}</h2><p className="mt-1 break-all text-sm text-blue-100">{user.email}</p><Button onClick={()=>{setEditName(profile?.full_name||"");setShowEditProfile(true);}} className="mt-4 h-9 rounded-full bg-white px-4 text-xs font-semibold text-[#1D4ED8] shadow-sm hover:bg-blue-50"><Pencil className="mr-2 h-3.5 w-3.5"/>Edit Profile</Button></motion.div></div>
       </header>
       <main className="relative z-10 mx-auto -mt-7 max-w-lg space-y-5 rounded-t-[28px] bg-[#F8FAFC] px-4 pt-5 pb-8">
         <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm"><CardContent className="grid grid-cols-2 gap-y-3 p-3 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-100">{statCards.map((s,i)=><div key={i} className="min-w-0 px-1 py-2 text-center"><s.icon className={`mx-auto mb-1.5 h-5 w-5 ${s.color}`}/><p className="text-lg font-extrabold text-slate-900">{s.value}</p><p className="text-[10px] text-slate-500">{i===3?"Streak":s.label}</p></div>)}</CardContent></Card>

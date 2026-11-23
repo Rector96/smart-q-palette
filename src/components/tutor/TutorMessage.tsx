@@ -18,7 +18,7 @@ function loadMathJax(): Promise<any> {
   if (w.MathJax?.typesetPromise) return Promise.resolve(w.MathJax);
   if (w.__rockcbtMathJaxPromise) return w.__rockcbtMathJaxPromise;
   w.MathJax = {
-    tex: { inlineMath: [["\\\\(", "\\\\)"]], displayMath: [["\\\\[", "\\\\]"]], packages: { "[+]": ["ams"] } },
+    tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]], packages: { "[+]": ["ams"] } },
     options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
     startup: { typeset: false },
   };
@@ -59,7 +59,7 @@ function FormulaDisplay({ formula }: { formula: string }) {
   return (
     <div className="mt-3 overflow-x-auto rounded-xl border border-blue-100 bg-white px-3 py-3 text-center dark:border-blue-900 dark:bg-slate-950">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-300">Mathematical formula</div>
-      <div ref={formulaRef} className="mt-2 min-h-7 text-lg text-slate-900 dark:text-slate-100" aria-label={`Mathematical formula ${formula}`}>{`\\\\[${formula}\\\\]`}</div>
+      <div ref={formulaRef} className="mt-2 min-h-7 text-lg text-slate-900 dark:text-slate-100" aria-label={`Mathematical formula ${formula}`}>{`\\[${formula}\\]`}</div>
       {!mathReady && <p className="mt-1 text-[10px] text-muted-foreground">Loading formatted equation…</p>}
     </div>
   );
