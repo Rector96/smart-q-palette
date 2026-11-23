@@ -76,7 +76,8 @@ function headerKey(value: string) {
 function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: string; examination: string; year: string }): ImportQuestion {
   const get = (...keys: string[]) => {
     for (const key of keys) {
-      const value = raw?.[key];
+      const optionLetter = key.match(/^option_([a-e])$/i)?.[1]?.toUpperCase();
+      const value = raw?.[key] ?? (optionLetter ? raw?.options?.[optionLetter] : undefined);
       if (value !== undefined && value !== null && String(value).trim() !== "") return value;
     }
     return "";
@@ -121,7 +122,8 @@ function validateQuestion(q: ImportQuestion): string | null {
   if (!["JAMB", "WAEC", "NECO"].includes(q.examination)) return "Exam must be JAMB, WAEC or NECO";
   if (!Number.isInteger(q.year) || q.year < 1983 || q.year > new Date().getFullYear()) return "Year must be between 1983 and " + new Date().getFullYear();
   if (!q.question_text) return "Question text is required";
-  if (!q.option_a || !q.option_b || !q.option_c || !q.option_d || !q.option_e) return "All five options are required";
+  if (!q.option_a || !q.option_b || !q.option_c || !q.option_d) return "Options A to D are required";
+  if (q.correct_answer === "E" && !q.option_e) return "Option E is required when the correct answer is E";
   if (!["A", "B", "C", "D", "E"].includes(q.correct_answer)) return "Correct answer must be A, B, C, D or E";
   if (!["easy", "medium", "hard"].includes(q.difficulty)) return "Difficulty must be easy, medium or hard";
   return null;
