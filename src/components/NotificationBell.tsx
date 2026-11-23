@@ -17,7 +17,6 @@ const NotificationBell = () => {
   const [items, setItems] = useState<Notice[]>([]);
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const initialBaselineSet = useRef(false);
   const storageKey = user ? `sqp-notifications-read-${user.id}` : "";
 
@@ -93,7 +92,6 @@ const NotificationBell = () => {
         if (p.eventType === "UPDATE") toast({ title: status === "success" ? "Withdrawal successful" : ["failed", "reversed"].includes(status) ? "Withdrawal update" : "Withdrawal processing", description: status === "success" ? "Your payout has been sent." : ["failed", "reversed"].includes(status) ? "Your payout could not be completed. View the details in your history." : "Your withdrawal status has changed." });
         void load();
       }).subscribe((status) => {
-        setRealtimeConnected(status === "SUBSCRIBED");
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.warn("Notification realtime connection:", status);
       });
     return () => { void supabase.removeChannel(channel); };
