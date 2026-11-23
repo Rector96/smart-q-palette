@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Crown, ChevronDown } from "lucide-react";
+import { Crown, ChevronDown, Shield } from "lucide-react";
+import { useAdmin } from "@/hooks/useAdmin";
 import NotificationBell from "@/components/NotificationBell";
 import { Badge } from "@/components/ui/badge";
 import Logo from "@/components/Logo";
@@ -17,6 +18,7 @@ const getSurname = (fullName: string | null) => {
 const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { isAdmin } = useAdmin();
 
   return (
     <header className="safe-area-top sticky top-0 z-50 flex w-full items-center justify-between border-b border-border bg-background/95 px-3 pt-3 pb-2.5 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 sm:px-5 lg:px-6">
@@ -36,6 +38,7 @@ const DesktopHeader = ({ profileName, isPro }: DesktopHeaderProps) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")}><Shield className="mr-2 h-4 w-4" />Admin Dashboard</DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
             <DropdownMenuItem onClick={() => signOut()}>Sign Out</DropdownMenuItem>
           </DropdownMenuContent>
