@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,10 +23,9 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [referralCode] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return (params.get("ref") || params.get("referral") || "").trim().toUpperCase();
-  });
+  const location = useLocation();
+  const referralParams = new URLSearchParams(location.search);
+  const referralCode = (referralParams.get("ref") || referralParams.get("referral") || referralParams.get("referral_code") || "").trim().toUpperCase();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
