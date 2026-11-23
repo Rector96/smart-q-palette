@@ -23,6 +23,7 @@ type ImportQuestion = {
   option_b: string;
   option_c: string;
   option_d: string;
+  option_e: string;
   correct_answer: string;
   difficulty: string;
   explanation: string | null;
@@ -98,6 +99,7 @@ function normalizeQuestion(raw: any, rowNumber: number, defaults: { subject: str
     option_b: String(get("option_b", "optionB", "B")).trim(),
     option_c: String(get("option_c", "optionC", "C")).trim(),
     option_d: String(get("option_d", "optionD", "D")).trim(),
+    option_e: String(get("option_e", "optionE", "E")).trim(),
     correct_answer: correct,
     difficulty: String(get("difficulty") || "medium").trim().toLowerCase(),
     explanation: String(get("explanation") || "").trim() || null,
@@ -117,10 +119,10 @@ function validateQuestion(q: ImportQuestion): string | null {
   if (!q.subject) return "Subject is required";
   if (!SUBJECTS.some((item) => item.id === q.subject)) return "Unknown subject. Use a supported subject name such as Biology, English Language or Financial Accounting.";
   if (!["JAMB", "WAEC", "NECO"].includes(q.examination)) return "Exam must be JAMB, WAEC or NECO";
-  if (!Number.isInteger(q.year) || q.year < 2000 || q.year > new Date().getFullYear()) return "Year must be between 2000 and " + new Date().getFullYear();
+  if (!Number.isInteger(q.year) || q.year < 1983 || q.year > new Date().getFullYear()) return "Year must be between 1983 and " + new Date().getFullYear();
   if (!q.question_text) return "Question text is required";
-  if (!q.option_a || !q.option_b || !q.option_c || !q.option_d) return "All four options are required";
-  if (!["A", "B", "C", "D"].includes(q.correct_answer)) return "Correct answer must be A, B, C or D";
+  if (!q.option_a || !q.option_b || !q.option_c || !q.option_d || !q.option_e) return "All five options are required";
+  if (!["A", "B", "C", "D", "E"].includes(q.correct_answer)) return "Correct answer must be A, B, C, D or E";
   if (!["easy", "medium", "hard"].includes(q.difficulty)) return "Difficulty must be easy, medium or hard";
   return null;
 }
@@ -180,7 +182,7 @@ const AdminContent = () => {
   const [subjectCounts, setSubjectCounts] = useState<Record<string, { total: number; byYear: Record<string, number> }>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [showImporter, setShowImporter] = useState(false);
-  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", option_e: "", correct_answer: "A", explanation: "", difficulty: "medium" });
   const [manualImage, setManualImage] = useState<File | null>(null);
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -406,7 +408,7 @@ const AdminContent = () => {
         if (q.imageName && imagePaths.has(q.imageName.toLowerCase())) diagram = imagePaths.get(q.imageName.toLowerCase())!;
         return {
           subject: q.subject, examination: q.examination, year: q.year, topic: q.topic || "General",
-          question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d,
+          question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, option_e: q.option_e,
           correct_answer: q.correct_answer, difficulty: q.difficulty || "medium", explanation: q.explanation,
           passage: q.passage || null, exam_hint: q.exam_hint || null, question_type: q.question_type || "standard",
           diagram_file: diagram, question_number: q.question_number ?? null, source_pdf: q.source_pdf || null, source_page: q.source_page ?? null,
@@ -460,11 +462,11 @@ const AdminContent = () => {
         {showImporter && (
           <Card className="border-primary/20">
             <CardContent className="p-4 sm:p-5 space-y-4">
-              <div className="flex items-center gap-2"><FileArchive className="h-5 w-5 text-primary" /><div><h3 className="text-sm font-bold">Historical Question Bank Importer</h3><p className="text-[11px] text-muted-foreground">Import JAMB, WAEC or NECO questions from 2000 onwards, including diagrams.</p></div></div>
+              <div className="flex items-center gap-2"><FileArchive className="h-5 w-5 text-primary" /><div><h3 className="text-sm font-bold">Historical Question Bank Importer</h3><p className="text-[11px] text-muted-foreground">Import JAMB, WAEC or NECO questions from 1983 onwards, including five-option questions and diagrams.</p></div></div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><Label className="text-xs">Default subject</Label><Select value={defaultSubject} onValueChange={setDefaultSubject}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Used when subject is missing" /></SelectTrigger><SelectContent>{SUBJECTS.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label className="text-xs">Default exam</Label><Select value={defaultExam} onValueChange={setDefaultExam}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["JAMB", "WAEC", "NECO"].map((exam) => <SelectItem key={exam} value={exam}>{exam}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label className="text-xs">Default year</Label><Input type="number" min="2000" max={new Date().getFullYear()} value={defaultYear} onChange={(e) => setDefaultYear(e.target.value)} placeholder="e.g. 2015" className="h-9 text-xs" /></div>
+                <div><Label className="text-xs">Default year</Label><Input type="number" min="1983" max={new Date().getFullYear()} value={defaultYear} onChange={(e) => setDefaultYear(e.target.value)} placeholder="e.g. 2015" className="h-9 text-xs" /></div>
               </div>
               <div className="rounded-xl border border-dashed border-border p-4 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-semibold">Upload a question file</p><p className="text-[10px] text-muted-foreground">JSON, CSV or ZIP (one JSON/CSV plus an images folder). Max 30 MB.</p></div><Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />Choose file</Button></div>
@@ -513,9 +515,9 @@ const AdminContent = () => {
             </div>
             <div><Label className="text-xs">Question</Label><Textarea value={form.question_text} onChange={(e) => setForm({ ...form, question_text: e.target.value })} className="text-xs" rows={2} /></div>
             <div className="space-y-2"><Label className="text-xs">Question image / diagram (optional)</Label><Input ref={manualImageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="h-9 text-xs" onChange={(e) => setManualImage(e.target.files?.[0] || null)} />{manualImage && <div className="flex items-center gap-2 text-[11px] text-muted-foreground"><ImagePlus className="h-4 w-4" />{manualImage.name}</div>}</div>
-            <div className="grid grid-cols-2 gap-3">{["A", "B", "C", "D"].map((l) => <div key={l}><Label className="text-xs">Option {l}</Label><Input value={(form as any)["option_" + l.toLowerCase()]} onChange={(e) => setForm({ ...form, ["option_" + l.toLowerCase()]: e.target.value })} className="h-9 text-xs" /></div>)}</div>
+            <div className="grid grid-cols-2 gap-3">{["A", "B", "C", "D", "E"].map((l) => <div key={l}><Label className="text-xs">Option {l}</Label><Input value={(form as any)["option_" + l.toLowerCase()]} onChange={(e) => setForm({ ...form, ["option_" + l.toLowerCase()]: e.target.value })} className="h-9 text-xs" /></div>)}</div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label className="text-xs">Correct Answer</Label><Select value={form.correct_answer} onValueChange={(v) => setForm({ ...form, correct_answer: v })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label className="text-xs">Correct Answer</Label><Select value={form.correct_answer} onValueChange={(v) => setForm({ ...form, correct_answer: v })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["A", "B", "C", "D", "E"].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select></div>
               <div><Label className="text-xs">Difficulty</Label><Select value={form.difficulty} onValueChange={(v) => setForm({ ...form, difficulty: v })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["easy", "medium", "hard"].map((d) => <SelectItem key={d} value={d} className="capitalize">{d}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div><Label className="text-xs">Explanation (optional)</Label><Textarea value={form.explanation} onChange={(e) => setForm({ ...form, explanation: e.target.value })} className="text-xs" rows={2} /></div>
