@@ -27,6 +27,7 @@ interface CSVQuestion {
   explanation?: string;
   exam_hint?: string;
   diagram_url?: string | null;
+  diagram_file?: string | null;
 }
 
 const AdminContent = () => {
@@ -47,6 +48,7 @@ const AdminContent = () => {
   const [csvSubject, setCsvSubject] = useState("");
   const [csvExamination, setCsvExamination] = useState("JAMB");
   const [csvYear, setCsvYear] = useState("");
+  const [csvDiagramFiles, setCsvDiagramFiles] = useState<File[]>([]);
 
   const fetchCounts = async () => {
     const counts: Record<string, { total: number; byYear: Record<string, number> }> = {};
@@ -141,6 +143,7 @@ const AdminContent = () => {
       examination: headerNorm.findIndex(h => h === "examination" || h === "exam"),
       year: headerNorm.findIndex(h => h === "year"),
       diagramUrl: headerNorm.findIndex(h => h === "diagramurl" || h === "imageurl"),
+      diagramFile: headerNorm.findIndex(h => h === "diagramfile" || h === "imagefile"),
     };
 
     const errors: string[] = [];
@@ -211,6 +214,7 @@ const AdminContent = () => {
         explanation: colMap.explanation >= 0 ? vals[colMap.explanation]?.trim() : undefined,
         exam_hint: colMap.examHint >= 0 ? vals[colMap.examHint]?.trim() : undefined,
         diagram_url: colMap.diagramUrl >= 0 ? vals[colMap.diagramUrl]?.trim() || null : null,
+        diagram_file: colMap.diagramFile >= 0 ? vals[colMap.diagramFile]?.trim() || null : null,
       });
     }
 
@@ -232,8 +236,40 @@ const AdminContent = () => {
 
   const uploadCSV = async () => {
     if (csvData.length === 0) return;
+    const missingDiagramFiles = csvData
+      .map((question) => question.diagram_file)
+      .filter((name): name is string => Boolean(name))
+      .filter((name) => !csvDiagramFiles.some((file) => file.name.toLowerCase() === name.toLowerCase()));
+    if (missingDiagramFiles.length > 0) {
+      setCsvErrors(["Select these diagram files before importing: " + [...new Set(missingDiagramFiles)].join(", ")]);
+      return;
+    }
     setCsvUploading(true);
     setCsvProgress(0);
+
+    const diagramUrls = new Map<string, string>();
+    for (const file of csvDiagramFiles) {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "";
+      if (!["jpg", "jpeg", "png", "webp"].includes(extension) || file.size > 10 * 1024 * 1024) {
+        setCsvUploading(false);
+        toast({ title: "Invalid diagram file", description: file.name + " must be JPG, PNG or WEBP and no larger than 10 MB.", variant: "destructive" });
+        return;
+      }
+      const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+      const objectPath = "csv-imports/" + Date.now() + "-" + safeName;
+      const { error } = await supabase.storage.from("question-diagrams").upload(objectPath, file, {
+        contentType: file.type,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+      if (error) {
+        setCsvUploading(false);
+        toast({ title: "Diagram upload failed", description: file.name + ": " + error.message, variant: "destructive" });
+        return;
+      }
+      const publicUrl = supabase.storage.from("question-diagrams").getPublicUrl(objectPath).data.publicUrl;
+      diagramUrls.set(file.name.toLowerCase(), publicUrl);
+    }
 
     const batchSize = 50;
     let uploaded = 0;
@@ -254,7 +290,7 @@ const AdminContent = () => {
         difficulty: "medium",
         explanation: q.explanation || null,
         exam_hint: q.exam_hint || null,
-        diagram_url: q.diagram_url || null,
+        diagram_url: q.diagram_url || (q.diagram_file ? diagramUrls.get(q.diagram_file.toLowerCase()) : null) || null,
       }));
 
       const { error } = await supabase.from("questions").insert(batch as any);
@@ -275,6 +311,7 @@ const AdminContent = () => {
     });
     setCsvData([]);
     setCsvErrors([]);
+    setCsvDiagramFiles([]);
     if (fileRef.current) fileRef.current.value = "";
     fetchCounts();
   };
@@ -309,7 +346,7 @@ const AdminContent = () => {
                 <h3 className="text-sm font-bold">Bulk Upload via CSV</h3>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: Examination, Year, Topic, Explanation, ExamHint, DiagramURL. DiagramURL must be a public image URL. Upload diagrams in the Add Question form first.
+                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: Examination, Year, Topic, Explanation, ExamHint, DiagramURL or DiagramFile. For DiagramFile, select the matching image files below (filenames must match).
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -334,6 +371,20 @@ const AdminContent = () => {
                 <div>
                   <Label className="text-xs">CSV File</Label>
                   <Input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="h-9 text-xs" />
+                </div>
+                <div>
+                  <Label className="text-xs">Question diagrams (optional)</Label>
+                  <Input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                    const files = Array.from(event.target.files || []);
+                    const invalid = files.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024);
+                    if (invalid) {
+                      toast({ title: "Invalid diagram file", description: invalid.name + " must be JPG, PNG or WEBP and no larger than 10 MB.", variant: "destructive" });
+                      event.target.value = "";
+                      return;
+                    }
+                    setCsvDiagramFiles(files);
+                  }} className="h-9 text-xs" disabled={csvUploading} />
+                  {csvDiagramFiles.length > 0 && <p className="mt-1 text-[10px] text-muted-foreground">{csvDiagramFiles.length} diagram image(s) selected</p>}
                 </div>
               </div>
 
