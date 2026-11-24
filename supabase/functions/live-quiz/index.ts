@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
         console.error("Live Quiz AI is missing both GROQ_API_KEY and GEMINI_API_KEY Edge Function secrets.");
         return respond({ error: "AI question generation is not configured on this server yet. Add GROQ_API_KEY or GEMINI_API_KEY to the Supabase project's Edge Function secrets, then redeploy this function." }, 503);
       }
-      const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, and correct_answer (exactly A, B, C, or D). Options must be plausible, and exactly one answer must be correct. Do not include markdown or explanations outside JSON.`;
+      const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, and correct_answer (A, B, C, D, or E). option_e is optional; when provided it must be non-empty, and correct_answer may be E only when option_e is provided. Options must be plausible, and exactly one answer must be correct. Do not include markdown or explanations outside JSON.`;
       const providers = [
         groqKey && { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: "openai/gpt-oss-120b" },
         geminiKey && { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: geminiKey, model: "gemini-3.8-flash" },
@@ -153,13 +153,15 @@ Deno.serve(async (req: Request) => {
             option_b: String(q.option_b ?? "").trim(),
             option_c: String(q.option_c ?? "").trim(),
             option_d: String(q.option_d ?? "").trim(),
+            option_e: String(q.option_e ?? "").trim(),
             correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
             explanation: String(q.explanation ?? "").trim(),
             exam_hint: String(q.exam_hint ?? q.learning_tip ?? "").trim(),
           })).filter((q: any) =>
             q.question_text && q.option_a && q.option_b && q.option_c && q.option_d &&
             q.explanation && q.exam_hint &&
-            ["A", "B", "C", "D"].includes(q.correct_answer)
+            ["A", "B", "C", "D", "E"].includes(q.correct_answer) &&
+            (q.correct_answer !== "E" || q.option_e)
           );
 
           if (candidateQuestions.length !== count) {
@@ -212,16 +214,21 @@ Deno.serve(async (req: Request) => {
           option_b: String(q.option_b ?? "").trim(),
           option_c: String(q.option_c ?? "").trim(),
           option_d: String(q.option_d ?? "").trim(),
+          option_e: String(q.option_e ?? "").trim(),
           correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
           explanation: String(q.explanation ?? "").trim() || null,
           exam_hint: String(q.exam_hint ?? "").trim() || null,
         }));
-        if (selected.some((q: any) => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d || !["A", "B", "C", "D"].includes(q.correct_answer))) {
-          return respond({ error: "Every question must have four options and one valid correct answer." }, 400);
+        if (selected.some((q: any) =>
+          !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d ||
+          !["A", "B", "C", "D", "E"].includes(q.correct_answer) ||
+          (q.correct_answer === "E" && !q.option_e)
+        )) {
+          return respond({ error: "Every question must have four options, may include a fifth option, and must have one valid correct answer." }, 400);
         }
       } else {
         const { data: bank, error: bankError } = await admin.from("questions")
-          .select("id,subject,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,exam_hint")
+          .select("id,subject,question_text,option_a,option_b,option_c,option_d,option_e,diagram_url,correct_answer,explanation,exam_hint")
           .ilike("subject", subject)
           .eq("is_published", true)
           .limit(1000);
@@ -237,6 +244,8 @@ Deno.serve(async (req: Request) => {
         option_b: q.option_b,
         option_c: q.option_c,
         option_d: q.option_d,
+        ...(typeof q.option_e === "string" && q.option_e.trim() ? { option_e: q.option_e } : {}),
+        ...(typeof q.diagram_url === "string" && q.diagram_url.trim() ? { diagram_url: q.diagram_url } : {}),
       }));
       const answerKeys = selected.map((q: any, index: number) => ({
         question_index: index,
@@ -244,7 +253,10 @@ Deno.serve(async (req: Request) => {
         explanation: q.explanation ?? null,
         exam_hint: q.exam_hint ?? null,
       }));
-      if (answerKeys.some((key: any) => !["A", "B", "C", "D"].includes(key.correct_answer))) {
+      if (answerKeys.some((key: any, index: number) =>
+        !["A", "B", "C", "D", "E"].includes(key.correct_answer) ||
+        (key.correct_answer === "E" && !(typeof selected[index]?.option_e === "string" && selected[index].option_e.trim()))
+      )) {
         return respond({ error: "Some questions have invalid answer keys. Please contact support." }, 422);
       }
 
