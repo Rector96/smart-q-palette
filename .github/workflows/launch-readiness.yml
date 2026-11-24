@@ -1,0 +1,49 @@
+name: Launch readiness validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - "launch/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Typecheck, lint, tests, and production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Edge Function types
+        run: deno check supabase/functions/cbt-start/index.ts supabase/functions/cbt-submit/index.ts supabase/functions/live-quiz/index.ts supabase/functions/paystack-webhook/index.ts supabase/functions/referral-withdraw/index.ts
+
+      - name: Lint changed security-sensitive functions
+        run: npx eslint supabase/functions/paystack-webhook/index.ts supabase/functions/referral-withdraw/index.ts
+
+      - name: Run tests
+        run: npm test
+
+      - name: Typecheck frontend
+        run: npx tsc --noEmit
+
+      - name: Build production bundle
+        run: npm run build
