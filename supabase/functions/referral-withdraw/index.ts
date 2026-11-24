@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +16,7 @@ serve(async (req) => {
 
   let reservedReference = "";
   let reservationId = "";
-  let serviceClient: any = null;
+  let serviceClient: SupabaseClient | null = null;
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -30,7 +30,7 @@ serve(async (req) => {
     const token = authorization.replace(/^Bearer\s+/i, "");
     if (!token || token === authorization) return json({ error: "Please sign in first." }, 401);
 
-    const authClient = createClient<any>(supabaseUrl, anonKey, { auth: { persistSession: false } });
+    const authClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
     const { data: authData, error: authError } = await authClient.auth.getUser(token);
     if (authError || !authData.user) return json({ error: "Your session has expired. Please sign in again." }, 401);
     const userId = authData.user.id;
@@ -42,8 +42,9 @@ serve(async (req) => {
       return json({ error: "Enter a whole-naira withdrawal amount of at least ₦1,000." }, 400);
     }
 
-    serviceClient = createClient<any>(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: bank, error: bankError } = await serviceClient.from("referral_bank_accounts")
+    const adminClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    serviceClient = adminClient;
+    const { data: bank, error: bankError } = await adminClient.from("referral_bank_accounts")
       .select("id,paystack_recipient_code,account_name,bank_name,account_number_masked")
       .eq("id", bankAccountId).eq("user_id", userId).eq("is_verified", true).maybeSingle();
     if (bankError || !bank) return json({ error: "Choose one of your verified bank accounts." }, 400);
@@ -60,7 +61,7 @@ serve(async (req) => {
     }
 
     reservedReference = `sqprwd-${crypto.randomUUID().replaceAll("-", "").toLowerCase()}`;
-    const { data: reservation, error: reserveError } = await serviceClient.rpc("reserve_referral_withdrawal", {
+    const { data: reservation, error: reserveError } = await adminClient.rpc("reserve_referral_withdrawal", {
       p_user_id: userId,
       p_bank_account_id: bankAccountId,
       p_amount: amount,
@@ -69,7 +70,7 @@ serve(async (req) => {
 
     let withdrawalId = reservation?.withdrawal_id;
     if (reserveError || !withdrawalId) {
-      const { data: existingReservation, error: lookupError } = await serviceClient
+      const { data: existingReservation, error: lookupError } = await adminClient
         .from("referral_withdrawals")
         .select("id,user_id,bank_account_id,amount,reference")
         .eq("reference", reservedReference)
@@ -95,7 +96,7 @@ serve(async (req) => {
     }
     reservationId = withdrawalId;
 
-    const { data: withdrawal, error: withdrawalLookupError } = await serviceClient
+    const { data: withdrawal, error: withdrawalLookupError } = await adminClient
       .from("referral_withdrawals")
       .select("id,amount,currency,reference,status")
       .eq("id", reservationId)
@@ -141,7 +142,7 @@ serve(async (req) => {
     };
 
     const respondWithCurrentStatus = async (warning: string, fallbackStatus = "queued") => {
-      const { data: currentWithdrawal, error: currentStatusError } = await serviceClient
+      const { data: currentWithdrawal, error: currentStatusError } = await adminClient
         .from("referral_withdrawals")
         .select("status")
         .eq("id", reservationId)
@@ -158,7 +159,7 @@ serve(async (req) => {
     };
 
     let transferResponse: Response | null = null;
-    let transferPayload: any = null;
+    let transferPayload: Record<string, unknown> | null = null;
     try {
       transferResponse = await fetch("https://api.paystack.co/transfer", {
         method: "POST",
