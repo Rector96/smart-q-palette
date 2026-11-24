@@ -54,8 +54,14 @@ const Results = () => {
       setSession(sess);
       setProfileName(result.profile_name || "");
 
-      if (hist.length !== Number(sess.total_questions)) {
-        setHistoryWarning("Your score is saved, but the answer review is incomplete. Some question details may be missing.");
+      const integrity = result.review_integrity;
+      if (
+        hist.length !== Number(sess.total_questions)
+        || integrity?.answer_count_matches === false
+        || integrity?.correct_count_matches === false
+        || integrity?.question_order_complete === false
+      ) {
+        setHistoryWarning("Your saved score and answer review do not fully match. The score shown is the saved exam score; please contact support if you believe it is incorrect.");
       }
       setHistory(hist);
 
@@ -336,11 +342,13 @@ const Results = () => {
                         />
                       )}
 
-                      {/* User's wrong answer */}
-                      {!h.is_correct && userOptionText && (
+                      {/* User's answer */}
+                      {!h.is_correct && (
                         <div className="ml-8 mb-1.5 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/20 px-3 py-2">
                           <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                          <span className="text-xs text-red-700 dark:text-red-400">{userOptionText}</span>
+                          <span className="text-xs text-red-700 dark:text-red-400">
+                            {userAnswer === "X" ? "No answer selected" : userOptionText || "Your selected answer"}
+                          </span>
                         </div>
                       )}
 
