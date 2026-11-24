@@ -85,24 +85,32 @@ serve(async (req) => {
     if (event?.event === "refund.processed") {
       const refund = event?.data || {};
       const paymentReference = typeof refund.transaction_reference === "string" ? refund.transaction_reference : "";
+      const refundId = refund.id === undefined || refund.id === null ? "" : String(refund.id);
       const refundAmount = Number(refund.amount);
-      if (!paymentReference || !Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refund.currency !== "NGN") {
+      if (!paymentReference || !refundId || !Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refund.currency !== "NGN") {
         return json({ error: "Refund details are incomplete or invalid." }, 400);
       }
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
       const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: reversal, error: reversalError } = await serviceClient.rpc("reverse_referral_reward", {
+      const { data: refundResult, error: refundError } = await serviceClient.rpc("record_paystack_refund", {
         p_payment_reference: paymentReference,
+        p_provider_refund_id: refundId,
         p_refund_amount_kobo: refundAmount,
+        p_currency: refund.currency,
       });
-      if (reversalError) {
-        console.error("Referral reward refund recovery failed:", reversalError.message);
-        return json({ error: "Refund was received but referral recovery could not be recorded." }, 500);
+      if (refundError) {
+        console.error("Paystack refund processing failed:", refundError.message);
+        return json({ error: "Refund processing could not be recorded." }, 500);
       }
-      console.info("Referral refund event processed:", paymentReference, reversal);
-      return json({ received: true, referral_reversal: reversal });
+      if (!refundResult?.recorded) {
+        const reason = refundResult?.reason || "refund_not_recorded";
+        console.error("Paystack refund was not applied:", paymentReference, reason);
+        return json({ error: "Refund could not be matched to an eligible payment.", reason }, 409);
+      }
+      console.info("Paystack refund event processed:", paymentReference, refundId, refundResult);
+      return json({ received: true, refund: refundResult });
     }
 
     if (event?.event !== "charge.success") return json({ received: true });
