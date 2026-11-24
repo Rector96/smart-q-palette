@@ -83,11 +83,24 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Your score is saved, but the answer review could not be loaded." }, 500);
     }
 
+    const reviewRows = history ?? [];
+    const correctFromHistory = reviewRows.filter((row: any) => row.is_correct === true).length;
+    const positions = reviewRows.map((row: any) => row.session_question_position).filter((value: unknown) => Number.isInteger(value));
+    const positionsAreComplete = positions.length === Number(session.total_questions)
+      && new Set(positions).size === positions.length
+      && positions.every((position: number) => position >= 1 && position <= Number(session.total_questions));
+    const reviewIntegrity = {
+      answer_count_matches: reviewRows.length === Number(session.total_questions),
+      correct_count_matches: correctFromHistory === Number(session.correct_answers),
+      question_order_complete: positionsAreComplete,
+    };
+
     return respond({
       result: {
         session,
-        history: history ?? [],
+        history: reviewRows,
         profile_name: profile?.full_name ?? "",
+        review_integrity: reviewIntegrity,
       },
     });
   } catch (error) {
