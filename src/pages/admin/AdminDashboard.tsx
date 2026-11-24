@@ -1,13 +1,48 @@
-import { useEffect, useState } from "react";
+import { createElement, Fragment, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles, Banknote } from "lucide-react";
+import { Users, CreditCard, BookOpen, BarChart3, Settings, LogOut, Shield, Library, Mail, Wifi, ArrowUpRight, Headset, Search, Sparkles, Banknote, PlugZap, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useAdmin } from "@/hooks/useAdmin";
+
+
+const ALLOWED_ALOC_FORMAT_TAGS = new Set(["SUP", "SUB", "STRONG", "B", "EM", "I", "U", "BR"]);
+const BLOCKED_ALOC_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "SVG", "MATH"]);
+
+function renderAlocFormattedText(value: unknown): ReactNode {
+  if (typeof value !== "string" || !value) return value == null ? "" : String(value);
+
+  // ALOC may return either real inline tags or HTML-escaped tags such as
+  // &lt;sup&gt;. Decode the escaped form once before parsing it.
+  const hasRealFormattingTags = /<\\/?(?:sup|sub|strong|b|em|i|u|br)\\b[^>]*>/i.test(value);
+  const hasEscapedFormattingTags = /&lt;\\/?(?:sup|sub|strong|b|em|i|u|br)\\b/i.test(value);
+  const source = !hasRealFormattingTags && hasEscapedFormattingTags
+    ? (new DOMParser().parseFromString(value, "text/html").documentElement.textContent || value)
+    : value;
+
+  // Rebuild only the small allow-list of formatting tags. Never copy attributes.
+  const parsed = new DOMParser().parseFromString(source, "text/html");
+  const renderNode = (node: Node, key: number): ReactNode => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+
+    const element = node as HTMLElement;
+    const tag = element.tagName;
+    if (BLOCKED_ALOC_TAGS.has(tag)) return null;
+
+    const children = Array.from(element.childNodes).map((child, index) => renderNode(child, index));
+    if (!ALLOWED_ALOC_FORMAT_TAGS.has(tag)) return <Fragment key={key}>{children}</Fragment>;
+    if (tag === "BR") return <br key={key} />;
+    const reactTag = tag.toLowerCase() as "sup" | "sub" | "strong" | "b" | "em" | "i" | "u";
+    return createElement(reactTag, { key }, children);
+  };
+
+  return Array.from(parsed.body.childNodes).map((node, index) => renderNode(node, index));
+}
 
 interface OnlineUser { user_id: string; display_name: string; current_page: string; current_subject: string | null; last_seen: string; }
 
@@ -18,6 +53,40 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ totalUsers: 0, paidUsers: 0, revenue: 0, totalSessions: 0, totalQuestions: 0 });
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alocSubject, setAlocSubject] = useState("mathematics");
+  const [alocExamType, setAlocExamType] = useState("jamb");
+  const [alocYear, setAlocYear] = useState("2019");
+  const [alocContentSource, setAlocContentSource] = useState("historical");
+  const [alocLimit, setAlocLimit] = useState("3");
+  const [alocTesting, setAlocTesting] = useState(false);
+  const [alocResult, setAlocResult] = useState<any>(null);
+  const [alocError, setAlocError] = useState<string | null>(null);
+
+  const testAlocConnection = async () => {
+    setAlocTesting(true);
+    setAlocResult(null);
+    setAlocError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("aloc-connection-test", { body: { subject: alocSubject, examType: alocExamType, year: Number(alocYear), contentSource: alocContentSource, limit: Number(alocLimit) } });
+      if (error) {
+        let message = error.message || "The connection test could not be completed.";
+        try {
+          const context = (error as any).context;
+          if (context && typeof context.json === "function") {
+            const details = await context.json();
+            message = details?.error || details?.message || message;
+          }
+        } catch { /* Keep the safe fallback message. */ }
+        throw new Error(message);
+      }
+      if (!data?.ok) throw new Error(data?.error || "ALOC did not confirm the connection.");
+      setAlocResult(data);
+    } catch (error) {
+      setAlocError(error instanceof Error ? error.message : "Connection test failed. Please try again.");
+    } finally {
+      setAlocTesting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -107,6 +176,75 @@ const AdminDashboard = () => {
             </div>
           </div>
         </section>
+
+        {isAdmin && (
+          <Card className="border-border/70">
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-primary/10 p-2.5 text-primary"><PlugZap className="h-5 w-5" /></div>
+                <div><h2 className="text-sm font-semibold">ALOC Station connection</h2><p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">Test different subjects and examination years using the free raw-questions endpoint. Each test uses one ALOC credit. Nothing is saved or imported.</p></div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <label className="space-y-1.5 text-xs font-medium">Subject slug
+                  <input value={alocSubject} onChange={(event) => setAlocSubject(event.target.value)} placeholder="e.g. mathematics" maxLength={40} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label className="space-y-1.5 text-xs font-medium">Examination
+                  <select value={alocExamType} onChange={(event) => setAlocExamType(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring">
+                    <option value="jamb">JAMB</option><option value="waec">WAEC</option><option value="neco">NECO</option><option value="post_utme">POST-UTME</option><option value="state">State</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-xs font-medium">Year
+                  <input type="number" min="1990" max="2030" value={alocYear} onChange={(event) => setAlocYear(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label className="space-y-1.5 text-xs font-medium">Content source
+                  <select value={alocContentSource} onChange={(event) => setAlocContentSource(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring">
+                    <option value="historical">Historical</option><option value="synthetic">Synthetic</option><option value="all">All sources</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-xs font-medium">Sample questions
+                  <select value={alocLimit} onChange={(event) => setAlocLimit(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring">
+                    <option value="1">1 question</option><option value="2">2 questions</option><option value="3">3 questions</option><option value="4">4 questions</option><option value="5">5 questions</option>
+                  </select>
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[11px] text-muted-foreground">Use a subject slug accepted by ALOC, for example mathematics. Free testing is limited to five sample questions per request.</p>
+                <Button onClick={testAlocConnection} disabled={alocTesting} size="sm">
+                  {alocTesting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...</> : <><PlugZap className="mr-2 h-4 w-4" /> Test selected filters</>}
+                </Button>
+              </div>
+              {alocError && <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{alocError}</span></div>}
+              {alocResult && <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 sm:p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" /> ALOC API responded successfully</div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div><p className="text-[11px] text-muted-foreground">Questions returned</p><p className="text-xl font-bold">{alocResult.returnedCount ?? 0}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">Test subject</p><p className="text-sm font-semibold">{String(alocResult.test?.examType || alocExamType).toUpperCase()} {alocResult.test?.subject || alocSubject}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">Question year</p><p className="text-sm font-semibold">{alocResult.test?.year ?? alocYear}</p></div>
+                </div>
+                {Array.isArray(alocResult.questions) && alocResult.questions.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Sample response from ALOC</p>{alocResult.questions.map((question: any, index: number) => {
+                  const options = question?.options && typeof question.options === "object" ? Object.entries(question.options) : [];
+                  const correctAnswer = String(question?.correctAnswer || "").toUpperCase();
+                  const metadata = question?.metadata || {};
+                  const provenance = question?.provenance || {};
+                  return <details key={question?.id ?? index} className="rounded-lg border bg-background p-3 sm:p-4">
+                    <summary className="cursor-pointer list-none text-sm font-semibold">Question {question?.questionNumber ?? index + 1}<span className="ml-2 text-xs font-normal text-muted-foreground">Tap to preview</span></summary>
+                    <div className="mt-3 space-y-3">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground">{renderAlocFormattedText(question?.text || "Question text was not supplied by ALOC.")}</p>
+                      {question?.imageUrl && <img src={question.imageUrl} alt={`Diagram for question ${index + 1}`} loading="lazy" className="max-h-64 max-w-full rounded-md border object-contain" />}
+                      {options.length > 0 && <div className="grid gap-2 sm:grid-cols-2">{options.map(([key, value]) => <div key={key} className={`rounded-md border px-3 py-2 text-sm leading-6 ${String(key).toUpperCase() === correctAnswer ? "border-emerald-500/50 bg-emerald-500/5" : "border-border"}`}><span className="mr-2 font-semibold">{key}.</span><span className="whitespace-pre-wrap break-words">{renderAlocFormattedText(String(value ?? ""))}</span>{String(key).toUpperCase() === correctAnswer && <span className="ml-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Correct answer</span>}</div>)}</div>}
+                      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1">{String(question?.examType || alocExamType).toUpperCase()}</span><span className="rounded-full bg-muted px-2 py-1">{question?.subject || alocSubject}</span><span className="rounded-full bg-muted px-2 py-1">{question?.year || alocYear}</span><span className="rounded-full bg-muted px-2 py-1">{provenance.contentSource || "Source not stated"}</span></div>
+                      {correctAnswer && <p className="text-xs text-muted-foreground">Answer key: <strong className="text-foreground">{correctAnswer}</strong></p>}
+                      {provenance.isLicensed === false && <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-800 dark:text-amber-300">Not licensed for distribution. Keep this sample in evaluation only; do not import into the live student question bank.</p>}
+                      {(metadata.needsReview === true || !metadata.topic || !metadata.learningObjectives?.length) && <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-800 dark:text-amber-300">Metadata needs review before any future use.</p>}
+                      {(metadata.topic || metadata.subtopic || metadata.learningObjectives?.length > 0) && <div className="rounded-md bg-muted/50 p-3 text-xs"><p className="font-semibold">ALOC classification (unverified)</p>{metadata.topic && <p className="mt-1">Topic: {metadata.topic}{metadata.subtopic ? ` · ${metadata.subtopic}` : ""}</p>}{metadata.learningObjectives?.length > 0 && <p className="mt-1">Learning objective: {metadata.learningObjectives.join("; ")}</p>}</div>}
+                    </div>
+                  </details>;
+                })}</div>}
+                <p className="text-[11px] text-muted-foreground">Saved to question bank: No. API key remains on the server and is not displayed here.</p>
+              </div>}
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {metrics.map((item) => (
