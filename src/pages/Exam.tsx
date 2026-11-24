@@ -598,11 +598,11 @@ const Exam = () => {
                 </Card>
               )}
               {currentQuestion.diagram_url && (
-                <figure className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-card p-2 sm:p-3">
+                <figure className="mx-auto mb-4 w-full max-w-3xl overflow-hidden rounded-2xl border border-border/60 bg-card p-2 sm:p-3">
                   <img
                     src={currentQuestion.diagram_url}
                     alt={`Diagram for ${currentQuestion.topic || "this question"}`}
-                    className="mx-auto max-h-[50vh] w-full object-contain"
+                    className="mx-auto block h-auto max-h-[65vh] w-full object-contain"
                     loading="lazy"
                     decoding="async"
                   />
