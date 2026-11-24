@@ -252,7 +252,7 @@ const Exam = () => {
         return;
       }
 
-      const answerIndex = "abcd".indexOf(event.key.toLowerCase());
+      const answerIndex = "abcde".indexOf(event.key.toLowerCase());
       const option = answerIndex >= 0 ? currentQuestion.options[answerIndex] : undefined;
       if (option) {
         event.preventDefault();
