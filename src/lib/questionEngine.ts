@@ -7,6 +7,7 @@ export interface QuestionWithShuffledOptions {
   year: number | null;
   difficulty: string;
   question_text: string;
+  diagram_url?: string | null;
   options: { label: string; text: string; originalLabel?: string }[];
   correct_answer?: string;
   explanation: string | null;
@@ -156,6 +157,7 @@ export async function fetchSmartQuestions(
       year: q.year,
       difficulty: q.difficulty,
       question_text: q.question_text,
+      diagram_url: q.diagram_url ?? null,
       options,
       correct_answer: correctOption?.label || "A",
       explanation: q.explanation,
