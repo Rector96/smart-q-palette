@@ -84,6 +84,11 @@ alter table public.exam_session_questions
     and option_order <@ array['A', 'B', 'C', 'D', 'E']::text[]
     and array['A', 'B', 'C', 'D']::text[] <@ option_order
     and (cardinality(option_order) = 4 or 'E' = any(option_order))
+    and cardinality(array_positions(option_order, 'A')) = 1
+    and cardinality(array_positions(option_order, 'B')) = 1
+    and cardinality(array_positions(option_order, 'C')) = 1
+    and cardinality(array_positions(option_order, 'D')) = 1
+    and cardinality(array_positions(option_order, 'E')) = case when cardinality(option_order) = 5 then 1 else 0 end
   );
 
 create or replace function public.submit_cbt_session(p_session_id uuid, p_user_id uuid, p_answers jsonb)
@@ -134,6 +139,14 @@ begin
     join public.questions q on q.id = esq.question_id
     where esq.session_id = p_session_id and esq.question_id = v_question_id;
     if not found then raise exception 'Answer contains a question outside this exam' using errcode = '22023'; end if;
+    if cardinality(v_option_order) not in (4, 5)
+       or cardinality(array_positions(v_option_order, 'A')) <> 1
+       or cardinality(array_positions(v_option_order, 'B')) <> 1
+       or cardinality(array_positions(v_option_order, 'C')) <> 1
+       or cardinality(array_positions(v_option_order, 'D')) <> 1
+       or cardinality(array_positions(v_option_order, 'E')) <> case when cardinality(v_option_order) = 5 then 1 else 0 end then
+      raise exception 'Exam question has an invalid option mapping' using errcode = '22023';
+    end if;
 
     if v_selected <> 'X'
        and array_position(array['A','B','C','D','E']::text[], v_selected) > cardinality(v_option_order) then
