@@ -81,7 +81,15 @@ serve(async (req) => {
     const transaction = verifyData.data;
     if (transaction?.status !== "success") return json({ status: "failed", message: "Paystack has not confirmed a successful payment." });
     const expectedAmount = Math.round(Number(payment.amount) * 100);
-    if (transaction.reference !== reference || transaction.amount !== expectedAmount || transaction.currency !== "NGN") {
+    const verifiedRequestedAmount = Number(transaction.requested_amount ?? transaction.amount);
+    if (
+      transaction.reference !== reference ||
+      !Number.isSafeInteger(expectedAmount) ||
+      !Number.isSafeInteger(verifiedRequestedAmount) ||
+      verifiedRequestedAmount !== expectedAmount ||
+      String(transaction.currency || "").toUpperCase() !== String(payment.currency || "").toUpperCase() ||
+      String(payment.currency || "").toUpperCase() !== "NGN"
+    ) {
       console.error("Payment verification mismatch for reference:", reference);
       return json({ status: "failed", message: "The payment details do not match this order. Please contact support." }, 400);
     }
@@ -94,7 +102,7 @@ serve(async (req) => {
       "confirm_paystack_payment",
       {
         p_payment_reference: reference,
-        p_amount_kobo: expectedAmount,
+        p_amount_kobo: verifiedRequestedAmount,
         p_currency: "NGN",
       },
     );
