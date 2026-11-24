@@ -17,6 +17,8 @@ interface ExamQuestion {
   option_b: string;
   option_c: string;
   option_d: string;
+  option_e?: string | null;
+  diagram_url?: string | null;
   correct_answer: string;
 }
 
@@ -263,9 +265,10 @@ const TakeExam = () => {
       <main className="flex-1 max-w-3xl mx-auto px-4 py-5 w-full">
         <p className="text-[10px] text-muted-foreground mb-2">Question {currentIdx + 1} of {exam.questions.length}</p>
         <p className="text-sm font-medium mb-4">{q.question_text}</p>
+        {q.diagram_url && <img src={q.diagram_url} alt="Question diagram" className="mb-4 max-h-80 w-full rounded-xl object-contain" loading="lazy" decoding="async" />}
 
         <div className="space-y-2">
-          {(["A", "B", "C", "D"] as const).map(label => {
+          {(["A", "B", "C", "D", "E"] as const).filter(label => label !== "E" || Boolean(q.option_e?.trim())).map(label => {
             const optionText = q[`option_${label.toLowerCase()}` as keyof ExamQuestion];
             const selected = answers[currentIdx] === label;
             return (
