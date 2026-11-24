@@ -37,56 +37,36 @@ const Results = () => {
       setHistory([]);
       setTopicBreakdown({});
 
-      const { data: sess, error: sessionError } = await supabase
-        .from("exam_sessions")
-        .select("*")
-        .eq("id", sessionId)
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("cbt-result", {
+        body: { session_id: sessionId },
+      });
 
       if (!active) return;
-      if (sessionError || !sess) {
-        setLoadError("We couldn't find this exam result in your account. It may have been removed or the link may be incorrect.");
-        setLoading(false);
-        return;
-      }
-      if (!sess.completed) {
-        setLoadError("This exam has not been submitted yet. Submit it before viewing the result.");
+      const result = data?.result;
+      if (error || !result?.session) {
+        setLoadError(data?.error || error?.message || "We couldn't load this exam result. Please try again.");
         setLoading(false);
         return;
       }
 
+      const sess = result.session;
+      const hist = Array.isArray(result.history) ? result.history : [];
       setSession(sess);
-      const [{ data: prof }, { data: hist, error: historyError }] = await Promise.all([
-        supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
-        supabase
-          .from("user_history")
-          .select("*, questions(*)")
-          .eq("session_id", sessionId)
-          .eq("user_id", user.id)
-          .order("session_question_position", { ascending: true, nullsFirst: false })
-          .order("answered_at", { ascending: true }),
-      ]);
+      setProfileName(result.profile_name || "");
 
-      if (!active) return;
-      if (prof?.full_name) setProfileName(prof.full_name);
-
-      if (historyError || !hist) {
-        setHistoryWarning("Your score is available, but the detailed answer review could not be loaded.");
-      } else {
-        setHistory(hist);
-        if (hist.length !== Number(sess.total_questions)) {
-          setHistoryWarning("Your score is saved, but the answer review is incomplete. Some question details may be missing.");
-        }
-        const breakdown: Record<string, { correct: number; total: number }> = {};
-        hist.forEach((h: any) => {
-          const topic = h.questions?.topic || "Unknown";
-          if (!breakdown[topic]) breakdown[topic] = { correct: 0, total: 0 };
-          breakdown[topic].total++;
-          if (h.is_correct) breakdown[topic].correct++;
-        });
-        setTopicBreakdown(breakdown);
+      if (hist.length !== Number(sess.total_questions)) {
+        setHistoryWarning("Your score is saved, but the answer review is incomplete. Some question details may be missing.");
       }
+      setHistory(hist);
+
+      const breakdown: Record<string, { correct: number; total: number }> = {};
+      hist.forEach((h: any) => {
+        const topic = h.questions?.topic || "Unknown";
+        if (!breakdown[topic]) breakdown[topic] = { correct: 0, total: 0 };
+        breakdown[topic].total++;
+        if (h.is_correct) breakdown[topic].correct++;
+      });
+      setTopicBreakdown(breakdown);
       setLoading(false);
     };
 
