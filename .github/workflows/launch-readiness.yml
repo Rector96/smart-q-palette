@@ -33,6 +33,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Report dependency vulnerabilities
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node -e '
+            const fs = require("node:fs");
+            const report = JSON.parse(fs.readFileSync("/tmp/npm-audit.json", "utf8"));
+            const counts = report.metadata?.vulnerabilities || {};
+            console.log("Dependency audit summary:", JSON.stringify(counts));
+            for (const [name, item] of Object.entries(report.vulnerabilities || {})) {
+              console.log(JSON.stringify({
+                package: name,
+                severity: item.severity,
+                direct: item.isDirect,
+                range: item.range,
+                fixAvailable: item.fixAvailable,
+                via: (item.via || []).map(v => typeof v === "string" ? v : v.title)
+              }));
+            }
+          '
+
       - name: Check Edge Function types
         run: deno check supabase/functions/cbt-start/index.ts supabase/functions/cbt-submit/index.ts supabase/functions/live-quiz/index.ts supabase/functions/paystack-webhook/index.ts supabase/functions/paystack-verify/index.ts supabase/functions/referral-withdraw/index.ts
 
