@@ -3,6 +3,14 @@
 alter table public.user_history
   add column if not exists session_question_position integer;
 
+-- Backfill position for completed sessions that already have a question map.
+update public.user_history uh
+set session_question_position = esq.position
+from public.exam_session_questions esq
+where uh.session_id = esq.session_id
+  and uh.question_id = esq.question_id
+  and uh.session_question_position is null;
+
 create unique index if not exists user_history_session_position_unique
   on public.user_history(session_id, session_question_position)
   where session_id is not null and session_question_position is not null;
