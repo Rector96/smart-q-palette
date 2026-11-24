@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import "./LiveQuiz.css";
 
 interface LiveQuestionDraft {
-  question_text: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_answer: string;
+  question_text: string; option_a: string; option_b: string; option_c: string; option_d: string; option_e?: string; correct_answer: string;
   explanation?: string; exam_hint?: string;
 }
 import DesktopHeader from "@/components/DesktopHeader";
@@ -272,8 +272,8 @@ const LiveQuiz = () => {
                 </div>
                 <div className="live-quiz-preview-list space-y-3">
                   {generatedQuestions.map((q, i) => <Card key={i} className="rounded-xl border-border/60"><CardContent className="space-y-2 p-3 sm:p-4"><p className="text-xs font-bold text-muted-foreground">QUESTION {i + 1} OF {generatedQuestions.length}</p><Textarea value={q.question_text} onChange={e => updateGeneratedQuestion(i, "question_text", e.target.value)} rows={2} className="min-h-20 resize-y text-sm" />
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(["A", "B", "C", "D"] as const).map(letter => <div key={letter} className="flex min-w-0 items-center gap-2"><span className="w-5 shrink-0 text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 min-w-0 text-xs" /></div>)}</div>
-                    <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9 w-full sm:max-w-xs"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(["A", "B", "C", "D", "E"] as const).map(letter => <div key={letter} className="flex min-w-0 items-center gap-2"><span className="w-5 shrink-0 text-xs font-bold">{letter}</span><Input value={q[`option_${letter.toLowerCase()}` as keyof LiveQuestionDraft]} onChange={e => updateGeneratedQuestion(i, `option_${letter.toLowerCase()}` as keyof LiveQuestionDraft, e.target.value)} className="h-9 min-w-0 text-xs" /></div>)}</div>
+                    <Select value={q.correct_answer} onValueChange={v => updateGeneratedQuestion(i, "correct_answer", v)}><SelectTrigger className="h-9 w-full sm:max-w-xs"><SelectValue placeholder="Correct answer" /></SelectTrigger><SelectContent>{["A", "B", "C", "D", "E"].map(v => <SelectItem key={v} value={v}>Correct answer: {v}</SelectItem>)}</SelectContent></Select>
                     <div className="grid gap-3 rounded-lg border border-primary/15 bg-primary/5 p-3 sm:grid-cols-2">
                       <div className="space-y-2"><p className="text-xs font-semibold text-primary">Study explanation</p><Textarea value={q.explanation || ""} onChange={e => updateGeneratedQuestion(i, "explanation", e.target.value)} rows={3} placeholder="Why is this answer correct?" className="min-h-20 resize-y bg-background text-sm" /></div>
                       <div className="space-y-2"><p className="text-xs font-semibold text-muted-foreground">Revision tip</p><Textarea value={q.exam_hint || ""} onChange={e => updateGeneratedQuestion(i, "exam_hint", e.target.value)} rows={3} placeholder="A short tip to help remember this concept" className="min-h-20 resize-y bg-background text-sm" /></div>
@@ -297,7 +297,7 @@ const LiveQuiz = () => {
                   </div>
                   {questionSource === "ai" && <div className="flex items-end rounded-xl bg-muted/50 px-3 py-2 text-sm text-muted-foreground">{generatedQuestions.length || numQuestions} questions · {timePerQuestion}s each</div>}
                 </div>
-                <Button className="h-12 w-full rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject || (questionSource === "ai" && (generatedQuestions.length !== numQuestions || generatedQuestions.some(q => !q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim())))}>
+                <Button className="h-12 w-full rounded-xl text-base font-semibold" onClick={handleCreate} disabled={loading || !subject || (questionSource === "ai" && (generatedQuestions.length !== numQuestions || generatedQuestions.some(q => !q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim() || (q.correct_answer === "E" && !q.option_e?.trim()))))}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : gameMode === "duel" ? "Create 1-vs-1 Challenge" : "Create Group Room"}
                 </Button>
               </div>
