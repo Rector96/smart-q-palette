@@ -91,14 +91,23 @@ serve(async (req) => {
       return json({ status: "failed", message: "The payer email does not match the signed-in account." }, 400);
     }
 
-    const { error: updateError } = await serviceClient.from("payments").update({
+    const { data: transitionedPayment, error: updateError } = await serviceClient.from("payments").update({
       status: "success",
       paystack_reference: reference,
       verified_at: new Date().toISOString(),
-    }).eq("id", payment.id).eq("user_id", userId).eq("status", "pending");
+    }).eq("id", payment.id).eq("user_id", userId).eq("status", "pending")
+      .select("id").maybeSingle();
     if (updateError) {
       console.error("Could not mark verified payment successful:", updateError.message);
       return json({ error: "Your payment was verified but account activation is still processing. Please refresh shortly." }, 500);
+    }
+    if (!transitionedPayment) {
+      // A webhook or another verification request may have won the race.
+      const { data: latestPayment, error: latestError } = await serviceClient.from("payments")
+        .select("status").eq("id", payment.id).eq("user_id", userId).maybeSingle();
+      if (latestError || latestPayment?.status !== "success") {
+        return json({ error: "This payment is no longer awaiting verification. Contact support if you were charged." }, 409);
+      }
     }
 
     if (!(await activateAccount())) return json({ error: "Payment is confirmed, but account activation is still processing. Refresh shortly." }, 500);
