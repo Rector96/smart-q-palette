@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: session, error: sessionError } = await admin
       .from("exam_sessions")
-      .select("*")
+      .select("id,user_id,mode,subjects,examination,exam_year,total_questions,correct_answers,score_percentage,duration_seconds,started_at,completed_at,completed")
       .eq("id", sessionId)
       .eq("user_id", authData.user.id)
       .maybeSingle();
@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
     const [{ data: history, error: historyError }, { data: profile }] = await Promise.all([
       admin
         .from("user_history")
-        .select("*, questions(*)")
+        .select("id,question_id,selected_answer,is_correct,session_question_position,answered_at,questions(id,question_text,option_a,option_b,option_c,option_d,correct_answer,topic,diagram_url,explanation)")
         .eq("session_id", sessionId)
         .eq("user_id", authData.user.id)
         .order("session_question_position", { ascending: true, nullsFirst: false })
