@@ -203,28 +203,29 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    const { data: session, error: sessionError } = await admin.from("exam_sessions")
-      .insert({ user_id: user.id, mode, subjects, total_questions: prepared.length, examination, exam_year: examYear })
-      .select("id,started_at,total_questions").single();
-    if (sessionError || !session) return respond({ error: "Could not create your exam session." }, 500);
-
-    const { error: mappingError } = await admin.from("exam_session_questions").insert(prepared.map((item) => ({
-      session_id: session.id, question_id: item.question.id,
-      option_order: item.optionOrder, position: item.position,
-    })));
-    if (mappingError) {
-      await admin.from("exam_sessions").delete().eq("id", session.id);
-      return respond({ error: "Could not prepare your exam questions. Please try again." }, 500);
-    }
-
-    const { data: trialResult, error: trialError } = await admin.rpc("consume_cbt_trial", {
+    const sessionQuestions = prepared.map((item) => ({
+      question_id: item.question.id,
+      option_order: item.optionOrder,
+      position: item.position,
+    }));
+    const { data: sessionData, error: sessionError } = await admin.rpc("start_cbt_session", {
       p_user_id: user.id,
+      p_mode: mode,
+      p_subjects: subjects,
+      p_total_questions: prepared.length,
+      p_examination: examination,
+      p_exam_year: examYear,
+      p_questions: sessionQuestions,
     });
-    if (trialError || !trialResult?.allowed) {
-      await admin.from("exam_sessions").delete().eq("id", session.id);
-      if (trialError) return respond({ error: "Could not update your exam allowance. Please try again." }, 500);
-      return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
+    if (sessionError) {
+      if (sessionError.message.includes("TRIAL_LIMIT_REACHED")) {
+        return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
+      }
+      console.error("Atomic exam session creation failed", sessionError);
+      return respond({ error: "Could not prepare your exam. Please try again." }, 500);
     }
+    const session = sessionData as { id: string; started_at: string; total_questions: number } | null;
+    if (!session?.id) return respond({ error: "Could not create your exam session." }, 500);
 
     const questions = prepared.map((item) => ({
       id: item.question.id, subject: item.question.subject, topic: item.question.topic,
