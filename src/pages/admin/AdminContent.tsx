@@ -22,6 +22,8 @@ interface CSVQuestion {
   option_b: string;
   option_c: string;
   option_d: string;
+  option_e?: string;
+  diagram_url?: string;
   correct_answer: string;
   topic?: string;
   explanation?: string;
@@ -32,7 +34,8 @@ const AdminContent = () => {
   const [subjectCounts, setSubjectCounts] = useState<Record<string, { total: number; byYear: Record<string, number> }>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [showCSV, setShowCSV] = useState(false);
-  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", option_e: "", diagram_url: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+  const [diagramFile, setDiagramFile] = useState<File | null>(null);
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -75,16 +78,34 @@ const AdminContent = () => {
 
   const handleAdd = async () => {
     const questionYear = Number(form.year);
-    if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a) {
+    if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a || (form.correct_answer === "E" && !form.option_e.trim())) {
       toast({ title: "Fill required fields", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination } as any);
+    let diagramUrl = form.diagram_url.trim() || null;
+    let uploadedDiagramPath: string | null = null;
+    if (diagramFile) {
+      if (diagramFile.size > 5 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(diagramFile.type)) {
+        toast({ title: "Invalid diagram image", description: "Use JPG, PNG or WebP images up to 5 MB.", variant: "destructive" });
+        return;
+      }
+      const extension = diagramFile.type === "image/jpeg" ? "jpg" : diagramFile.type === "image/png" ? "png" : "webp";
+      uploadedDiagramPath = `${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("question-diagrams").upload(uploadedDiagramPath, diagramFile, { contentType: diagramFile.type, upsert: false });
+      if (uploadError) {
+        toast({ title: "Diagram upload failed", description: uploadError.message, variant: "destructive" });
+        return;
+      }
+      diagramUrl = supabase.storage.from("question-diagrams").getPublicUrl(uploadedDiagramPath).data.publicUrl;
+    }
+    const { error } = await supabase.from("questions").insert({ ...form, option_e: form.option_e.trim() || null, diagram_url: diagramUrl, year: questionYear, examination: form.examination } as any);
     if (error) {
+      if (uploadedDiagramPath) await supabase.storage.from("question-diagrams").remove([uploadedDiagramPath]);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Question added!" });
-      setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+      setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", option_e: "", diagram_url: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+      setDiagramFile(null);
       setShowAdd(false);
       fetchCounts();
     }
@@ -112,6 +133,8 @@ const AdminContent = () => {
       optionB: headerNorm.findIndex(h => h === "optionb"),
       optionC: headerNorm.findIndex(h => h === "optionc"),
       optionD: headerNorm.findIndex(h => h === "optiond"),
+      optionE: headerNorm.findIndex(h => h === "optione"),
+      diagramUrl: headerNorm.findIndex(h => h === "diagramurl"),
       correct: headerNorm.findIndex(h => h.includes("correct")),
       topic: headerNorm.findIndex(h => h === "topic"),
       explanation: headerNorm.findIndex(h => h === "explanation"),
@@ -149,6 +172,8 @@ const AdminContent = () => {
       const optB = vals[colMap.optionB]?.trim();
       const optC = vals[colMap.optionC]?.trim();
       const optD = vals[colMap.optionD]?.trim();
+      const optE = colMap.optionE >= 0 ? vals[colMap.optionE]?.trim() : "";
+      const diagramUrl = colMap.diagramUrl >= 0 ? vals[colMap.diagramUrl]?.trim() : "";
       const correct = vals[colMap.correct]?.trim().toUpperCase();
       const examination = (colMap.examination >= 0 ? vals[colMap.examination]?.trim().toUpperCase() : csvExamination) || csvExamination;
       const year = Number((colMap.year >= 0 ? vals[colMap.year]?.trim() : csvYear) || 0);
@@ -169,8 +194,8 @@ const AdminContent = () => {
         errors.push(`Row ${i + 1}: Enter a valid examination year (1990–${new Date().getFullYear()})`);
         continue;
       }
-      if (!["A", "B", "C", "D"].includes(correct)) {
-        errors.push(`Row ${i + 1}: CorrectAnswer must be A, B, C, or D (got "${correct}")`);
+      if (!["A", "B", "C", "D", "E"].includes(correct) || (correct === "E" && !optE)) {
+        errors.push(`Row ${i + 1}: CorrectAnswer must be A–D, or E when OptionE is provided (got "${correct}")`);
         continue;
       }
 
@@ -183,6 +208,8 @@ const AdminContent = () => {
         option_b: optB,
         option_c: optC,
         option_d: optD,
+        option_e: optE || undefined,
+        diagram_url: diagramUrl || undefined,
         correct_answer: correct,
         topic: colMap.topic >= 0 ? vals[colMap.topic]?.trim() : "General",
         explanation: colMap.explanation >= 0 ? vals[colMap.explanation]?.trim() : undefined,
@@ -225,6 +252,8 @@ const AdminContent = () => {
         option_b: q.option_b,
         option_c: q.option_c,
         option_d: q.option_d,
+        option_e: q.option_e || null,
+        diagram_url: q.diagram_url || null,
         correct_answer: q.correct_answer,
         topic: q.topic || "General",
         difficulty: "medium",
@@ -400,19 +429,26 @@ const AdminContent = () => {
                 <Textarea value={form.question_text} onChange={(e) => setForm({ ...form, question_text: e.target.value })} className="text-xs" rows={2} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {["A", "B", "C", "D"].map((l) => (
+                {["A", "B", "C", "D", "E"].map((l) => (
                   <div key={l}>
                     <Label className="text-xs">Option {l}</Label>
                     <Input value={(form as any)[`option_${l.toLowerCase()}`]} onChange={(e) => setForm({ ...form, [`option_${l.toLowerCase()}`]: e.target.value })} className="h-9 text-xs" />
                   </div>
                 ))}
               </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <Label className="text-xs">Diagram image (JPG, PNG or WebP, max 5 MB)</Label>
+                  <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setDiagramFile(e.target.files?.[0] ?? null)} className="h-9 text-xs" />
+                  <Input value={form.diagram_url} onChange={(e) => setForm({ ...form, diagram_url: e.target.value })} placeholder="Or paste an existing image URL" className="mt-2 h-9 text-xs" />
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Correct Answer</Label>
                   <Select value={form.correct_answer} onValueChange={(v) => setForm({ ...form, correct_answer: v })}>
                     <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>{["A", "B", "C", "D"].map((l) => <SelectItem key={l} value={l} className="text-xs">{l}</SelectItem>)}</SelectContent>
+                    <SelectContent>{["A", "B", "C", "D", "E"].map((l) => <SelectItem key={l} value={l} className="text-xs">{l}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
