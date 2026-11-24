@@ -36,7 +36,7 @@ declare
   v_details jsonb := '[]'::jsonb;
   v_elapsed integer;
 begin
-  if p_session_id is null or p_user_id is null or jsonb_typeof(p_answers) <> 'array' then
+  if p_session_id is null or p_user_id is null or p_answers is null or jsonb_typeof(p_answers) is distinct from 'array' then
     raise exception 'Invalid submission payload' using errcode = '22023';
   end if;
 
