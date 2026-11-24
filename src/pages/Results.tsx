@@ -21,19 +21,63 @@ const Results = () => {
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
   const [history, setHistory] = useState<any[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [historyWarning, setHistoryWarning] = useState("");
 
   useEffect(() => {
     if (!user || !sessionId) return;
+    let active = true;
+
     const fetchResults = async () => {
-      const [{ data: sess }, { data: prof }, { data: hist }] = await Promise.all([
-        supabase.from("exam_sessions").select("*").eq("id", sessionId).single(),
-        supabase.from("profiles").select("full_name").eq("user_id", user.id).single(),
-        supabase.from("user_history").select("*, questions(*)").eq("session_id", sessionId),
+      setLoading(true);
+      setLoadError("");
+      setHistoryWarning("");
+      setSession(null);
+      setHistory([]);
+      setTopicBreakdown({});
+
+      const { data: sess, error: sessionError } = await supabase
+        .from("exam_sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!active) return;
+      if (sessionError || !sess) {
+        setLoadError("We couldn't find this exam result in your account. It may have been removed or the link may be incorrect.");
+        setLoading(false);
+        return;
+      }
+      if (!sess.completed) {
+        setLoadError("This exam has not been submitted yet. Submit it before viewing the result.");
+        setLoading(false);
+        return;
+      }
+
+      setSession(sess);
+      const [{ data: prof }, { data: hist, error: historyError }] = await Promise.all([
+        supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+        supabase
+          .from("user_history")
+          .select("*, questions(*)")
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id)
+          .order("session_question_position", { ascending: true, nullsFirst: false })
+          .order("answered_at", { ascending: true }),
       ]);
-      if (sess) setSession(sess);
+
+      if (!active) return;
       if (prof?.full_name) setProfileName(prof.full_name);
-      if (hist) {
+
+      if (historyError || !hist) {
+        setHistoryWarning("Your score is available, but the detailed answer review could not be loaded.");
+      } else {
         setHistory(hist);
+        if (hist.length !== Number(sess.total_questions)) {
+          setHistoryWarning("Your score is saved, but the answer review is incomplete. Some question details may be missing.");
+        }
         const breakdown: Record<string, { correct: number; total: number }> = {};
         hist.forEach((h: any) => {
           const topic = h.questions?.topic || "Unknown";
@@ -43,8 +87,16 @@ const Results = () => {
         });
         setTopicBreakdown(breakdown);
       }
+      setLoading(false);
     };
-    fetchResults();
+
+    void fetchResults().catch(() => {
+      if (!active) return;
+      setLoadError("We couldn't load this exam result. Please check your connection and try again.");
+      setLoading(false);
+    });
+
+    return () => { active = false; };
   }, [user, sessionId]);
 
   const handleShare = () => {
@@ -86,10 +138,25 @@ const Results = () => {
     }
   };
 
-  if (!session) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (loadError || !session) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="w-full max-w-md rounded-2xl">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="mx-auto mb-3 h-9 w-9 text-destructive" />
+            <h1 className="text-lg font-bold">Result unavailable</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{loadError || "We couldn't load this exam result."}</p>
+            <Button className="mt-5" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -209,6 +276,12 @@ const Results = () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {historyWarning && (
+          <div role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            {historyWarning}
+          </div>
+        )}
 
         {/* Topic Breakdown */}
         {Object.keys(topicBreakdown).length > 0 && (
