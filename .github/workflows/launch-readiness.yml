@@ -34,10 +34,10 @@ jobs:
         run: npm ci
 
       - name: Check Edge Function types
-        run: deno check supabase/functions/cbt-start/index.ts supabase/functions/cbt-submit/index.ts supabase/functions/live-quiz/index.ts supabase/functions/paystack-webhook/index.ts supabase/functions/referral-withdraw/index.ts
+        run: deno check supabase/functions/cbt-start/index.ts supabase/functions/cbt-submit/index.ts supabase/functions/live-quiz/index.ts supabase/functions/paystack-webhook/index.ts supabase/functions/paystack-verify/index.ts supabase/functions/referral-withdraw/index.ts
 
       - name: Lint changed security-sensitive functions
-        run: npx eslint supabase/functions/paystack-webhook/index.ts supabase/functions/referral-withdraw/index.ts
+        run: npx eslint supabase/functions/paystack-webhook/index.ts supabase/functions/paystack-verify/index.ts supabase/functions/referral-withdraw/index.ts
 
       - name: Run tests
         run: npm test
