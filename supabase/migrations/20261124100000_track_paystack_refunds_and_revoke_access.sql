@@ -40,6 +40,7 @@ as $$
 declare
   v_payment public.payments%rowtype;
   v_inserted_id uuid;
+  v_existing_refund public.payment_refunds%rowtype;
   v_refunded_kobo bigint;
   v_expected_kobo bigint;
   v_referral_result jsonb;
@@ -76,6 +77,22 @@ begin
   returning id into v_inserted_id;
 
   if v_inserted_id is null then
+    select * into v_existing_refund
+    from public.payment_refunds
+    where provider = 'paystack'
+      and provider_refund_id = p_provider_refund_id;
+
+    if not found
+       or v_existing_refund.payment_id <> v_payment.id
+       or v_existing_refund.amount_kobo <> p_refund_amount_kobo
+       or v_existing_refund.currency <> p_currency then
+      return jsonb_build_object(
+        'recorded', false,
+        'duplicate', false,
+        'reason', 'refund_id_conflict'
+      );
+    end if;
+
     return jsonb_build_object('recorded', true, 'duplicate', true, 'status', v_payment.status);
   end if;
 
