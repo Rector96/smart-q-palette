@@ -115,7 +115,7 @@ begin
     from public.payments p
     where p.user_id = v_payment.user_id
       and p.id <> v_payment.id
-      and p.status = 'success'
+      and p.status in ('success', 'partially_refunded')
   ) into v_has_other_paid_payment;
 
   update public.profiles
