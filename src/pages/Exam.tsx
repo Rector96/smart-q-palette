@@ -616,6 +616,7 @@ const Exam = () => {
                   </button>
                 </div>
                 <p className="text-[15px] sm:text-base font-semibold leading-7">{currentQuestion.question_text}</p>
+                {currentQuestion.diagram_url && <img src={currentQuestion.diagram_url} alt="Question diagram" className="mt-4 max-h-80 w-full rounded-xl object-contain" loading="lazy" decoding="async" />}
               </div>
               <div className="exam-answer-list space-y-2">
                 {currentQuestion.options.map((option) => {
