@@ -30,13 +30,17 @@ begin
      or p_examination is null
      or p_examination not in ('JAMB', 'WAEC', 'NECO')
      or (p_exam_year is not null and p_exam_year < 1)
-     or p_questions is null
-     or jsonb_typeof(p_questions) is distinct from 'array'
      or p_total_questions is null
      or p_total_questions < 1
-     or p_total_questions > 720
-     or jsonb_array_length(p_questions) <> p_total_questions then
+     or p_total_questions > 720 then
     raise exception 'Invalid exam session payload' using errcode = '22023';
+  end if;
+
+  if p_questions is null or jsonb_typeof(p_questions) is distinct from 'array' then
+    raise exception 'Invalid exam question list' using errcode = '22023';
+  end if;
+  if jsonb_array_length(p_questions) <> p_total_questions then
+    raise exception 'Exam question count does not match the payload' using errcode = '22023';
   end if;
 
   -- Lock and increment the allowance atomically. Concurrent starts for the
@@ -75,6 +79,7 @@ begin
     from jsonb_array_elements_text(v_item->'option_order') with ordinality as option_value(value, ordinality);
 
     if v_position < 1 or v_position > p_total_questions
+       or v_option_order is null
        or cardinality(v_option_order) not in (4, 5)
        or array_position(v_option_order, null) is not null
        or not (v_option_order @> array['A', 'B', 'C', 'D']::text[])
