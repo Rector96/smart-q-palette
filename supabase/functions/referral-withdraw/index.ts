@@ -16,7 +16,7 @@ serve(async (req) => {
 
   let reservedReference = "";
   let reservationId = "";
-  let serviceClient: ReturnType<typeof createClient> | null = null;
+  let serviceClient: any = null;
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -30,7 +30,7 @@ serve(async (req) => {
     const token = authorization.replace(/^Bearer\s+/i, "");
     if (!token || token === authorization) return json({ error: "Please sign in first." }, 401);
 
-    const authClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
+    const authClient = createClient<any>(supabaseUrl, anonKey, { auth: { persistSession: false } });
     const { data: authData, error: authError } = await authClient.auth.getUser(token);
     if (authError || !authData.user) return json({ error: "Your session has expired. Please sign in again." }, 401);
     const userId = authData.user.id;
@@ -42,7 +42,7 @@ serve(async (req) => {
       return json({ error: "Enter a whole-naira withdrawal amount of at least ₦1,000." }, 400);
     }
 
-    serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    serviceClient = createClient<any>(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: bank, error: bankError } = await serviceClient.from("referral_bank_accounts")
       .select("id,paystack_recipient_code,account_name,bank_name,account_number_masked")
       .eq("id", bankAccountId).eq("user_id", userId).eq("is_verified", true).maybeSingle();
