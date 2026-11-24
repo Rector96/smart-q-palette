@@ -62,10 +62,6 @@ Deno.serve(async (req: Request) => {
     if (profileError || !profile) return respond({ error: "Your student profile could not be loaded." }, 404);
     if (!profile.is_subscribed && profile.trial_count >= 3) return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
 
-    const { data: seenRows, error: seenError } = await admin.from("user_seen_questions")
-      .select("question_id").eq("user_id", user.id);
-    if (seenError) return respond({ error: "Could not load your question history." }, 500);
-    const seen = new Set((seenRows ?? []).map((row) => row.question_id));
     const dueReviewIds = new Set<string>();
     if (mode === "revision") {
       const { data: dueRows, error: dueError } = await admin.from("student_question_reviews")
@@ -88,17 +84,23 @@ Deno.serve(async (req: Request) => {
       if (examYear !== null) questionQuery = questionQuery.eq("year", examYear);
       const { data, error } = await questionQuery.limit(1000);
       if (error) return respond({ error: "Could not load the question bank." }, 500);
-      const shuffled = shuffle(data ?? []);
-      let unseen = shuffled.filter((q) => !seen.has(q.id));
-      let previouslySeen = shuffled.filter((q) => seen.has(q.id));
-      // Measure coverage within this subject only; seen also contains other subjects.
-      const subjectSeenRatio = previouslySeen.length / Math.max(shuffled.length, 1);
-      if (unseen.length < count && previouslySeen.length > 0 && subjectSeenRatio >= 0.8) {
-        const ids = shuffled.map((q) => q.id);
-        await admin.from("user_seen_questions").delete().eq("user_id", user.id).in("question_id", ids);
-        unseen = shuffled;
-        previouslySeen = [];
+
+      // Read history only for this subject's candidate questions. The composite
+      // (user_id, question_id) index keeps this bounded as a student's history grows.
+      const subjectQuestionIds = (data ?? []).map((question) => question.id);
+      let seenRows: Array<{ question_id: string }> = [];
+      if (subjectQuestionIds.length > 0) {
+        const { data: rows, error: seenError } = await admin.from("user_seen_questions")
+          .select("question_id")
+          .eq("user_id", user.id)
+          .in("question_id", subjectQuestionIds);
+        if (seenError) return respond({ error: "Could not load your question history." }, 500);
+        seenRows = rows ?? [];
       }
+      const seen = new Set(seenRows.map((row) => row.question_id));
+      const shuffled = shuffle(data ?? []);
+      const unseen = shuffled.filter((q) => !seen.has(q.id));
+      const previouslySeen = shuffled.filter((q) => seen.has(q.id));
       const dueQuestions = shuffled.filter((q) => dueReviewIds.has(q.id));
       const dueSet = new Set(dueQuestions.map((q) => q.id));
       const otherPreviouslySeen = previouslySeen.filter((q) => !dueSet.has(q.id));
