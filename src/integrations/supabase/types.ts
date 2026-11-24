@@ -303,51 +303,68 @@ export type Database = {
       }
       questions: {
         Row: {
+          answer_status: string
           correct_answer: string
           created_at: string
           difficulty: string
+          diagram_file: string | null
           examination: string | null
           exam_hint: string | null
           explanation: string | null
           id: string
+          is_published: boolean
           option_a: string
           option_b: string
           option_c: string
           option_d: string
+          option_e: string | null
           passage: string | null
           question_text: string
           question_type: string | null
+          question_number: number | null
+          source_pdf: string | null
+          source_page: number | null
           subject: string
           topic: string
           year: number | null
         }
         Insert: {
+          answer_status?: string
           correct_answer: string
           created_at?: string
           difficulty?: string
+          diagram_file?: string | null
           examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
           id?: string
+          is_published?: boolean
           option_a: string
           option_b: string
           option_c: string
           option_d: string
+          option_e?: string | null
           passage?: string | null
           question_text: string
           question_type?: string | null
+          question_number?: number | null
+          source_pdf?: string | null
+          source_page?: number | null
           subject: string
           topic: string
           year?: number | null
         }
         Update: {
+          answer_status?: string
           correct_answer?: string
           created_at?: string
           difficulty?: string
+          diagram_file?: string | null
           examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
           id?: string
+          is_published?: boolean
           option_a?: string
           option_b?: string
           option_c?: string
@@ -355,6 +372,9 @@ export type Database = {
           passage?: string | null
           question_text?: string
           question_type?: string | null
+          question_number?: number | null
+          source_pdf?: string | null
+          source_page?: number | null
           subject?: string
           topic?: string
           year?: number | null

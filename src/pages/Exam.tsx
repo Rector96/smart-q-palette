@@ -616,6 +616,16 @@ const Exam = () => {
                   </button>
                 </div>
                 <p className="text-[15px] sm:text-base font-semibold leading-7">{currentQuestion.question_text}</p>
+                {currentQuestion.diagram_file && (
+                  <div className="mt-3 flex justify-center rounded-xl border border-border/50 bg-background p-2">
+                    <img
+                      src={currentQuestion.diagram_file.startsWith("http") ? currentQuestion.diagram_file : supabase.storage.from("question-diagrams").getPublicUrl(currentQuestion.diagram_file).data.publicUrl}
+                      alt="Question diagram"
+                      loading="lazy"
+                      className="max-h-[420px] w-full max-w-2xl rounded-lg object-contain"
+                    />
+                  </div>
+                )}
               </div>
               <div className="exam-answer-list space-y-2">
                 {currentQuestion.options.map((option) => {

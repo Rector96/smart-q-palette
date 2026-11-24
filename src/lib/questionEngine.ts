@@ -13,6 +13,7 @@ export interface QuestionWithShuffledOptions {
   passage: string | null;
   question_type: string | null;
   exam_hint: string | null;
+  diagram_file?: string | null;
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -142,6 +143,7 @@ export async function fetchSmartQuestions(
       { label: "B", text: q.option_b, originalLabel: "B" },
       { label: "C", text: q.option_c, originalLabel: "C" },
       { label: "D", text: q.option_d, originalLabel: "D" },
+      ...(q.option_e ? [{ label: "E", text: q.option_e, originalLabel: "E" }] : []),
     ]).map((opt, idx) => ({
       ...opt,
       label: String.fromCharCode(65 + idx),
