@@ -21,30 +21,68 @@ const Results = () => {
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
   const [history, setHistory] = useState<any[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [historyWarning, setHistoryWarning] = useState("");
 
   useEffect(() => {
     if (!user || !sessionId) return;
+    let active = true;
+
     const fetchResults = async () => {
-      const [{ data: sess }, { data: prof }, { data: hist }] = await Promise.all([
-        supabase.from("exam_sessions").select("*").eq("id", sessionId).single(),
-        supabase.from("profiles").select("full_name").eq("user_id", user.id).single(),
-        supabase.from("user_history").select("*, questions(*)").eq("session_id", sessionId),
-      ]);
-      if (sess) setSession(sess);
-      if (prof?.full_name) setProfileName(prof.full_name);
-      if (hist) {
-        setHistory(hist);
-        const breakdown: Record<string, { correct: number; total: number }> = {};
-        hist.forEach((h: any) => {
-          const topic = h.questions?.topic || "Unknown";
-          if (!breakdown[topic]) breakdown[topic] = { correct: 0, total: 0 };
-          breakdown[topic].total++;
-          if (h.is_correct) breakdown[topic].correct++;
-        });
-        setTopicBreakdown(breakdown);
+      setLoading(true);
+      setLoadError("");
+      setHistoryWarning("");
+      setSession(null);
+      setHistory([]);
+      setTopicBreakdown({});
+
+      const { data, error } = await supabase.functions.invoke("cbt-result", {
+        body: { session_id: sessionId },
+      });
+
+      if (!active) return;
+      const result = data?.result;
+      if (error || !result?.session) {
+        setLoadError(data?.error || error?.message || "We couldn't load this exam result. Please try again.");
+        setLoading(false);
+        return;
       }
+
+      const sess = result.session;
+      const hist = Array.isArray(result.history) ? result.history : [];
+      setSession(sess);
+      setProfileName(result.profile_name || "");
+
+      const integrity = result.review_integrity;
+      if (
+        hist.length !== Number(sess.total_questions)
+        || integrity?.answer_count_matches === false
+        || integrity?.correct_count_matches === false
+        || integrity?.question_order_complete === false
+      ) {
+        setHistoryWarning("Your saved score and answer review do not fully match. The score shown is the saved exam score; please contact support if you believe it is incorrect.");
+      }
+      setHistory(hist);
+
+      const breakdown: Record<string, { correct: number; total: number }> = {};
+      hist.forEach((h: any) => {
+        const topic = h.questions?.topic || "Unknown";
+        if (!breakdown[topic]) breakdown[topic] = { correct: 0, total: 0 };
+        breakdown[topic].total++;
+        if (h.is_correct) breakdown[topic].correct++;
+      });
+      setTopicBreakdown(breakdown);
+      setLoading(false);
     };
-    fetchResults();
+
+    void fetchResults().catch(() => {
+      if (!active) return;
+      setLoadError("We couldn't load this exam result. Please check your connection and try again.");
+      setLoading(false);
+    });
+
+    return () => { active = false; };
   }, [user, sessionId]);
 
   const handleShare = () => {
@@ -86,10 +124,25 @@ const Results = () => {
     }
   };
 
-  if (!session) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (loadError || !session) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="w-full max-w-md rounded-2xl">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="mx-auto mb-3 h-9 w-9 text-destructive" />
+            <h1 className="text-lg font-bold">Result unavailable</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{loadError || "We couldn't load this exam result."}</p>
+            <Button className="mt-5" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -210,6 +263,12 @@ const Results = () => {
           </Card>
         </motion.div>
 
+        {historyWarning && (
+          <div role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            {historyWarning}
+          </div>
+        )}
+
         {/* Topic Breakdown */}
         {Object.keys(topicBreakdown).length > 0 && (
           <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}>
@@ -283,11 +342,13 @@ const Results = () => {
                         />
                       )}
 
-                      {/* User's wrong answer */}
-                      {!h.is_correct && userOptionText && (
+                      {/* User's answer */}
+                      {!h.is_correct && (
                         <div className="ml-8 mb-1.5 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/20 px-3 py-2">
                           <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                          <span className="text-xs text-red-700 dark:text-red-400">{userOptionText}</span>
+                          <span className="text-xs text-red-700 dark:text-red-400">
+                            {userAnswer === "X" ? "No answer selected" : userOptionText || "Your selected answer"}
+                          </span>
                         </div>
                       )}
 

@@ -70,7 +70,15 @@ serve(async (req) => {
 
     const paystackData = await paystackRes.json();
     if (!paystackRes.ok || paystackData?.status !== true || !paystackData?.data?.authorization_url) {
-      await serviceClient.from("payments").update({ status: "failed" }).eq("id", payment.id);
+      // Do not overwrite a success already recorded by a fast webhook.
+      const { error: failUpdateError } = await serviceClient.from("payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id)
+        .eq("user_id", userId)
+        .eq("status", "pending");
+      if (failUpdateError) {
+        console.error("Could not mark rejected initialization as failed:", failUpdateError.message);
+      }
       console.error("Paystack initialization rejected:", paystackData?.message || paystackRes.status);
       return json({ error: paystackData?.message || "Paystack could not start your payment. Please try again." }, 502);
     }

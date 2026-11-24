@@ -139,15 +139,28 @@ serve(async (req) => {
       return json({ error: "Payment details did not match the order." }, 400);
     }
 
-    if (payment.status !== "success") {
-      const { error: paymentUpdateError } = await serviceClient.from("payments").update({
+    if (payment.status === "failed") {
+      console.error("A failed payment record cannot be upgraded by a webhook:", reference);
+      return json({ error: "This payment order is no longer valid." }, 409);
+    }
+
+    if (payment.status === "pending") {
+      const { data: transitionedPayment, error: paymentUpdateError } = await serviceClient.from("payments").update({
         status: "success",
         paystack_reference: reference,
         verified_at: new Date().toISOString(),
-      }).eq("id", payment.id);
+      }).eq("id", payment.id).eq("status", "pending").select("id").maybeSingle();
       if (paymentUpdateError) {
         console.error("Webhook could not update payment:", paymentUpdateError.message);
         return json({ error: "Could not record payment." }, 500);
+      }
+      if (!transitionedPayment) {
+        // Another webhook or the authenticated verification endpoint may have completed it.
+        const { data: latestPayment, error: latestError } = await serviceClient.from("payments")
+          .select("status").eq("id", payment.id).maybeSingle();
+        if (latestError || latestPayment?.status !== "success") {
+          return json({ error: "Payment state changed before it could be confirmed." }, 409);
+        }
       }
     }
 
