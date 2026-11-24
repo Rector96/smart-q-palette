@@ -239,7 +239,7 @@ const AdminContent = () => {
     const missingDiagramFiles = csvData
       .map((question) => question.diagram_file)
       .filter((name): name is string => Boolean(name))
-      .filter((name) => !csvDiagramFiles.some((file) => file.name.toLowerCase() === name.toLowerCase()));
+      .filter((name) => !csvDiagramFiles.some((file) => file.name.toLowerCase() === (name.split(/[\\/]/).pop() || "").toLowerCase()));
     if (missingDiagramFiles.length > 0) {
       setCsvErrors(["Select these diagram files before importing: " + [...new Set(missingDiagramFiles)].join(", ")]);
       return;
@@ -290,7 +290,7 @@ const AdminContent = () => {
         difficulty: "medium",
         explanation: q.explanation || null,
         exam_hint: q.exam_hint || null,
-        diagram_url: q.diagram_url || (q.diagram_file ? diagramUrls.get(q.diagram_file.toLowerCase()) : null) || null,
+        diagram_url: q.diagram_url || (q.diagram_file ? diagramUrls.get((q.diagram_file.split(/[\\/]/).pop() || q.diagram_file).toLowerCase()) : null) || null,
       }));
 
       const { error } = await supabase.from("questions").insert(batch as any);
