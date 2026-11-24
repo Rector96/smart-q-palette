@@ -443,6 +443,10 @@ const AdminContent = () => {
                   <Input value={form.diagram_url} onChange={(e) => setForm({ ...form, diagram_url: e.target.value })} placeholder="Or paste an existing image URL" className="mt-2 h-9 text-xs" />
                 </div>
               </div>
+              <div>
+                <Label className="text-xs">Option E (optional)</Label>
+                <Input value={form.option_e} onChange={(e) => setForm({ ...form, option_e: e.target.value })} placeholder="Enter fifth answer option (if needed)" className="h-9 text-xs" />
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Correct Answer</Label>
