@@ -314,6 +314,8 @@ export type Database = {
           option_b: string
           option_c: string
           option_d: string
+          option_e: string | null
+          diagram_url: string | null
           passage: string | null
           question_text: string
           question_type: string | null
@@ -333,6 +335,8 @@ export type Database = {
           option_b: string
           option_c: string
           option_d: string
+          option_e?: string | null
+          diagram_url?: string | null
           passage?: string | null
           question_text: string
           question_type?: string | null
@@ -352,6 +356,8 @@ export type Database = {
           option_b?: string
           option_c?: string
           option_d?: string
+          option_e?: string | null
+          diagram_url?: string | null
           passage?: string | null
           question_text?: string
           question_type?: string | null
@@ -702,6 +708,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_seen_question_ids: {
+        Args: { p_user_id: string; p_question_ids: string[] }
+        Returns: string[]
+      }
+      start_cbt_session: {
+        Args: {
+          p_user_id: string
+          p_mode: string
+          p_subjects: string[]
+          p_total_questions: number
+          p_examination: string
+          p_exam_year: number | null
+          p_questions: Json
+        }
+        Returns: Json
+      }
       admin_record_manual_payment: {
         Args: { _amount: number; _note: string; _plan_id?: string | null; _reference: string; _target_user_id: string }
         Returns: string

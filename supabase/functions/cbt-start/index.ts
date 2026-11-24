@@ -10,6 +10,26 @@ function respond(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+type ExamQuestion = {
+  id: string;
+  subject: string;
+  topic: string;
+  year: number | null;
+  difficulty: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  option_e: string | null;
+  diagram_url: string | null;
+  correct_answer: string;
+  explanation: string | null;
+  passage: string | null;
+  question_type: string | null;
+  exam_hint: string | null;
+};
+
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
@@ -52,7 +72,8 @@ Deno.serve(async (req: Request) => {
     const adaptive = body.adaptive === true && (mode === "practice" || mode === "revision");
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
     if (!["JAMB", "WAEC", "NECO"].includes(examination)) return respond({ error: "Choose JAMB, WAEC or NECO." }, 400);
-    if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1990 || examYear > new Date().getFullYear())) return respond({ error: "Choose a valid examination year." }, 400);
+    // The year picker is populated from published question-bank records. Accept any positive integer year present in that catalogue; do not reject older or future-dated records based on the server clock.
+    if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1)) return respond({ error: "Choose a valid examination year." }, 400);
     if (!["practice", "cbt", "mock", "revision"].includes(mode)) return respond({ error: "Invalid examination mode." }, 400);
     if (mode === "mock" && examination !== "JAMB") return respond({ error: "The full mock exam format is currently available for JAMB only." }, 400);
 
@@ -61,10 +82,6 @@ Deno.serve(async (req: Request) => {
     if (profileError || !profile) return respond({ error: "Your student profile could not be loaded." }, 404);
     if (!profile.is_subscribed && profile.trial_count >= 3) return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
 
-    const { data: seenRows, error: seenError } = await admin.from("user_seen_questions")
-      .select("question_id").eq("user_id", user.id);
-    if (seenError) return respond({ error: "Could not load your question history." }, 500);
-    const seen = new Set((seenRows ?? []).map((row) => row.question_id));
     const dueReviewIds = new Set<string>();
     if (mode === "revision") {
       const { data: dueRows, error: dueError } = await admin.from("student_question_reviews")
@@ -77,27 +94,30 @@ Deno.serve(async (req: Request) => {
       for (const row of dueRows ?? []) dueReviewIds.add(row.question_id);
     }
 
-    const allQuestions: any[] = [];
+    const allQuestions: ExamQuestion[] = [];
     for (const subject of subjects) {
       let questionQuery = admin.from("questions")
-        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,passage,question_type,exam_hint")
+        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,option_e,diagram_url,correct_answer,explanation,passage,question_type,exam_hint")
         .ilike("subject", subject)
         .eq("examination", examination)
         .eq("is_published", true);
       if (examYear !== null) questionQuery = questionQuery.eq("year", examYear);
       const { data, error } = await questionQuery.limit(1000);
       if (error) return respond({ error: "Could not load the question bank." }, 500);
-      const shuffled = shuffle(data ?? []);
-      let unseen = shuffled.filter((q) => !seen.has(q.id));
-      let previouslySeen = shuffled.filter((q) => seen.has(q.id));
-      // Measure coverage within this subject only; seen also contains other subjects.
-      const subjectSeenRatio = previouslySeen.length / Math.max(shuffled.length, 1);
-      if (unseen.length < count && previouslySeen.length > 0 && subjectSeenRatio >= 0.8) {
-        const ids = shuffled.map((q) => q.id);
-        await admin.from("user_seen_questions").delete().eq("user_id", user.id).in("question_id", ids);
-        unseen = shuffled;
-        previouslySeen = [];
-      }
+
+      // Read history only for this subject's candidate questions. The composite
+      // (user_id, question_id) index keeps this bounded as a student's history grows.
+      const subjectQuestions = (data ?? []) as ExamQuestion[];
+      const subjectQuestionIds = subjectQuestions.map((question) => question.id);
+      const { data: seenQuestionIds, error: seenError } = await admin.rpc("get_seen_question_ids", {
+        p_user_id: user.id,
+        p_question_ids: subjectQuestionIds,
+      });
+      if (seenError) return respond({ error: "Could not load your question history." }, 500);
+      const seen = new Set(seenQuestionIds ?? []);
+      const shuffled = shuffle(subjectQuestions);
+      const unseen = shuffled.filter((q) => !seen.has(q.id));
+      const previouslySeen = shuffled.filter((q) => seen.has(q.id));
       const dueQuestions = shuffled.filter((q) => dueReviewIds.has(q.id));
       const dueSet = new Set(dueQuestions.map((q) => q.id));
       const otherPreviouslySeen = previouslySeen.filter((q) => !dueSet.has(q.id));
@@ -116,7 +136,7 @@ Deno.serve(async (req: Request) => {
           String(row.topic ?? "").trim().toLowerCase(),
           { attempts: Number(row.attempts) || 0, accuracy: Number(row.attempts) > 0 ? Number(row.correct_answers) / Number(row.attempts) : 0 },
         ] as const));
-        const topicGroups = new Map<string, any[]>();
+        const topicGroups = new Map<string, ExamQuestion[]>();
         for (const question of pool) {
           const topicKey = String(question.topic ?? "").trim().toLowerCase() || "__general__";
           if (!topicGroups.has(topicKey)) topicGroups.set(topicKey, []);
@@ -146,7 +166,7 @@ Deno.serve(async (req: Request) => {
           };
         }).sort((a, b) => a.priority - b.priority);
 
-        const chosen: any[] = [];
+        const chosen: ExamQuestion[] = [];
         let round = 0;
         while (chosen.length < count && groups.some((group) => group.questions.length > 0)) {
           for (const group of groups) {
@@ -182,6 +202,9 @@ Deno.serve(async (req: Request) => {
         { originalLabel: "B", text: q.option_b },
         { originalLabel: "C", text: q.option_c },
         { originalLabel: "D", text: q.option_d },
+        ...(typeof q.option_e === "string" && q.option_e.trim()
+          ? [{ originalLabel: "E", text: q.option_e }]
+          : []),
       ]);
       const optionOrder = options.map((option) => option.originalLabel);
       const displayOptions = options.map((option, optionIndex) => ({
@@ -197,28 +220,29 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    const { data: session, error: sessionError } = await admin.from("exam_sessions")
-      .insert({ user_id: user.id, mode, subjects, total_questions: prepared.length, examination, exam_year: examYear })
-      .select("id,started_at,total_questions").single();
-    if (sessionError || !session) return respond({ error: "Could not create your exam session." }, 500);
-
-    const { error: mappingError } = await admin.from("exam_session_questions").insert(prepared.map((item) => ({
-      session_id: session.id, question_id: item.question.id,
-      option_order: item.optionOrder, position: item.position,
-    })));
-    if (mappingError) {
-      await admin.from("exam_sessions").delete().eq("id", session.id);
-      return respond({ error: "Could not prepare your exam questions. Please try again." }, 500);
-    }
-
-    const { data: trialResult, error: trialError } = await admin.rpc("consume_cbt_trial", {
+    const sessionQuestions = prepared.map((item) => ({
+      question_id: item.question.id,
+      option_order: item.optionOrder,
+      position: item.position,
+    }));
+    const { data: sessionData, error: sessionError } = await admin.rpc("start_cbt_session", {
       p_user_id: user.id,
+      p_mode: mode,
+      p_subjects: subjects,
+      p_total_questions: prepared.length,
+      p_examination: examination,
+      p_exam_year: examYear,
+      p_questions: sessionQuestions,
     });
-    if (trialError || !trialResult?.allowed) {
-      await admin.from("exam_sessions").delete().eq("id", session.id);
-      if (trialError) return respond({ error: "Could not update your exam allowance. Please try again." }, 500);
-      return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
+    if (sessionError) {
+      if (sessionError.message.includes("TRIAL_LIMIT_REACHED")) {
+        return respond({ error: "TRIAL_LIMIT_REACHED" }, 403);
+      }
+      console.error("Atomic exam session creation failed", sessionError);
+      return respond({ error: "Could not prepare your exam. Please try again." }, 500);
     }
+    const session = sessionData as { id: string; started_at: string; total_questions: number } | null;
+    if (!session?.id) return respond({ error: "Could not create your exam session." }, 500);
 
     const questions = prepared.map((item) => ({
       id: item.question.id, subject: item.question.subject, topic: item.question.topic,
@@ -227,6 +251,7 @@ Deno.serve(async (req: Request) => {
       ...((mode === "practice" || mode === "revision") ? { correct_answer: item.displayedCorrect, explanation: item.question.explanation } : {}),
       passage: item.question.passage, question_type: item.question.question_type,
       exam_hint: item.question.exam_hint,
+      diagram_url: item.question.diagram_url ?? null,
     }));
     return respond({ session, questions });
   } catch (error) {

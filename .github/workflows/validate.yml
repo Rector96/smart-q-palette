@@ -1,0 +1,37 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "hardening/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Targeted lint, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint the CBT hardening files
+        run: npx eslint supabase/functions/cbt-start/index.ts src/integrations/supabase/types.ts
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production bundle
+        run: npm run build
