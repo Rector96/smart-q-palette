@@ -708,6 +708,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_seen_question_ids: {
+        Args: { p_user_id: string; p_question_ids: string[] }
+        Returns: string[]
+      }
       start_cbt_session: {
         Args: {
           p_user_id: string
