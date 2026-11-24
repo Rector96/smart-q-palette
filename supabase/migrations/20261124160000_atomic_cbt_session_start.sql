@@ -22,13 +22,16 @@ declare
   v_position integer;
 begin
   if p_user_id is null
+     or p_mode is null
      or p_mode not in ('practice', 'cbt', 'mock', 'revision')
      or p_subjects is null
      or cardinality(p_subjects) < 1
      or cardinality(p_subjects) > 12
+     or p_examination is null
      or p_examination not in ('JAMB', 'WAEC', 'NECO')
      or (p_exam_year is not null and p_exam_year < 1)
-     or jsonb_typeof(p_questions) <> 'array'
+     or p_questions is null
+     or jsonb_typeof(p_questions) is distinct from 'array'
      or p_total_questions is null
      or p_total_questions < 1
      or p_total_questions > 720
@@ -61,18 +64,19 @@ begin
   for v_item in select value from jsonb_array_elements(p_questions) loop
     if jsonb_typeof(v_item) <> 'object'
        or coalesce(v_item->>'question_id', '') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-       or jsonb_typeof(v_item->'option_order') <> 'array'
+       or jsonb_typeof(v_item->'option_order') is distinct from 'array'
        or coalesce(v_item->>'position', '') !~ '^[0-9]{1,4}$' then
       raise exception 'Invalid exam question mapping' using errcode = '22023';
     end if;
 
     v_question_id := (v_item->>'question_id')::uuid;
     v_position := (v_item->>'position')::integer;
-    select array_agg(value) into v_option_order
-    from jsonb_array_elements_text(v_item->'option_order') as option_value(value);
+    select array_agg(value order by ordinality) into v_option_order
+    from jsonb_array_elements_text(v_item->'option_order') with ordinality as option_value(value, ordinality);
 
     if v_position < 1 or v_position > p_total_questions
        or cardinality(v_option_order) not in (4, 5)
+       or array_position(v_option_order, null) is not null
        or not (v_option_order @> array['A', 'B', 'C', 'D']::text[])
        or not (v_option_order <@ array['A', 'B', 'C', 'D', 'E']::text[])
        or cardinality(array_positions(v_option_order, 'A')) <> 1
