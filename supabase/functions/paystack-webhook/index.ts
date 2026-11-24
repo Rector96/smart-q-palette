@@ -58,6 +58,7 @@ serve(async (req) => {
       "transfer.reversed": "reversed",
     };
     const transferOutcome = transferEvents[event?.event];
+
     if (transferOutcome) {
       const transfer = event?.data || {};
       const transferReference = typeof transfer.reference === "string" ? transfer.reference : "";
@@ -65,47 +66,287 @@ serve(async (req) => {
 
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
-      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
-        p_reference: transferReference,
-        p_outcome: transferOutcome,
-        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
-        p_failure_reason: typeof transfer.reason === "string" ? transfer.reason : null,
+      const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
+      if (!supabaseUrl || !serviceKey || !paystackSecret) {
+        return json({ error: "Webhook is temporarily unavailable." }, 503);
+      }
+
+      const serviceClient = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
       });
+      const { data: withdrawal, error: withdrawalLookupError } = await serviceClient
+        .from("referral_withdrawals")
+        .select("id,amount,currency,status,reference")
+        .eq("reference", transferReference)
+        .maybeSingle();
+
+      if (withdrawalLookupError) {
+        console.error("Could not look up referral transfer:", withdrawalLookupError.message);
+        return json({ error: "Withdrawal lookup is temporarily unavailable." }, 503);
+      }
+      if (!withdrawal) {
+        if (transferReference.toLowerCase().startsWith("sqprwd-")) {
+          console.error("Referral transfer has no matching withdrawal:", transferReference);
+          return json({ error: "Matching referral withdrawal was not found." }, 404);
+        }
+        return json({ received: true, ignored: true });
+      }
+
+      const expectedAmountKobo = Math.round(Number(withdrawal.amount) * 100);
+      if (
+        withdrawal.reference !== transferReference ||
+        withdrawal.currency !== "NGN" ||
+        !Number.isSafeInteger(expectedAmountKobo) ||
+        Number(transfer.amount) !== expectedAmountKobo ||
+        transfer.currency !== withdrawal.currency
+      ) {
+        console.error("Transfer event did not match the stored withdrawal:", transferReference);
+        return json({ error: "Transfer details do not match the stored withdrawal." }, 400);
+      }
+
+      let verifyResponse: Response;
+      try {
+        verifyResponse = await fetch(
+          "https://api.paystack.co/transfer/verify/" + encodeURIComponent(transferReference),
+          { headers: { Authorization: "Bearer " + paystackSecret } },
+        );
+      } catch (error) {
+        console.error("Paystack transfer verification request failed:", error);
+        return json({ error: "Transfer verification is temporarily unavailable." }, 503);
+      }
+
+      const verifyPayload = await verifyResponse.json().catch(() => null);
+      if (!verifyResponse.ok || verifyPayload?.status !== true || !verifyPayload?.data) {
+        console.error("Paystack transfer verification was inconclusive:", transferReference, verifyResponse.status);
+        return json({
+          error: "Transfer could not be independently verified. Funds remain reserved.",
+        }, 503);
+      }
+
+      const verifiedTransfer = verifyPayload.data;
+      const verifiedStatus = String(verifiedTransfer.status || "").toLowerCase();
+      if (
+        verifiedTransfer.reference !== withdrawal.reference ||
+        Number(verifiedTransfer.amount) !== expectedAmountKobo ||
+        verifiedTransfer.currency !== withdrawal.currency
+      ) {
+        console.error("Verified Paystack transfer did not match the withdrawal:", transferReference);
+        return json({ error: "Verified transfer details do not match the stored withdrawal." }, 503);
+      }
+
+      if (verifiedStatus !== transferOutcome) {
+        console.warn("Transfer status is not yet consistent:", transferReference, transferOutcome, verifiedStatus);
+        return json({
+          error: "Transfer outcome is not yet confirmed. Funds remain reserved.",
+        }, 503);
+      }
+
+      const { data: settlement, error: settlementError } = await serviceClient.rpc(
+        "settle_referral_withdrawal",
+        {
+          p_reference: transferReference,
+          p_outcome: transferOutcome,
+          p_transfer_code: typeof verifiedTransfer.transfer_code === "string"
+            ? verifiedTransfer.transfer_code
+            : null,
+          p_failure_reason: transferOutcome === "success"
+            ? null
+            : typeof verifiedTransfer.failures === "string"
+              ? verifiedTransfer.failures
+              : "Paystack confirmed transfer " + transferOutcome + ".",
+        },
+      );
+
       if (settlementError) {
         console.error("Referral transfer settlement failed:", settlementError.message);
         return json({ error: "Transfer outcome could not be recorded." }, 500);
       }
-      console.info("Referral transfer webhook processed:", transferReference, settlement);
+
+      if (settlement?.updated !== true) {
+        const { data: currentWithdrawal, error: currentStatusError } = await serviceClient
+          .from("referral_withdrawals")
+          .select("status")
+          .eq("id", withdrawal.id)
+          .maybeSingle();
+
+        if (currentStatusError) {
+          console.error("Could not confirm duplicate transfer settlement:", currentStatusError.message);
+          return json({ error: "Transfer settlement status could not be confirmed." }, 500);
+        }
+        if (
+          settlement?.reason !== "already_processed" ||
+          currentWithdrawal?.status !== transferOutcome
+        ) {
+          console.error(
+            "Verified transfer conflicted with the stored withdrawal state:",
+            transferReference,
+            settlement,
+            currentWithdrawal?.status,
+          );
+          return json({ error: "Transfer outcome conflicts with the stored withdrawal state." }, 409);
+        }
+      }
+
+      console.info("Verified referral transfer processed:", transferReference, verifiedStatus);
       return json({ received: true });
     }
 
-
     if (event?.event === "refund.processed") {
       const refund = event?.data || {};
-      const paymentReference = typeof refund.transaction_reference === "string" ? refund.transaction_reference : "";
-      const refundAmount = Number(refund.amount);
-      if (!paymentReference || !Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refund.currency !== "NGN") {
-        return json({ error: "Refund details are incomplete or invalid." }, 400);
+      const paymentReference =
+        typeof refund.transaction_reference === "string"
+          ? refund.transaction_reference
+          : typeof refund.transaction?.reference === "string"
+            ? refund.transaction.reference
+            : "";
+
+      if (!paymentReference) {
+        console.error("Refund webhook has no transaction reference.");
+        return json({ error: "Refund transaction reference is missing." }, 400);
       }
+
+      const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
-      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: reversal, error: reversalError } = await serviceClient.rpc("reverse_referral_reward", {
-        p_payment_reference: paymentReference,
-        p_refund_amount_kobo: refundAmount,
-      });
-      if (reversalError) {
-        console.error("Referral reward refund recovery failed:", reversalError.message);
-        return json({ error: "Refund was received but referral recovery could not be recorded." }, 500);
+      if (!paystackSecret || !supabaseUrl || !serviceKey) {
+        return json({ error: "Webhook is temporarily unavailable." }, 503);
       }
-      console.info("Referral refund event processed:", paymentReference, reversal);
-      return json({ received: true, referral_reversal: reversal });
+
+      // Verify the original transaction and retrieve the authoritative list of
+      // processed refunds. Do not trust a partial webhook payload as the ledger.
+      let transactionResponse: Response;
+      try {
+        transactionResponse = await fetch(
+          "https://api.paystack.co/transaction/verify/" + encodeURIComponent(paymentReference),
+          { headers: { Authorization: "Bearer " + paystackSecret } },
+        );
+      } catch (error) {
+        console.error("Paystack transaction verification request failed:", error);
+        return json({ error: "Could not verify the refunded transaction." }, 503);
+      }
+
+      const transactionPayload = await transactionResponse.json().catch(() => null);
+      const transaction = transactionPayload?.data;
+      if (
+        !transactionResponse.ok ||
+        transactionPayload?.status !== true ||
+        transaction?.reference !== paymentReference ||
+        String(transaction?.currency || "").toUpperCase() !== "NGN" ||
+        !Number.isSafeInteger(Number(transaction?.id))
+      ) {
+        console.error("Invalid original transaction for refund:", paymentReference);
+        return json({ error: "Original transaction verification failed." }, 400);
+      }
+
+      const serviceClient = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: payment, error: paymentLookupError } = await serviceClient
+        .from("payments")
+        .select("id,amount,currency,status")
+        .eq("reference", paymentReference)
+        .maybeSingle();
+
+      if (paymentLookupError) {
+        console.error("Could not look up refunded payment:", paymentLookupError.message);
+        return json({ error: "Refund payment lookup failed." }, 500);
+      }
+
+      const expectedPaymentAmountKobo = Math.round(Number(payment?.amount) * 100);
+      if (
+        !payment ||
+        !["success", "partially_refunded", "refunded"].includes(payment.status) ||
+        payment.currency !== "NGN" ||
+        !Number.isSafeInteger(expectedPaymentAmountKobo) ||
+        Number(transaction.amount) !== expectedPaymentAmountKobo
+      ) {
+        console.error("Refund transaction did not match the stored payment:", paymentReference);
+        return json({ error: "Refund transaction details do not match the stored payment." }, 400);
+      }
+
+      let totalProcessedRefundAmountKobo = 0;
+      let refundPage = 1;
+      let totalRefundPages = 1;
+      let processedRefundCount = 0;
+      do {
+        const refundUrl = new URL("https://api.paystack.co/refund");
+        refundUrl.searchParams.set("transaction", String(transaction.id));
+        refundUrl.searchParams.set("currency", "NGN");
+        refundUrl.searchParams.set("perPage", "100");
+        refundUrl.searchParams.set("page", String(refundPage));
+
+        let refundResponse: Response;
+        try {
+          refundResponse = await fetch(refundUrl.toString(), {
+            headers: { Authorization: "Bearer " + paystackSecret },
+          });
+        } catch (error) {
+          console.error("Paystack refund lookup request failed:", error);
+          return json({ error: "Could not retrieve refund records." }, 503);
+        }
+
+        const refundList = await refundResponse.json().catch(() => null);
+        if (!refundResponse.ok || refundList?.status !== true || !Array.isArray(refundList?.data)) {
+          console.error("Paystack refund lookup failed:", refundResponse.status);
+          return json({ error: "Refund records could not be verified." }, 503);
+        }
+
+        for (const refundRecord of refundList.data) {
+          if (refundRecord?.status !== "processed" || refundRecord?.currency !== "NGN") continue;
+          const refundId = refundRecord?.id === undefined || refundRecord?.id === null
+            ? ""
+            : String(refundRecord.id);
+          const refundAmount = Number(refundRecord.amount);
+          if (!refundId || !Number.isSafeInteger(refundAmount) || refundAmount <= 0) {
+            console.error("Invalid processed refund record:", refundRecord?.id);
+            return json({ error: "A refund record contains invalid details." }, 500);
+          }
+
+          totalProcessedRefundAmountKobo += refundAmount;
+          if (!Number.isSafeInteger(totalProcessedRefundAmountKobo) ||
+              totalProcessedRefundAmountKobo > expectedPaymentAmountKobo) {
+            return json({ error: "Cumulative refund amount exceeds the original payment." }, 400);
+          }
+
+          const { data: refundResult, error: refundError } = await serviceClient.rpc(
+            "record_paystack_refund",
+            {
+              p_payment_reference: paymentReference,
+              p_provider_refund_id: refundId,
+              p_refund_amount_kobo: refundAmount,
+              p_currency: "NGN",
+            },
+          );
+          if (refundError || refundResult?.recorded !== true) {
+            console.error("Could not record verified Paystack refund:", refundError?.message || refundResult);
+            return json({ error: "Verified refund could not be recorded." }, 500);
+          }
+          processedRefundCount++;
+        }
+
+        totalRefundPages = Number(refundList.meta?.pageCount ?? 1);
+        if (!Number.isSafeInteger(totalRefundPages) || totalRefundPages < 1 || refundPage > totalRefundPages) {
+          return json({ error: "Invalid refund pagination response." }, 500);
+        }
+        refundPage++;
+      } while (refundPage <= totalRefundPages);
+
+      if (processedRefundCount === 0 || totalProcessedRefundAmountKobo === 0) {
+        return json({ error: "No processed refund records were found yet." }, 503);
+      }
+
+      console.info("Paystack refund reconciliation completed:", paymentReference, {
+        processedRefundCount,
+        totalProcessedRefundAmountKobo,
+      });
+      return json({
+        received: true,
+        processed_refund_count: processedRefundCount,
+        total_refunded_kobo: totalProcessedRefundAmountKobo,
+      });
     }
 
-    if (event?.event !== "charge.success") return json({ received: true });
+        if (event?.event !== "charge.success") return json({ received: true });
 
     const transaction = event?.data;
     const reference = typeof transaction?.reference === "string" ? transaction.reference : "";
@@ -132,45 +373,47 @@ serve(async (req) => {
       return json({ error: "Unknown payment reference." }, 404);
     }
 
+    // A delayed charge.success delivery must never undo a processed refund.
+    if (payment.status === "partially_refunded" || payment.status === "refunded") {
+      console.info("Ignoring stale charge.success for refunded payment:", reference, payment.status);
+      return json({ received: true, ignored: true, reason: "payment_already_refunded" });
+    }
+
     const expectedAmount = Math.round(Number(payment.amount) * 100);
-    if (payment.currency !== "NGN" || transaction.amount !== expectedAmount ||
-        (transaction.metadata?.user_id && transaction.metadata.user_id !== payment.user_id)) {
+    const webhookRequestedAmount = Number(transaction.requested_amount ?? transaction.amount);
+    const metadata = transaction.metadata && typeof transaction.metadata === "object"
+      ? transaction.metadata
+      : {};
+    const metadataUserId = typeof metadata.user_id === "string" ? metadata.user_id : "";
+    if (
+      !Number.isSafeInteger(expectedAmount) ||
+      !Number.isSafeInteger(webhookRequestedAmount) ||
+      webhookRequestedAmount !== expectedAmount ||
+      String(payment.currency || "").toUpperCase() !== "NGN" ||
+      String(transaction.currency || "").toUpperCase() !== "NGN" ||
+      (metadataUserId && metadataUserId !== payment.user_id)
+    ) {
       console.error("Webhook amount, currency or owner mismatch:", reference);
       return json({ error: "Payment details did not match the order." }, 400);
     }
 
-    if (payment.status !== "success") {
-      const { error: paymentUpdateError } = await serviceClient.from("payments").update({
-        status: "success",
-        paystack_reference: reference,
-        verified_at: new Date().toISOString(),
-      }).eq("id", payment.id);
-      if (paymentUpdateError) {
-        console.error("Webhook could not update payment:", paymentUpdateError.message);
-        return json({ error: "Could not record payment." }, 500);
-      }
-    }
-
-    // Credit a referral commission only after the matching payment is verified.
-    // The database RPC is idempotent, so repeated Paystack webhooks cannot double-credit.
-    const { data: referralResult, error: referralError } = await serviceClient.rpc(
-      "credit_referral_reward",
-      { p_payment_id: payment.id },
+    const { data: confirmation, error: confirmationError } = await serviceClient.rpc(
+      "confirm_paystack_payment",
+      {
+        p_payment_reference: reference,
+        p_amount_kobo: expectedAmount,
+        p_currency: "NGN",
+      },
     );
-    if (referralError) {
-      console.error("Referral reward processing failed:", referralError.message);
-      return json({ error: "Payment recorded; referral reward processing will retry." }, 500);
+    if (confirmationError) {
+      console.error("Webhook could not atomically confirm payment:", confirmationError.message);
+      return json({ error: "Could not record payment confirmation." }, 500);
     }
-    if (referralResult?.credited) {
-      console.info("Referral reward credited:", referralResult.reward_id);
+    if (confirmation?.confirmed !== true) {
+      console.warn("Verified payment was not activated:", reference, confirmation?.reason);
+      return json({ received: true, ignored: true, reason: confirmation?.reason || "payment_not_confirmed" });
     }
-
-    const { error: profileError } = await serviceClient.from("profiles")
-      .update({ is_subscribed: true }).eq("user_id", payment.user_id);
-    if (profileError) {
-      console.error("Webhook could not activate customer:", profileError.message);
-      return json({ error: "Could not activate customer access." }, 500);
-    }
+    console.info("Payment confirmed atomically:", reference, confirmation.referral);
     return json({ received: true });
   } catch (error) {
     console.error("Paystack webhook processing failed:", error);
