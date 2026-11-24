@@ -88,16 +88,12 @@ Deno.serve(async (req: Request) => {
       // Read history only for this subject's candidate questions. The composite
       // (user_id, question_id) index keeps this bounded as a student's history grows.
       const subjectQuestionIds = (data ?? []).map((question) => question.id);
-      let seenRows: Array<{ question_id: string }> = [];
-      if (subjectQuestionIds.length > 0) {
-        const { data: rows, error: seenError } = await admin.from("user_seen_questions")
-          .select("question_id")
-          .eq("user_id", user.id)
-          .in("question_id", subjectQuestionIds);
-        if (seenError) return respond({ error: "Could not load your question history." }, 500);
-        seenRows = rows ?? [];
-      }
-      const seen = new Set(seenRows.map((row) => row.question_id));
+      const { data: seenQuestionIds, error: seenError } = await admin.rpc("get_seen_question_ids", {
+        p_user_id: user.id,
+        p_question_ids: subjectQuestionIds,
+      });
+      if (seenError) return respond({ error: "Could not load your question history." }, 500);
+      const seen = new Set(seenQuestionIds ?? []);
       const shuffled = shuffle(data ?? []);
       const unseen = shuffled.filter((q) => !seen.has(q.id));
       const previouslySeen = shuffled.filter((q) => seen.has(q.id));
