@@ -15,6 +15,7 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   let reservedReference = "";
+  let reservationCreated = false;
   let serviceClient: ReturnType<typeof createClient> | null = null;
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -68,6 +69,7 @@ serve(async (req) => {
     if (reserveError || !reservation?.withdrawal_id) {
       return json({ error: reserveError?.message || "We could not reserve this withdrawal." }, 409);
     }
+    reservationCreated = true;
 
     const transferResponse = await fetch("https://api.paystack.co/transfer", {
       method: "POST",
@@ -133,6 +135,17 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Referral withdrawal failed:", error);
+    if (reservationCreated && reservedReference) {
+      // A network exception after reservation is ambiguous: Paystack may have
+      // accepted the transfer. Keep funds reserved until the signed webhook or
+      // an operator reconciliation confirms the actual transfer outcome.
+      return json({
+        accepted: false,
+        status: "pending_reconciliation",
+        reference: reservedReference,
+        error: "We could not confirm Paystack's response. Your balance remains reserved while we verify the transfer. Do not submit another withdrawal; contact support with this reference if the status does not update.",
+      }, 202);
+    }
     return json({ error: error instanceof Error ? error.message : "Withdrawal could not be processed." }, 500);
   }
 });
