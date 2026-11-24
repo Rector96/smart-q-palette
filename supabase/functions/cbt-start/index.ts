@@ -41,7 +41,7 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json();
     const subjects: string[] = Array.isArray(body.subjects)
-      ? Array.from(new Set<string>(body.subjects.filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0).map((s) => s.trim())))
+      ? Array.from(new Set<string>(body.subjects.filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0).map((s: string) => s.trim())))
       : [];
     const mode = body.mode;
     // Backward compatibility: older clients without the exam selector default to JAMB only.
