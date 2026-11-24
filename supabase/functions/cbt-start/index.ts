@@ -10,6 +10,26 @@ function respond(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+type ExamQuestion = {
+  id: string;
+  subject: string;
+  topic: string;
+  year: number | null;
+  difficulty: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  option_e: string | null;
+  diagram_url: string | null;
+  correct_answer: string;
+  explanation: string | null;
+  passage: string | null;
+  question_type: string | null;
+  exam_hint: string | null;
+};
+
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
@@ -74,7 +94,7 @@ Deno.serve(async (req: Request) => {
       for (const row of dueRows ?? []) dueReviewIds.add(row.question_id);
     }
 
-    const allQuestions: any[] = [];
+    const allQuestions: ExamQuestion[] = [];
     for (const subject of subjects) {
       let questionQuery = admin.from("questions")
         .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,option_e,diagram_url,correct_answer,explanation,passage,question_type,exam_hint")
@@ -87,14 +107,15 @@ Deno.serve(async (req: Request) => {
 
       // Read history only for this subject's candidate questions. The composite
       // (user_id, question_id) index keeps this bounded as a student's history grows.
-      const subjectQuestionIds = (data ?? []).map((question) => question.id);
+      const subjectQuestions = (data ?? []) as ExamQuestion[];
+      const subjectQuestionIds = subjectQuestions.map((question) => question.id);
       const { data: seenQuestionIds, error: seenError } = await admin.rpc("get_seen_question_ids", {
         p_user_id: user.id,
         p_question_ids: subjectQuestionIds,
       });
       if (seenError) return respond({ error: "Could not load your question history." }, 500);
       const seen = new Set(seenQuestionIds ?? []);
-      const shuffled = shuffle(data ?? []);
+      const shuffled = shuffle(subjectQuestions);
       const unseen = shuffled.filter((q) => !seen.has(q.id));
       const previouslySeen = shuffled.filter((q) => seen.has(q.id));
       const dueQuestions = shuffled.filter((q) => dueReviewIds.has(q.id));
@@ -115,7 +136,7 @@ Deno.serve(async (req: Request) => {
           String(row.topic ?? "").trim().toLowerCase(),
           { attempts: Number(row.attempts) || 0, accuracy: Number(row.attempts) > 0 ? Number(row.correct_answers) / Number(row.attempts) : 0 },
         ] as const));
-        const topicGroups = new Map<string, any[]>();
+        const topicGroups = new Map<string, ExamQuestion[]>();
         for (const question of pool) {
           const topicKey = String(question.topic ?? "").trim().toLowerCase() || "__general__";
           if (!topicGroups.has(topicKey)) topicGroups.set(topicKey, []);
@@ -145,7 +166,7 @@ Deno.serve(async (req: Request) => {
           };
         }).sort((a, b) => a.priority - b.priority);
 
-        const chosen: any[] = [];
+        const chosen: ExamQuestion[] = [];
         let round = 0;
         while (chosen.length < count && groups.some((group) => group.questions.length > 0)) {
           for (const group of groups) {
