@@ -386,38 +386,23 @@ serve(async (req) => {
       return json({ error: "Payment details did not match the order." }, 400);
     }
 
-    if (payment.status !== "success") {
-      const { error: paymentUpdateError } = await serviceClient.from("payments").update({
-        status: "success",
-        paystack_reference: reference,
-        verified_at: new Date().toISOString(),
-      }).eq("id", payment.id);
-      if (paymentUpdateError) {
-        console.error("Webhook could not update payment:", paymentUpdateError.message);
-        return json({ error: "Could not record payment." }, 500);
-      }
-    }
-
-    // Credit a referral commission only after the matching payment is verified.
-    // The database RPC is idempotent, so repeated Paystack webhooks cannot double-credit.
-    const { data: referralResult, error: referralError } = await serviceClient.rpc(
-      "credit_referral_reward",
-      { p_payment_id: payment.id },
+    const { data: confirmation, error: confirmationError } = await serviceClient.rpc(
+      "confirm_paystack_payment",
+      {
+        p_payment_reference: reference,
+        p_amount_kobo: expectedAmount,
+        p_currency: "NGN",
+      },
     );
-    if (referralError) {
-      console.error("Referral reward processing failed:", referralError.message);
-      return json({ error: "Payment recorded; referral reward processing will retry." }, 500);
+    if (confirmationError) {
+      console.error("Webhook could not atomically confirm payment:", confirmationError.message);
+      return json({ error: "Could not record payment confirmation." }, 500);
     }
-    if (referralResult?.credited) {
-      console.info("Referral reward credited:", referralResult.reward_id);
+    if (confirmation?.confirmed !== true) {
+      console.warn("Verified payment was not activated:", reference, confirmation?.reason);
+      return json({ received: true, ignored: true, reason: confirmation?.reason || "payment_not_confirmed" });
     }
-
-    const { error: profileError } = await serviceClient.from("profiles")
-      .update({ is_subscribed: true }).eq("user_id", payment.user_id);
-    if (profileError) {
-      console.error("Webhook could not activate customer:", profileError.message);
-      return json({ error: "Could not activate customer access." }, 500);
-    }
+    console.info("Payment confirmed atomically:", reference, confirmation.referral);
     return json({ received: true });
   } catch (error) {
     console.error("Paystack webhook processing failed:", error);
