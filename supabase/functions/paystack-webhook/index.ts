@@ -373,6 +373,12 @@ serve(async (req) => {
       return json({ error: "Unknown payment reference." }, 404);
     }
 
+    // A delayed charge.success delivery must never undo a processed refund.
+    if (payment.status === "partially_refunded" || payment.status === "refunded") {
+      console.info("Ignoring stale charge.success for refunded payment:", reference, payment.status);
+      return json({ received: true, ignored: true, reason: "payment_already_refunded" });
+    }
+
     const expectedAmount = Math.round(Number(payment.amount) * 100);
     if (payment.currency !== "NGN" || transaction.amount !== expectedAmount ||
         (transaction.metadata?.user_id && transaction.metadata.user_id !== payment.user_id)) {
