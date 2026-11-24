@@ -326,6 +326,7 @@ export type Database = {
           correct_answer: string
           created_at?: string
           difficulty?: string
+          diagram_url?: string | null
           examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
