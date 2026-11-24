@@ -22,52 +22,41 @@ values (
   'question-diagrams',
   'question-diagrams',
   true,
-  5242880,
-  array['image/jpeg', 'image/png', 'image/webp']
+  8388608,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 )
 on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
-create or replace function public.is_question_content_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (
-    select 1
-    from public.user_roles ur
-    where ur.user_id = auth.uid()
-      and ur.role::text = 'admin'
-  );
-$$;
-
-revoke all on function public.is_question_content_admin() from public, anon;
-grant execute on function public.is_question_content_admin() to authenticated;
-
+-- Remove both legacy and branch-specific policy names before recreating one
+-- policy per action. PostgreSQL combines permissive policies with OR.
 drop policy if exists "Question diagrams are publicly readable" on storage.objects;
+drop policy if exists "Public can read question diagrams" on storage.objects;
+drop policy if exists "Admins upload question diagrams" on storage.objects;
+drop policy if exists "Admins update question diagrams" on storage.objects;
+drop policy if exists "Admins delete question diagrams" on storage.objects;
+drop policy if exists "Only admins upload question diagrams" on storage.objects;
+drop policy if exists "Only admins update question diagrams" on storage.objects;
+drop policy if exists "Only admins delete question diagrams" on storage.objects;
+
 create policy "Question diagrams are publicly readable"
 on storage.objects for select to public
 using (bucket_id = 'question-diagrams');
 
-drop policy if exists "Admins upload question diagrams" on storage.objects;
-create policy "Admins upload question diagrams"
+create policy "Only admins upload question diagrams"
 on storage.objects for insert to authenticated
-with check (bucket_id = 'question-diagrams' and public.is_question_content_admin());
+with check (bucket_id = 'question-diagrams' and public.is_current_user_admin());
 
-drop policy if exists "Admins update question diagrams" on storage.objects;
-create policy "Admins update question diagrams"
+create policy "Only admins update question diagrams"
 on storage.objects for update to authenticated
-using (bucket_id = 'question-diagrams' and public.is_question_content_admin())
-with check (bucket_id = 'question-diagrams' and public.is_question_content_admin());
+using (bucket_id = 'question-diagrams' and public.is_current_user_admin())
+with check (bucket_id = 'question-diagrams' and public.is_current_user_admin());
 
-drop policy if exists "Admins delete question diagrams" on storage.objects;
-create policy "Admins delete question diagrams"
+create policy "Only admins delete question diagrams"
 on storage.objects for delete to authenticated
-using (bucket_id = 'question-diagrams' and public.is_question_content_admin());
+using (bucket_id = 'question-diagrams' and public.is_current_user_admin());
 
 alter table public.user_history
   drop constraint if exists user_history_selected_answer_check;
