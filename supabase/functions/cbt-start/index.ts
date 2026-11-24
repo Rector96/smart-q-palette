@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
     const allQuestions: any[] = [];
     for (const subject of subjects) {
       let questionQuery = admin.from("questions")
-        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,passage,question_type,exam_hint")
+        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,passage,question_type,exam_hint,diagram_url")
         .ilike("subject", subject)
         .eq("examination", examination)
         .eq("is_published", true);
@@ -223,7 +223,7 @@ Deno.serve(async (req: Request) => {
     const questions = prepared.map((item) => ({
       id: item.question.id, subject: item.question.subject, topic: item.question.topic,
       year: item.question.year, difficulty: item.question.difficulty,
-      question_text: item.question.question_text, options: item.displayOptions,
+      question_text: item.question.question_text, diagram_url: item.question.diagram_url ?? null, options: item.displayOptions,
       ...((mode === "practice" || mode === "revision") ? { correct_answer: item.displayedCorrect, explanation: item.question.explanation } : {}),
       passage: item.question.passage, question_type: item.question.question_type,
       exam_hint: item.question.exam_hint,

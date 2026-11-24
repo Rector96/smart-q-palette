@@ -26,15 +26,19 @@ interface CSVQuestion {
   topic?: string;
   explanation?: string;
   exam_hint?: string;
+  diagram_url?: string | null;
+  diagram_file?: string | null;
 }
 
 const AdminContent = () => {
   const [subjectCounts, setSubjectCounts] = useState<Record<string, { total: number; byYear: Record<string, number> }>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [showCSV, setShowCSV] = useState(false);
-  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+  const [form, setForm] = useState({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium", diagram_url: "" });
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const diagramInputRef = useRef<HTMLInputElement>(null);
+  const [diagramUploading, setDiagramUploading] = useState(false);
 
   // CSV state
   const [csvData, setCsvData] = useState<CSVQuestion[]>([]);
@@ -44,6 +48,7 @@ const AdminContent = () => {
   const [csvSubject, setCsvSubject] = useState("");
   const [csvExamination, setCsvExamination] = useState("JAMB");
   const [csvYear, setCsvYear] = useState("");
+  const [csvDiagramFiles, setCsvDiagramFiles] = useState<File[]>([]);
 
   const fetchCounts = async () => {
     const counts: Record<string, { total: number; byYear: Record<string, number> }> = {};
@@ -73,18 +78,37 @@ const AdminContent = () => {
 
   useEffect(() => { fetchCounts(); }, []);
 
+  const handleDiagramUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      toast({ title: "Unsupported diagram", description: "Use a JPG, PNG or WEBP image up to 10 MB.", variant: "destructive" });
+      return;
+    }
+    setDiagramUploading(true);
+    const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const safeSubject = (form.subject || "general").toLowerCase().replace(/[^a-z0-9-]/g, "-");
+    const objectPath = safeSubject + "/" + (form.year || "undated") + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + extension;
+    const { error } = await supabase.storage.from("question-diagrams").upload(objectPath, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+    setDiagramUploading(false);
+    if (error) { toast({ title: "Diagram upload failed", description: error.message, variant: "destructive" }); return; }
+    const publicUrl = supabase.storage.from("question-diagrams").getPublicUrl(objectPath).data.publicUrl;
+    setForm((previous) => ({ ...previous, diagram_url: publicUrl }));
+    toast({ title: "Diagram uploaded", description: "The diagram will be attached when you save this question." });
+  };
   const handleAdd = async () => {
     const questionYear = Number(form.year);
     if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a) {
       toast({ title: "Fill required fields", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("questions").insert({ ...form, year: questionYear, examination: form.examination } as any);
+    const { error } = await supabase.from("questions").insert({ ...form, diagram_url: form.diagram_url || null, year: questionYear, examination: form.examination } as any);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Question added!" });
-      setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium" });
+      setForm({ subject: "", examination: "JAMB", year: "", topic: "", question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A", explanation: "", difficulty: "medium", diagram_url: "" });
       setShowAdd(false);
       fetchCounts();
     }
@@ -118,6 +142,8 @@ const AdminContent = () => {
       examHint: headerNorm.findIndex(h => h.includes("hint")),
       examination: headerNorm.findIndex(h => h === "examination" || h === "exam"),
       year: headerNorm.findIndex(h => h === "year"),
+      diagramUrl: headerNorm.findIndex(h => h === "diagramurl" || h === "imageurl"),
+      diagramFile: headerNorm.findIndex(h => h === "diagramfile" || h === "imagefile"),
     };
 
     const errors: string[] = [];
@@ -187,6 +213,8 @@ const AdminContent = () => {
         topic: colMap.topic >= 0 ? vals[colMap.topic]?.trim() : "General",
         explanation: colMap.explanation >= 0 ? vals[colMap.explanation]?.trim() : undefined,
         exam_hint: colMap.examHint >= 0 ? vals[colMap.examHint]?.trim() : undefined,
+        diagram_url: colMap.diagramUrl >= 0 ? vals[colMap.diagramUrl]?.trim() || null : null,
+        diagram_file: colMap.diagramFile >= 0 ? vals[colMap.diagramFile]?.trim() || null : null,
       });
     }
 
@@ -208,8 +236,60 @@ const AdminContent = () => {
 
   const uploadCSV = async () => {
     if (csvData.length === 0) return;
+    const requiredDiagramNames = [...new Set(csvData
+      .map((question) => question.diagram_file)
+      .filter((name): name is string => Boolean(name))
+      .map((name) => (name.split(/[\\/]/).pop() || name).toLowerCase()))];
+    const selectedByName = new Map<string, File[]>();
+    for (const file of csvDiagramFiles) {
+      const key = file.name.toLowerCase();
+      selectedByName.set(key, [...(selectedByName.get(key) || []), file]);
+    }
+    const missingDiagramFiles = requiredDiagramNames.filter((name) => !selectedByName.has(name));
+    const ambiguousDiagramFiles = requiredDiagramNames.filter((name) => (selectedByName.get(name)?.length || 0) > 1);
+    if (missingDiagramFiles.length > 0 || ambiguousDiagramFiles.length > 0) {
+      const errors = [
+        ...(missingDiagramFiles.length ? ["Select these diagram files before importing: " + missingDiagramFiles.join(", ")] : []),
+        ...(ambiguousDiagramFiles.length ? ["These filenames are duplicated; rename them so each diagram filename is unique: " + ambiguousDiagramFiles.join(", ")] : []),
+      ];
+      setCsvErrors(errors);
+      return;
+    }
+    setCsvErrors([]);
     setCsvUploading(true);
     setCsvProgress(0);
+
+    const diagramUrls = new Map<string, string>();
+    const referencedFiles = requiredDiagramNames.map((name) => selectedByName.get(name)![0]);
+    for (const file of referencedFiles) {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "";
+      const contentTypeByExtension: Record<string, string> = {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+      };
+      const contentType = contentTypeByExtension[extension];
+      if (!contentType || file.size === 0 || file.size > 10 * 1024 * 1024 || (file.type && file.type !== contentType)) {
+        setCsvUploading(false);
+        toast({ title: "Invalid diagram file", description: file.name + " must be a valid JPG, PNG or WEBP image up to 10 MB.", variant: "destructive" });
+        return;
+      }
+      const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+      const objectPath = "csv-imports/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "-" + safeName;
+      const { error } = await supabase.storage.from("question-diagrams").upload(objectPath, file, {
+        contentType,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+      if (error) {
+        setCsvUploading(false);
+        toast({ title: "Diagram upload failed", description: file.name + ": " + error.message, variant: "destructive" });
+        return;
+      }
+      const publicUrl = supabase.storage.from("question-diagrams").getPublicUrl(objectPath).data.publicUrl;
+      diagramUrls.set(file.name.toLowerCase(), publicUrl);
+    }
 
     const batchSize = 50;
     let uploaded = 0;
@@ -230,6 +310,7 @@ const AdminContent = () => {
         difficulty: "medium",
         explanation: q.explanation || null,
         exam_hint: q.exam_hint || null,
+        diagram_url: q.diagram_url || (q.diagram_file ? diagramUrls.get((q.diagram_file.split(/[\\/]/).pop() || q.diagram_file).toLowerCase()) : null) || null,
       }));
 
       const { error } = await supabase.from("questions").insert(batch as any);
@@ -250,6 +331,7 @@ const AdminContent = () => {
     });
     setCsvData([]);
     setCsvErrors([]);
+    setCsvDiagramFiles([]);
     if (fileRef.current) fileRef.current.value = "";
     fetchCounts();
   };
@@ -284,7 +366,7 @@ const AdminContent = () => {
                 <h3 className="text-sm font-bold">Bulk Upload via CSV</h3>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: Examination, Year, Topic, Explanation, ExamHint. Choose defaults below when those columns are omitted.
+                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: Examination, Year, Topic, Explanation, ExamHint, DiagramURL or DiagramFile. For DiagramFile, select the matching image files below (filenames must match).
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -309,6 +391,20 @@ const AdminContent = () => {
                 <div>
                   <Label className="text-xs">CSV File</Label>
                   <Input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="h-9 text-xs" />
+                </div>
+                <div>
+                  <Label className="text-xs">Question diagrams (optional)</Label>
+                  <Input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                    const files = Array.from(event.target.files || []);
+                    const invalid = files.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024);
+                    if (invalid) {
+                      toast({ title: "Invalid diagram file", description: invalid.name + " must be JPG, PNG or WEBP and no larger than 10 MB.", variant: "destructive" });
+                      event.target.value = "";
+                      return;
+                    }
+                    setCsvDiagramFiles(files);
+                  }} className="h-9 text-xs" disabled={csvUploading} />
+                  {csvDiagramFiles.length > 0 && <p className="mt-1 text-[10px] text-muted-foreground">{csvDiagramFiles.length} diagram image(s) selected</p>}
                 </div>
               </div>
 
@@ -395,6 +491,12 @@ const AdminContent = () => {
                   <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} className="h-9 text-xs" />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Question Diagram (optional)</Label>
+                <Input ref={diagramInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleDiagramUpload} disabled={diagramUploading} className="h-9 text-xs" />
+                {diagramUploading && <p className="text-xs text-muted-foreground">Uploading diagram…</p>}
+                {form.diagram_url && <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border p-2"><img src={form.diagram_url} alt="Question diagram preview" className="max-h-32 max-w-full rounded object-contain" /><Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, diagram_url: "" })}>Remove</Button></div>}
+              </div>
               <div>
                 <Label className="text-xs">Question</Label>
                 <Textarea value={form.question_text} onChange={(e) => setForm({ ...form, question_text: e.target.value })} className="text-xs" rows={2} />
@@ -427,7 +529,7 @@ const AdminContent = () => {
                 <Label className="text-xs">Explanation (optional)</Label>
                 <Textarea value={form.explanation} onChange={(e) => setForm({ ...form, explanation: e.target.value })} className="text-xs" rows={2} />
               </div>
-              <Button size="sm" className="h-8 text-xs" onClick={handleAdd}>Save Question</Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleAdd} disabled={diagramUploading}>Save Question</Button>
             </CardContent>
           </Card>
         )}
