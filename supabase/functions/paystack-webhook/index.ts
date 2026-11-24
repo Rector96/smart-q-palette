@@ -58,6 +58,7 @@ serve(async (req) => {
       "transfer.reversed": "reversed",
     };
     const transferOutcome = transferEvents[event?.event];
+
     if (transferOutcome) {
       const transfer = event?.data || {};
       const transferReference = typeof transfer.reference === "string" ? transfer.reference : "";
@@ -65,22 +66,130 @@ serve(async (req) => {
 
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
-      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
-        p_reference: transferReference,
-        p_outcome: transferOutcome,
-        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
-        p_failure_reason: typeof transfer.reason === "string" ? transfer.reason : null,
+      const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
+      if (!supabaseUrl || !serviceKey || !paystackSecret) {
+        return json({ error: "Webhook is temporarily unavailable." }, 503);
+      }
+
+      const serviceClient = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
       });
+      const { data: withdrawal, error: withdrawalLookupError } = await serviceClient
+        .from("referral_withdrawals")
+        .select("id,amount,currency,status,reference")
+        .eq("reference", transferReference)
+        .maybeSingle();
+
+      if (withdrawalLookupError) {
+        console.error("Could not look up referral transfer:", withdrawalLookupError.message);
+        return json({ error: "Withdrawal lookup is temporarily unavailable." }, 503);
+      }
+      if (!withdrawal) {
+        if (transferReference.toLowerCase().startsWith("sqprwd-")) {
+          console.error("Referral transfer has no matching withdrawal:", transferReference);
+          return json({ error: "Matching referral withdrawal was not found." }, 404);
+        }
+        return json({ received: true, ignored: true });
+      }
+
+      const expectedAmountKobo = Math.round(Number(withdrawal.amount) * 100);
+      if (
+        withdrawal.reference !== transferReference ||
+        withdrawal.currency !== "NGN" ||
+        !Number.isSafeInteger(expectedAmountKobo) ||
+        Number(transfer.amount) !== expectedAmountKobo ||
+        transfer.currency !== withdrawal.currency
+      ) {
+        console.error("Transfer event did not match the stored withdrawal:", transferReference);
+        return json({ error: "Transfer details do not match the stored withdrawal." }, 400);
+      }
+
+      let verifyResponse: Response;
+      try {
+        verifyResponse = await fetch(
+          "https://api.paystack.co/transfer/verify/" + encodeURIComponent(transferReference),
+          { headers: { Authorization: "Bearer " + paystackSecret } },
+        );
+      } catch (error) {
+        console.error("Paystack transfer verification request failed:", error);
+        return json({ error: "Transfer verification is temporarily unavailable." }, 503);
+      }
+
+      const verifyPayload = await verifyResponse.json().catch(() => null);
+      if (!verifyResponse.ok || verifyPayload?.status !== true || !verifyPayload?.data) {
+        console.error("Paystack transfer verification was inconclusive:", transferReference, verifyResponse.status);
+        return json({
+          error: "Transfer could not be independently verified. Funds remain reserved.",
+        }, 503);
+      }
+
+      const verifiedTransfer = verifyPayload.data;
+      const verifiedStatus = String(verifiedTransfer.status || "").toLowerCase();
+      if (
+        verifiedTransfer.reference !== withdrawal.reference ||
+        Number(verifiedTransfer.amount) !== expectedAmountKobo ||
+        verifiedTransfer.currency !== withdrawal.currency
+      ) {
+        console.error("Verified Paystack transfer did not match the withdrawal:", transferReference);
+        return json({ error: "Verified transfer details do not match the stored withdrawal." }, 503);
+      }
+
+      if (verifiedStatus !== transferOutcome) {
+        console.warn("Transfer status is not yet consistent:", transferReference, transferOutcome, verifiedStatus);
+        return json({
+          error: "Transfer outcome is not yet confirmed. Funds remain reserved.",
+        }, 503);
+      }
+
+      const { data: settlement, error: settlementError } = await serviceClient.rpc(
+        "settle_referral_withdrawal",
+        {
+          p_reference: transferReference,
+          p_outcome: transferOutcome,
+          p_transfer_code: typeof verifiedTransfer.transfer_code === "string"
+            ? verifiedTransfer.transfer_code
+            : null,
+          p_failure_reason: transferOutcome === "success"
+            ? null
+            : typeof verifiedTransfer.failures === "string"
+              ? verifiedTransfer.failures
+              : "Paystack confirmed transfer " + transferOutcome + ".",
+        },
+      );
+
       if (settlementError) {
         console.error("Referral transfer settlement failed:", settlementError.message);
         return json({ error: "Transfer outcome could not be recorded." }, 500);
       }
-      console.info("Referral transfer webhook processed:", transferReference, settlement);
+
+      if (settlement?.updated !== true) {
+        const { data: currentWithdrawal, error: currentStatusError } = await serviceClient
+          .from("referral_withdrawals")
+          .select("status")
+          .eq("id", withdrawal.id)
+          .maybeSingle();
+
+        if (currentStatusError) {
+          console.error("Could not confirm duplicate transfer settlement:", currentStatusError.message);
+          return json({ error: "Transfer settlement status could not be confirmed." }, 500);
+        }
+        if (
+          settlement?.reason !== "already_processed" ||
+          currentWithdrawal?.status !== transferOutcome
+        ) {
+          console.error(
+            "Verified transfer conflicted with the stored withdrawal state:",
+            transferReference,
+            settlement,
+            currentWithdrawal?.status,
+          );
+          return json({ error: "Transfer outcome conflicts with the stored withdrawal state." }, 409);
+        }
+      }
+
+      console.info("Verified referral transfer processed:", transferReference, verifiedStatus);
       return json({ received: true });
     }
-
 
     if (event?.event === "refund.processed") {
       const refund = event?.data || {};
