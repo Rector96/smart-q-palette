@@ -1,7 +1,5 @@
--- Restore strict, idempotent Paystack referral-withdrawal settlement transitions.
--- A successful payout can only transition to reversed, never to failed.
--- Apply to staging first; do not deploy this migration directly to production.
-
+-- Serialize withdrawal outcomes and reject stale/conflicting Paystack events.
+-- The row lock makes the wallet and ledger changes part of one terminal transition.
 create or replace function public.settle_referral_withdrawal(
   p_reference text,
   p_outcome text,
@@ -15,9 +13,9 @@ as $$
 declare
   v_withdrawal public.referral_withdrawals%rowtype;
 begin
-  if p_reference is null or length(trim(p_reference)) = 0
+  if p_reference is null or p_outcome is null
      or p_outcome not in ('success', 'failed', 'reversed') then
-    raise exception 'Unsupported transfer outcome or missing reference.';
+    raise exception 'Unsupported transfer outcome.';
   end if;
 
   select * into v_withdrawal
@@ -30,19 +28,19 @@ begin
   end if;
 
   if v_withdrawal.status = p_outcome then
-    return jsonb_build_object('updated', false, 'reason', 'already_processed');
+    return jsonb_build_object('updated', false, 'reason', 'already_processed', 'status', v_withdrawal.status);
   end if;
 
   if v_withdrawal.status in ('failed', 'reversed') then
-    return jsonb_build_object('updated', false, 'reason', 'terminal_status');
+    return jsonb_build_object('updated', false, 'reason', 'terminal_status', 'status', v_withdrawal.status);
   end if;
 
   if v_withdrawal.status = 'success' and p_outcome <> 'reversed' then
-    return jsonb_build_object('updated', false, 'reason', 'invalid_status_transition');
+    return jsonb_build_object('updated', false, 'reason', 'invalid_status_transition', 'status', v_withdrawal.status);
   end if;
 
   if v_withdrawal.status not in ('queued', 'otp', 'processing', 'success') then
-    return jsonb_build_object('updated', false, 'reason', 'invalid_status_transition');
+    return jsonb_build_object('updated', false, 'reason', 'invalid_status_transition', 'status', v_withdrawal.status);
   end if;
 
   if p_outcome = 'success' then
@@ -56,6 +54,7 @@ begin
     update public.referral_wallets
     set lifetime_paid = lifetime_paid + v_withdrawal.amount
     where user_id = v_withdrawal.user_id;
+    if not found then raise exception 'Referral wallet not found.'; end if;
 
     insert into public.referral_wallet_transactions
       (user_id, transaction_type, amount, status, reference_type, reference_id, idempotency_key, description)
@@ -64,7 +63,6 @@ begin
        'referral_withdrawal', v_withdrawal.id,
        'withdrawal-paid:' || v_withdrawal.id::text, 'Referral withdrawal paid')
     on conflict (idempotency_key) do nothing;
-
   elsif p_outcome = 'failed' then
     update public.referral_withdrawals
     set status = 'failed',
@@ -76,15 +74,16 @@ begin
     update public.referral_wallets
     set available_balance = available_balance + v_withdrawal.amount
     where user_id = v_withdrawal.user_id;
+    if not found then raise exception 'Referral wallet not found.'; end if;
 
     insert into public.referral_wallet_transactions
       (user_id, transaction_type, amount, status, reference_type, reference_id, idempotency_key, description)
     values
       (v_withdrawal.user_id, 'withdrawal_released', v_withdrawal.amount, 'posted',
        'referral_withdrawal', v_withdrawal.id,
-       'withdrawal-released:' || v_withdrawal.id::text, 'Failed transfer released back to available balance')
+       'withdrawal-released:' || v_withdrawal.id::text,
+       'Failed transfer released back to available balance')
     on conflict (idempotency_key) do nothing;
-
   else
     update public.referral_withdrawals
     set status = 'reversed',
@@ -103,13 +102,15 @@ begin
       set available_balance = available_balance + v_withdrawal.amount
       where user_id = v_withdrawal.user_id;
     end if;
+    if not found then raise exception 'Referral wallet not found.'; end if;
 
     insert into public.referral_wallet_transactions
       (user_id, transaction_type, amount, status, reference_type, reference_id, idempotency_key, description)
     values
       (v_withdrawal.user_id, 'withdrawal_released', v_withdrawal.amount, 'posted',
        'referral_withdrawal', v_withdrawal.id,
-       'withdrawal-reversed:' || v_withdrawal.id::text, 'Reversed transfer returned to available balance')
+       'withdrawal-reversed:' || v_withdrawal.id::text,
+       'Reversed transfer returned to available balance')
     on conflict (idempotency_key) do nothing;
   end if;
 
