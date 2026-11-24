@@ -110,3 +110,27 @@ revoke all on function public.start_cbt_session(uuid, text, text[], integer, tex
 from public, anon, authenticated;
 grant execute on function public.start_cbt_session(uuid, text, text[], integer, text, integer, jsonb)
 to service_role;
+
+-- Send candidate question IDs in a POST body instead of constructing a long
+-- PostgREST URL with up to 1,000 UUIDs in an IN filter.
+create or replace function public.get_seen_question_ids(
+  p_user_id uuid,
+  p_question_ids uuid[]
+)
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(array_agg(usq.question_id), '{}'::uuid[])
+  from public.user_seen_questions usq
+  where p_user_id is not null
+    and usq.user_id = p_user_id
+    and usq.question_id = any(coalesce(p_question_ids, '{}'::uuid[]));
+$$;
+
+revoke all on function public.get_seen_question_ids(uuid, uuid[])
+from public, anon, authenticated;
+grant execute on function public.get_seen_question_ids(uuid, uuid[])
+to service_role;
