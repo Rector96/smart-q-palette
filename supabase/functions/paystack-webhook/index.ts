@@ -380,8 +380,19 @@ serve(async (req) => {
     }
 
     const expectedAmount = Math.round(Number(payment.amount) * 100);
-    if (payment.currency !== "NGN" || transaction.amount !== expectedAmount ||
-        (transaction.metadata?.user_id && transaction.metadata.user_id !== payment.user_id)) {
+    const webhookRequestedAmount = Number(transaction.requested_amount ?? transaction.amount);
+    const metadata = transaction.metadata && typeof transaction.metadata === "object"
+      ? transaction.metadata
+      : {};
+    const metadataUserId = typeof metadata.user_id === "string" ? metadata.user_id : "";
+    if (
+      !Number.isSafeInteger(expectedAmount) ||
+      !Number.isSafeInteger(webhookRequestedAmount) ||
+      webhookRequestedAmount !== expectedAmount ||
+      String(payment.currency || "").toUpperCase() !== "NGN" ||
+      String(transaction.currency || "").toUpperCase() !== "NGN" ||
+      (metadataUserId && metadataUserId !== payment.user_id)
+    ) {
       console.error("Webhook amount, currency or owner mismatch:", reference);
       return json({ error: "Payment details did not match the order." }, 400);
     }
