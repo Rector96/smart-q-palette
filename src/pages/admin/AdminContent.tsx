@@ -236,29 +236,49 @@ const AdminContent = () => {
 
   const uploadCSV = async () => {
     if (csvData.length === 0) return;
-    const missingDiagramFiles = csvData
+    const requiredDiagramNames = [...new Set(csvData
       .map((question) => question.diagram_file)
       .filter((name): name is string => Boolean(name))
-      .filter((name) => !csvDiagramFiles.some((file) => file.name.toLowerCase() === (name.split(/[\\/]/).pop() || "").toLowerCase()));
-    if (missingDiagramFiles.length > 0) {
-      setCsvErrors(["Select these diagram files before importing: " + [...new Set(missingDiagramFiles)].join(", ")]);
+      .map((name) => (name.split(/[\\/]/).pop() || name).toLowerCase()))];
+    const selectedByName = new Map<string, File[]>();
+    for (const file of csvDiagramFiles) {
+      const key = file.name.toLowerCase();
+      selectedByName.set(key, [...(selectedByName.get(key) || []), file]);
+    }
+    const missingDiagramFiles = requiredDiagramNames.filter((name) => !selectedByName.has(name));
+    const ambiguousDiagramFiles = requiredDiagramNames.filter((name) => (selectedByName.get(name)?.length || 0) > 1);
+    if (missingDiagramFiles.length > 0 || ambiguousDiagramFiles.length > 0) {
+      const errors = [
+        ...(missingDiagramFiles.length ? ["Select these diagram files before importing: " + missingDiagramFiles.join(", ")] : []),
+        ...(ambiguousDiagramFiles.length ? ["These filenames are duplicated; rename them so each diagram filename is unique: " + ambiguousDiagramFiles.join(", ")] : []),
+      ];
+      setCsvErrors(errors);
       return;
     }
+    setCsvErrors([]);
     setCsvUploading(true);
     setCsvProgress(0);
 
     const diagramUrls = new Map<string, string>();
-    for (const file of csvDiagramFiles) {
+    const referencedFiles = requiredDiagramNames.map((name) => selectedByName.get(name)![0]);
+    for (const file of referencedFiles) {
       const extension = file.name.split(".").pop()?.toLowerCase() || "";
-      if (!["jpg", "jpeg", "png", "webp"].includes(extension) || file.size > 10 * 1024 * 1024) {
+      const contentTypeByExtension: Record<string, string> = {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+      };
+      const contentType = contentTypeByExtension[extension];
+      if (!contentType || file.size === 0 || file.size > 10 * 1024 * 1024 || (file.type && file.type !== contentType)) {
         setCsvUploading(false);
-        toast({ title: "Invalid diagram file", description: file.name + " must be JPG, PNG or WEBP and no larger than 10 MB.", variant: "destructive" });
+        toast({ title: "Invalid diagram file", description: file.name + " must be a valid JPG, PNG or WEBP image up to 10 MB.", variant: "destructive" });
         return;
       }
       const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
-      const objectPath = "csv-imports/" + Date.now() + "-" + safeName;
+      const objectPath = "csv-imports/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "-" + safeName;
       const { error } = await supabase.storage.from("question-diagrams").upload(objectPath, file, {
-        contentType: file.type,
+        contentType,
         cacheControl: "31536000",
         upsert: false,
       });
