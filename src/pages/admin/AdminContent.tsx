@@ -78,7 +78,7 @@ const AdminContent = () => {
 
   const handleAdd = async () => {
     const questionYear = Number(form.year);
-    if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a || (form.correct_answer === "E" && !form.option_e.trim())) {
+    if (!form.subject || !form.examination || !Number.isInteger(questionYear) || questionYear < 1990 || questionYear > new Date().getFullYear() || !form.question_text || !form.option_a || !form.option_b || !form.option_c || !form.option_d || (form.correct_answer === "E" && !form.option_e.trim())) {
       toast({ title: "Fill required fields", variant: "destructive" });
       return;
     }
@@ -313,7 +313,7 @@ const AdminContent = () => {
                 <h3 className="text-sm font-bold">Bulk Upload via CSV</h3>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: Examination, Year, Topic, Explanation, ExamHint. Choose defaults below when those columns are omitted.
+                CSV format: Subject, Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer. Optional: OptionE, DiagramUrl, Examination, Year, Topic, Explanation, ExamHint. CorrectAnswer E requires a non-empty OptionE.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
