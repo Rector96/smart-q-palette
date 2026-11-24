@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
     const allQuestions: any[] = [];
     for (const subject of subjects) {
       let questionQuery = admin.from("questions")
-        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,passage,question_type,exam_hint")
+        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,option_e,diagram_url,correct_answer,explanation,passage,question_type,exam_hint")
         .ilike("subject", subject)
         .eq("examination", examination)
         .eq("is_published", true);
@@ -182,6 +182,9 @@ Deno.serve(async (req: Request) => {
         { originalLabel: "B", text: q.option_b },
         { originalLabel: "C", text: q.option_c },
         { originalLabel: "D", text: q.option_d },
+        ...(typeof q.option_e === "string" && q.option_e.trim()
+          ? [{ originalLabel: "E", text: q.option_e }]
+          : []),
       ]);
       const optionOrder = options.map((option) => option.originalLabel);
       const displayOptions = options.map((option, optionIndex) => ({
@@ -227,6 +230,7 @@ Deno.serve(async (req: Request) => {
       ...((mode === "practice" || mode === "revision") ? { correct_answer: item.displayedCorrect, explanation: item.question.explanation } : {}),
       passage: item.question.passage, question_type: item.question.question_type,
       exam_hint: item.question.exam_hint,
+      diagram_url: item.question.diagram_url ?? null,
     }));
     return respond({ session, questions });
   } catch (error) {
