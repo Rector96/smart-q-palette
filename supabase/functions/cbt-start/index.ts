@@ -52,7 +52,8 @@ Deno.serve(async (req: Request) => {
     const adaptive = body.adaptive === true && (mode === "practice" || mode === "revision");
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
     if (!["JAMB", "WAEC", "NECO"].includes(examination)) return respond({ error: "Choose JAMB, WAEC or NECO." }, 400);
-    if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1990 || examYear > new Date().getFullYear())) return respond({ error: "Choose a valid examination year." }, 400);
+    // The year picker is populated from published question-bank records. Accept any positive integer year present in that catalogue; do not reject older or future-dated records based on the server clock.
+    if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1)) return respond({ error: "Choose a valid examination year." }, 400);
     if (!["practice", "cbt", "mock", "revision"].includes(mode)) return respond({ error: "Invalid examination mode." }, 400);
     if (mode === "mock" && examination !== "JAMB") return respond({ error: "The full mock exam format is currently available for JAMB only." }, 400);
 
