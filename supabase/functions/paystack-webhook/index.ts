@@ -193,36 +193,160 @@ serve(async (req) => {
 
     if (event?.event === "refund.processed") {
       const refund = event?.data || {};
-      const paymentReference = typeof refund.transaction_reference === "string" ? refund.transaction_reference : "";
-      const refundId = refund.id === undefined || refund.id === null ? "" : String(refund.id);
-      const refundAmount = Number(refund.amount);
-      if (!paymentReference || !refundId || !Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refund.currency !== "NGN") {
-        return json({ error: "Refund details are incomplete or invalid." }, 400);
+      const paymentReference =
+        typeof refund.transaction_reference === "string"
+          ? refund.transaction_reference
+          : typeof refund.transaction?.reference === "string"
+            ? refund.transaction.reference
+            : "";
+
+      if (!paymentReference) {
+        console.error("Refund webhook has no transaction reference.");
+        return json({ error: "Refund transaction reference is missing." }, 400);
       }
+
+      const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
-      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: refundResult, error: refundError } = await serviceClient.rpc("record_paystack_refund", {
-        p_payment_reference: paymentReference,
-        p_provider_refund_id: refundId,
-        p_refund_amount_kobo: refundAmount,
-        p_currency: refund.currency,
+      if (!paystackSecret || !supabaseUrl || !serviceKey) {
+        return json({ error: "Webhook is temporarily unavailable." }, 503);
+      }
+
+      // Verify the original transaction and retrieve the authoritative list of
+      // processed refunds. Do not trust a partial webhook payload as the ledger.
+      let transactionResponse: Response;
+      try {
+        transactionResponse = await fetch(
+          "https://api.paystack.co/transaction/verify/" + encodeURIComponent(paymentReference),
+          { headers: { Authorization: "Bearer " + paystackSecret } },
+        );
+      } catch (error) {
+        console.error("Paystack transaction verification request failed:", error);
+        return json({ error: "Could not verify the refunded transaction." }, 503);
+      }
+
+      const transactionPayload = await transactionResponse.json().catch(() => null);
+      const transaction = transactionPayload?.data;
+      if (
+        !transactionResponse.ok ||
+        transactionPayload?.status !== true ||
+        transaction?.reference !== paymentReference ||
+        String(transaction?.currency || "").toUpperCase() !== "NGN" ||
+        !Number.isSafeInteger(Number(transaction?.id))
+      ) {
+        console.error("Invalid original transaction for refund:", paymentReference);
+        return json({ error: "Original transaction verification failed." }, 400);
+      }
+
+      const serviceClient = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
       });
-      if (refundError) {
-        console.error("Paystack refund processing failed:", refundError.message);
-        return json({ error: "Refund processing could not be recorded." }, 500);
+      const { data: payment, error: paymentLookupError } = await serviceClient
+        .from("payments")
+        .select("id,amount,currency,status")
+        .eq("reference", paymentReference)
+        .maybeSingle();
+
+      if (paymentLookupError) {
+        console.error("Could not look up refunded payment:", paymentLookupError.message);
+        return json({ error: "Refund payment lookup failed." }, 500);
       }
-      if (!refundResult?.recorded) {
-        const reason = refundResult?.reason || "refund_not_recorded";
-        console.error("Paystack refund was not applied:", paymentReference, reason);
-        return json({ error: "Refund could not be matched to an eligible payment.", reason }, 409);
+
+      const expectedPaymentAmountKobo = Math.round(Number(payment?.amount) * 100);
+      if (
+        !payment ||
+        !["success", "partially_refunded", "refunded"].includes(payment.status) ||
+        payment.currency !== "NGN" ||
+        !Number.isSafeInteger(expectedPaymentAmountKobo) ||
+        Number(transaction.amount) !== expectedPaymentAmountKobo
+      ) {
+        console.error("Refund transaction did not match the stored payment:", paymentReference);
+        return json({ error: "Refund transaction details do not match the stored payment." }, 400);
       }
-      console.info("Paystack refund event processed:", paymentReference, refundId, refundResult);
-      return json({ received: true, refund: refundResult });
+
+      let totalProcessedRefundAmountKobo = 0;
+      let refundPage = 1;
+      let totalRefundPages = 1;
+      let processedRefundCount = 0;
+      do {
+        const refundUrl = new URL("https://api.paystack.co/refund");
+        refundUrl.searchParams.set("transaction", String(transaction.id));
+        refundUrl.searchParams.set("currency", "NGN");
+        refundUrl.searchParams.set("perPage", "100");
+        refundUrl.searchParams.set("page", String(refundPage));
+
+        let refundResponse: Response;
+        try {
+          refundResponse = await fetch(refundUrl.toString(), {
+            headers: { Authorization: "Bearer " + paystackSecret },
+          });
+        } catch (error) {
+          console.error("Paystack refund lookup request failed:", error);
+          return json({ error: "Could not retrieve refund records." }, 503);
+        }
+
+        const refundList = await refundResponse.json().catch(() => null);
+        if (!refundResponse.ok || refundList?.status !== true || !Array.isArray(refundList?.data)) {
+          console.error("Paystack refund lookup failed:", refundResponse.status);
+          return json({ error: "Refund records could not be verified." }, 503);
+        }
+
+        for (const refundRecord of refundList.data) {
+          if (refundRecord?.status !== "processed" || refundRecord?.currency !== "NGN") continue;
+          const refundId = refundRecord?.id === undefined || refundRecord?.id === null
+            ? ""
+            : String(refundRecord.id);
+          const refundAmount = Number(refundRecord.amount);
+          if (!refundId || !Number.isSafeInteger(refundAmount) || refundAmount <= 0) {
+            console.error("Invalid processed refund record:", refundRecord?.id);
+            return json({ error: "A refund record contains invalid details." }, 500);
+          }
+
+          totalProcessedRefundAmountKobo += refundAmount;
+          if (!Number.isSafeInteger(totalProcessedRefundAmountKobo) ||
+              totalProcessedRefundAmountKobo > expectedPaymentAmountKobo) {
+            return json({ error: "Cumulative refund amount exceeds the original payment." }, 400);
+          }
+
+          const { data: refundResult, error: refundError } = await serviceClient.rpc(
+            "record_paystack_refund",
+            {
+              p_payment_reference: paymentReference,
+              p_provider_refund_id: refundId,
+              p_refund_amount_kobo: refundAmount,
+              p_currency: "NGN",
+            },
+          );
+          if (refundError || refundResult?.recorded !== true) {
+            console.error("Could not record verified Paystack refund:", refundError?.message || refundResult);
+            return json({ error: "Verified refund could not be recorded." }, 500);
+          }
+          processedRefundCount++;
+        }
+
+        totalRefundPages = Number(refundList.meta?.pageCount ?? 1);
+        if (!Number.isSafeInteger(totalRefundPages) || totalRefundPages < 1 || refundPage > totalRefundPages) {
+          return json({ error: "Invalid refund pagination response." }, 500);
+        }
+        refundPage++;
+      } while (refundPage <= totalRefundPages);
+
+      if (processedRefundCount === 0 || totalProcessedRefundAmountKobo === 0) {
+        return json({ error: "No processed refund records were found yet." }, 503);
+      }
+
+      console.info("Paystack refund reconciliation completed:", paymentReference, {
+        processedRefundCount,
+        totalProcessedRefundAmountKobo,
+      });
+      return json({
+        received: true,
+        processed_refund_count: processedRefundCount,
+        total_refunded_kobo: totalProcessedRefundAmountKobo,
+      });
     }
 
-    if (event?.event !== "charge.success") return json({ received: true });
+        if (event?.event !== "charge.success") return json({ received: true });
 
     const transaction = event?.data;
     const reference = typeof transaction?.reference === "string" ? transaction.reference : "";
