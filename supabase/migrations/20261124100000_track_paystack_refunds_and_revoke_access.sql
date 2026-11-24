@@ -50,7 +50,7 @@ begin
      or p_provider_refund_id is null or length(trim(p_provider_refund_id)) = 0
      or length(p_provider_refund_id) > 100
      or p_refund_amount_kobo is null or p_refund_amount_kobo <= 0
-     or p_currency <> 'NGN' then
+     or p_currency is distinct from 'NGN' then
     raise exception 'Refund details are invalid.';
   end if;
 
