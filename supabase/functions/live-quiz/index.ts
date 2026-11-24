@@ -329,7 +329,7 @@ Deno.serve(async (req: Request) => {
       const questionIndex = Number(body.question_index);
       const selectedOption = body.selected_option == null ? null : String(body.selected_option).toUpperCase();
       if (!roomId || !Number.isInteger(questionIndex) ||
-          (selectedOption !== null && !["A", "B", "C", "D"].includes(selectedOption))) {
+          (selectedOption !== null && !["A", "B", "C", "D", "E"].includes(selectedOption))) {
         return respond({ error: "Invalid answer submission." }, 400);
       }
       const { data, error } = await admin.rpc("live_quiz_submit_answer_internal", {
