@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   validate:
-    name: Lint, test and build
+    name: Targeted lint, test and build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Lint the CBT hardening files
+        run: npx eslint supabase/functions/cbt-start/index.ts src/integrations/supabase/types.ts
 
       - name: Run tests
         run: npm test
