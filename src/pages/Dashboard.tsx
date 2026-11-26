@@ -132,7 +132,7 @@ const Dashboard = () => {
     <div className="min-h-[100dvh] overflow-x-clip bg-[#F8FAFC]">
       <SEOHead title="Dashboard – ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
-      <main className="mx-auto w-full max-w-7xl px-3 pb-8 pt-4 sm:px-5 lg:px-7 lg:pb-10">
+      <main className="mx-auto w-full max-w-[1320px] px-3 pb-8 pt-4 sm:px-5 lg:px-6 lg:pb-8 xl:px-7">
         <div className="dashboard-overview">
           <section className="dashboard-welcome relative isolate overflow-hidden rounded-[26px] bg-gradient-to-br from-[#1E40AF] via-[#1D4ED8] to-[#2563EB] p-5 text-white shadow-lg shadow-blue-900/10 sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full border border-white/15 bg-white/[0.04]" />
