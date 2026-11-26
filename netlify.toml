@@ -1,4 +1,10 @@
 [[redirects]]
+  from = "/share/:token"
+  to = "/.netlify/functions/result-share?token=:token"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/r/:code"
   to = "/.netlify/functions/referral-share?ref=:code"
   status = 200

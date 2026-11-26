@@ -6,6 +6,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profileName: string;
+  subject: string;
   score: number;
   grade: string;
   correct: number;
@@ -15,7 +16,7 @@ interface Props {
   onCopyLink: () => void;
 }
 
-const ResultShareModal = ({ open, onOpenChange, profileName, score, grade, correct, total, onWhatsApp, onFacebook, onCopyLink }: Props) => {
+const ResultShareModal = ({ open, onOpenChange, profileName, subject, score, grade, correct, total, onWhatsApp, onFacebook, onCopyLink }: Props) => {
   const scoreColor = score >= 70 ? "text-green-500" : score >= 40 ? "text-orange-500" : "text-red-500";
 
   return (
@@ -32,6 +33,7 @@ const ResultShareModal = ({ open, onOpenChange, profileName, score, grade, corre
             <div className="text-center">
               <p className="text-[10px] font-bold text-primary tracking-wider uppercase mb-2">ROCKCBT</p>
               <p className="text-sm font-semibold">{profileName || "Student"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{subject}</p>
               <p className={`text-4xl font-extrabold mt-1 ${scoreColor}`}>{score}%</p>
               <p className="text-xs text-muted-foreground mt-1">Grade: <strong>{grade}</strong> · {correct}/{total} correct</p>
             </div>

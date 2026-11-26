@@ -24,7 +24,7 @@ export const useOnlinePresence = (currentPage = "browsing", currentSubject?: str
           current_page: currentPage,
           current_subject: currentSubject || null,
           last_seen: new Date().toISOString(),
-        } as any,
+        },
         { onConflict: "user_id" }
       );
     };

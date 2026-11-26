@@ -114,13 +114,18 @@ const CreateExam = () => {
         if (user && !isPro) {
           const newUsage = aiUsage + 1;
           setAiUsage(newUsage);
-          await supabase.from("profiles").update({ ai_builder_usage: newUsage } as any).eq("user_id", user.id);
+          const { error } = await supabase.from("profiles").update({ ai_builder_usage: newUsage }).eq("user_id", user.id);
+          if (error) console.error("Could not update AI builder usage:", error.message);
         }
       } else {
         throw new Error("Could not parse AI response");
       }
-    } catch (e: any) {
-      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({
+        title: "Generation failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setGenerating(false);
     }
@@ -140,7 +145,7 @@ const CreateExam = () => {
       title: title.trim(),
       instructions: instructions.trim() || null,
       duration_minutes: duration,
-      questions: questions as any,
+      questions,
       share_code: shareCode,
       expires_at: expiresAt,
     });

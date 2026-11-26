@@ -9,37 +9,66 @@ import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import { TutorMessage, type TutorStructured } from "@/components/tutor/TutorMessage";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type Message = { role: "user" | "assistant"; content: string; structured?: TutorStructured };
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-tutor`;
 const MAX_FREE_USES = 2;
 
+type JsonRecord = Record<string, unknown>;
+type TutorCardRecord = JsonRecord & { heading: string; explanation: string; formula?: string | null };
+
+const isJsonRecord = (value: unknown): value is JsonRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isTutorCard = (value: unknown): value is TutorCardRecord =>
+  isJsonRecord(value) &&
+  typeof value.heading === "string" &&
+  typeof value.explanation === "string" &&
+  (value.formula === undefined || value.formula === null || typeof value.formula === "string");
+
 function parseTutorResponse(raw: string): TutorStructured {
   const cleaned = raw.trim().replace(/^\uFEFF/, "");
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
-  const parsed = JSON.parse(start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned);
-  if (parsed?.type === "chat" && typeof parsed.message === "string") {
+  const parsed: unknown = JSON.parse(start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned);
+  if (!isJsonRecord(parsed)) throw new Error("The tutor returned an incomplete lesson. Please try asking once more.");
+  if (parsed.type === "chat" && typeof parsed.message === "string") {
     return { type: "chat", message: parsed.message };
   }
-  if (parsed?.type === "lesson" && typeof parsed.title === "string" && typeof parsed.summary === "string"
-    && Array.isArray(parsed.cards) && parsed.cards.length >= 2 && parsed.cards.length <= 5
-    && parsed.cards.every((card: any) => typeof card.heading === "string" && typeof card.explanation === "string")
-    && parsed.callout && typeof parsed.callout.text === "string"
-    && parsed.practice && typeof parsed.practice.question === "string" && typeof parsed.practice.hint === "string") {
+  const title = parsed.title;
+  const summary = parsed.summary;
+  const cards = parsed.cards;
+  const callout = parsed.callout;
+  const practice = parsed.practice;
+  const validCards = Array.isArray(cards) ? cards.filter(isTutorCard) : [];
+  if (
+    parsed.type === "lesson" &&
+    typeof title === "string" &&
+    typeof summary === "string" &&
+    Array.isArray(cards) &&
+    cards.length >= 2 &&
+    cards.length <= 5 &&
+    validCards.length === cards.length &&
+    isJsonRecord(callout) &&
+    typeof callout.text === "string" &&
+    isJsonRecord(practice) &&
+    typeof practice.question === "string" &&
+    typeof practice.hint === "string"
+  ) {
     return {
       type: "lesson",
-      title: parsed.title,
-      summary: parsed.summary,
-      cards: parsed.cards.map((card: any) => ({
-        badge: String(card.badge || ""),
-        heading: String(card.heading),
-        explanation: String(card.explanation),
+      title,
+      summary,
+      cards: validCards.map((card) => ({
+        badge: typeof card.badge === "string" ? card.badge : "",
+        heading: card.heading,
+        explanation: card.explanation,
         formula: typeof card.formula === "string" ? card.formula : null,
-        is_final_answer: Boolean(card.is_final_answer),
+        is_final_answer: card.is_final_answer === true,
       })),
-      callout: { label: String(parsed.callout.label || "Exam tip"), text: parsed.callout.text },
-      practice: { question: parsed.practice.question, hint: parsed.practice.hint },
+      callout: { label: typeof callout.label === "string" ? callout.label : "Exam tip", text: callout.text },
+      practice: { question: practice.question, hint: practice.hint },
     };
   }
   throw new Error("The tutor returned an incomplete lesson. Please try asking once more.");
@@ -63,8 +92,17 @@ const AITutor = () => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    if (!user?.id) return;
+    const welcomeKey = "rockcbt-tutor-welcomed-" + user.id;
+    const hasSeenWelcome = window.localStorage.getItem(welcomeKey) === "true";
+    setShowTutorWelcome(!hasSeenWelcome);
+    if (!hasSeenWelcome) window.localStorage.setItem(welcomeKey, "true");
     setMessages([{ role: "assistant", content: welcomeMessage, structured: { type: "chat", message: welcomeMessage } }]);
-  }, [user?.id]);
+  }, [user?.id, welcomeMessage]);
+
+  const proceedToTutor = () => {
+    setShowTutorWelcome(false);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -168,8 +206,12 @@ const AITutor = () => {
       if (remainingThinkingTime > 0) await new Promise(resolve => window.setTimeout(resolve, remainingThinkingTime));
       setMessages(prev => [...prev, { role: "assistant", content: assistantSoFar, structured }]);
       responseSucceeded = true;
-    } catch (e: any) {
-      toast({ title: "AI Tutor couldn't finish", description: e?.message || "Please try again.", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({
+        title: "AI Tutor couldn't finish",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
       setMessages(prev => [...prev, {
         role: "assistant",
         content: "I couldn't complete that explanation just now. Your question is still here — please tap send again and I'll try once more.",
@@ -181,8 +223,8 @@ const AITutor = () => {
       if (user && !isPro && responseSucceeded) {
         const newCount = usageCount + 1;
         setUsageCount(newCount);
-        const { error } = await supabase.from("profiles").update({ ai_tutor_usage: newCount } as any).eq("user_id", user.id);
-        if (error) console.error("Could not update AI Tutor usage:", error.message);
+        const { error } = await supabase.from("profiles").update({ ai_tutor_usage: newCount }).eq("user_id", user.id);
+        if (error) console.error("Could not update AI tutor usage:", error.message);
         if (newCount >= MAX_FREE_USES) setBlocked(true);
       }
     }
@@ -267,6 +309,22 @@ const AITutor = () => {
         </div>
       </footer>
       <SubscriptionModal open={showSub} onOpenChange={setShowSub} />
+      <Dialog open={showTutorWelcome} onOpenChange={setShowTutorWelcome}>
+        <DialogContent className="max-w-xs rounded-2xl p-5">
+          <DialogHeader className="items-center text-center">
+            <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <DialogTitle className="text-lg">Welcome{firstName === "there" ? "" : `, ${firstName}`}!</DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              Ask ROCKCBT AI a question and get clear, step-by-step help with your studies.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={proceedToTutor} className="h-10 w-full rounded-xl">
+            Start learning <Send className="ml-2 h-4 w-4" />
+          </Button>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

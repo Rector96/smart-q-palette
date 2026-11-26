@@ -9,14 +9,28 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...cors, "Content-Type": "application/json" },
 });
-const paystack = async (path: string, secret: string, init?: RequestInit) => {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+interface PaystackBank {
+  name: string;
+  code: string;
+  slug?: string;
+}
+
+const isPaystackBank = (value: unknown): value is PaystackBank =>
+  isRecord(value) && typeof value.name === "string" && typeof value.code === "string" &&
+  (value.slug === undefined || typeof value.slug === "string");
+
+const paystack = async (path: string, secret: string, init?: RequestInit): Promise<unknown> => {
   const response = await fetch(`https://api.paystack.co${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json", ...(init?.headers || {}) },
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload?.status !== true) {
-    throw new Error(payload?.message || "Paystack could not complete the bank request.");
+  const payload: unknown = await response.json().catch(() => ({}));
+  if (!isRecord(payload)) throw new Error("Paystack returned an invalid response.");
+  if (!response.ok || payload.status !== true) {
+    throw new Error(typeof payload.message === "string" ? payload.message : "Paystack could not complete the bank request.");
   }
   return payload.data;
 };
@@ -49,11 +63,13 @@ serve(async (req) => {
     requestedAction = typeof action === "string" ? action : "";
 
     if (action === "list_banks") {
-      const banks = await paystack("/bank?country=nigeria&use_cursor=false&perPage=100", paystackSecret);
+      const bankResponse = await paystack("/bank?country=nigeria&use_cursor=false&perPage=100", paystackSecret);
+      if (!Array.isArray(bankResponse)) throw new Error("Paystack returned an invalid bank list.");
+      const banks = bankResponse.filter(isPaystackBank);
       const testModeEnabled = paystackSecret.startsWith("sk_test_") &&
         Deno.env.get("REFERRAL_TEST_BANK_VERIFICATION") === "true";
       return json({
-        banks: (banks || []).map((bank: any) => ({ name: bank.name, code: bank.code, slug: bank.slug })),
+        banks: banks.map(({ name, code, slug }) => ({ name, code, slug })),
         test_mode_enabled: testModeEnabled,
       });
     }
@@ -71,10 +87,13 @@ serve(async (req) => {
       const { data: profile, error: profileError } = await serviceClient
         .from("referral_profiles").select("signup_full_name")
         .eq("user_id", userId).maybeSingle();
-      if (profileError || !String(profile?.signup_full_name || "").trim()) {
-        return json({ error: "Your registered signup name is missing. Please contact support." }, 400);
+     const registeredName = String(profile?.signup_full_name || "").trim();
+
+      if (profileError || !registeredName) {
+        return json({
+          error: "Your registered signup name is missing. Please contact support.",
+        }, 400);
       }
-      const registeredName = String(profile.signup_full_name).trim();
       const recipient = await paystack("/transferrecipient", paystackSecret, {
         method: "POST",
         body: JSON.stringify({
@@ -85,7 +104,10 @@ serve(async (req) => {
           currency: "NGN",
         }),
       });
-      if (!recipient?.recipient_code) {
+      const recipientCode = isRecord(recipient) && typeof recipient.recipient_code === "string"
+        ? recipient.recipient_code
+        : "";
+      if (!recipientCode) {
         return json({ error: "Paystack did not create its test recipient." }, 502);
       }
       const { data: saved, error: saveError } = await serviceClient
@@ -95,7 +117,7 @@ serve(async (req) => {
           bank_name: "Zenith Bank (Paystack test)",
           account_name: registeredName,
           account_number_masked: "TEST ••••0001",
-          paystack_recipient_code: `TEST:${recipient.recipient_code}`,
+          paystack_recipient_code: `TEST:${recipientCode}`,
           is_verified: true,
         }).select("id,bank_name,account_name,account_number_masked").single();
       if (saveError) {
@@ -115,7 +137,9 @@ serve(async (req) => {
       `/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
       paystackSecret,
     );
-    const accountName = String(resolved?.account_name || "").trim();
+    const accountName = isRecord(resolved) && typeof resolved.account_name === "string"
+      ? resolved.account_name.trim()
+      : "";
     if (!accountName) return json({ verified: false, error: "Paystack could not verify this bank account." }, action === "resolve_account" ? 200 : 422);
 
     // Compare against the name recorded at signup. This check is performed on
@@ -162,6 +186,10 @@ serve(async (req) => {
         currency: "NGN",
       }),
     });
+    const recipientCode = isRecord(recipient) && typeof recipient.recipient_code === "string"
+      ? recipient.recipient_code
+      : "";
+    if (!recipientCode) return json({ error: "Paystack did not create the bank recipient." }, 502);
 
     const bankName = typeof body?.bank_name === "string" ? body.bank_name.trim().slice(0, 100) : "Nigerian bank";
     const { data: saved, error: saveError } = await serviceClient.from("referral_bank_accounts").insert({
@@ -170,7 +198,7 @@ serve(async (req) => {
       bank_name: bankName,
       account_name: accountName,
       account_number_masked: `******${accountNumber.slice(-4)}`,
-      paystack_recipient_code: recipient.recipient_code,
+      paystack_recipient_code: recipientCode,
       is_verified: true,
     }).select("id,bank_name,account_name,account_number_masked").single();
 

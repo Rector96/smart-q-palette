@@ -16,9 +16,16 @@ type Activity = {
   date: string; reference: string; kind: "payment" | "reward" | "withdrawal";
   detail: string; href: string;
 };
-const db = supabase as any;
 const money = (amount: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(amount) || 0);
 const readKey = (id: string) => `sqp-notifications-read-${id}`;
+const storedReadIds = (key: string): string[] => {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(stored) && stored.every((id): id is string => typeof id === "string") ? stored : [];
+  } catch {
+    return [];
+  }
+};
 
 const Notifications = () => {
   const { user } = useAuth();
@@ -52,21 +59,47 @@ const Notifications = () => {
     if (!user) return;
     setLoading(true); setError("");
     const [payments, rewards, withdrawals] = await Promise.all([
-      db.from("payments").select("id,amount,status,reference,payment_method,created_at,updated_at,verified_at,plan_id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100),
-      db.from("referral_rewards").select("id,amount,status,payment_id,created_at,available_at,reversed_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
-      db.from("referral_withdrawals").select("id,amount,status,reference,requested_at,completed_at,failure_reason,bank_account_id").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
+      supabase.from("payments").select("id,amount,refunded_amount_kobo,status,reference,payment_method,created_at,updated_at,verified_at,plan_id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100),
+      supabase.from("referral_rewards").select("id,amount,status,payment_id,created_at,available_at,reversed_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
+      supabase.from("referral_withdrawals").select("id,amount,status,reference,requested_at,completed_at,failure_reason,bank_account_id").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
     ]);
     const failed = [payments, rewards, withdrawals].find((x) => x.error);
     if (failed) { setError(failed.error.message || "We could not load your account history."); setActivities([]); setLoading(false); return; }
     const rows: Activity[] = [];
-    (payments.data || []).forEach((r: any) => rows.push({
-      id: `payment-${r.id}`, title: r.status === "success" ? "Subscription payment successful" : r.status === "failed" ? "Subscription payment failed" : "Subscription payment pending",
-      description: `${money(Number(r.amount))} · ${r.payment_method || "Payment"} · ${r.plan_id || "Subscription"}`,
-      amount: Number(r.amount), status: String(r.status), date: r.verified_at || r.updated_at || r.created_at,
-      reference: r.reference || r.id, kind: "payment", detail: r.status === "success" ? "Your subscription payment has been confirmed and recorded on your account." : r.status === "failed" ? "This payment was not completed. If money was deducted, contact support with the reference below." : "This payment is awaiting confirmation.",
-      href: `/notifications#payment-${r.id}`,
-    }));
-    (rewards.data || []).forEach((r: any) => rows.push({
+    (payments.data || []).forEach((r) => {
+      const grossAmount = Number(r.amount);
+      const refundAmount = Number(r.refunded_amount_kobo || 0) / 100;
+      const netAmount = grossAmount - refundAmount;
+      const fullyRefunded = r.status === "refunded";
+      const partiallyRefunded = r.status === "success" && refundAmount > 0;
+      rows.push({
+        id: `payment-${r.id}`,
+        title: fullyRefunded
+          ? "Subscription payment refunded"
+          : partiallyRefunded
+          ? "Subscription payment partially refunded"
+          : r.status === "success"
+          ? "Subscription payment successful"
+          : r.status === "failed"
+          ? "Subscription payment failed"
+          : "Subscription payment pending",
+        description: `${money(grossAmount)} gross · ${money(refundAmount)} refunded · ${money(netAmount)} net · ${r.payment_method || "Payment"} · ${r.plan_id || "Subscription"}`,
+        amount: grossAmount, status: partiallyRefunded ? "partial_refund" : String(r.status),
+        date: r.verified_at || r.updated_at || r.created_at,
+        reference: r.reference || r.id, kind: "payment",
+        detail: fullyRefunded
+          ? "The full payment was refunded. Access remains active only if another valid payment or administrator entitlement applies."
+          : partiallyRefunded
+          ? "A partial refund was recorded. The displayed net amount is the original payment less recorded refunds."
+          : r.status === "success"
+          ? "Your subscription payment has been confirmed and recorded on your account."
+          : r.status === "failed"
+          ? "This payment was not completed. If money was deducted, contact support with the reference below."
+          : "This payment is awaiting confirmation.",
+        href: `/notifications#payment-${r.id}`,
+      });
+    });
+    (rewards.data || []).forEach((r) => rows.push({
       id: `reward-${r.id}`, title: r.status === "reversed" ? "Referral reward reversed" : "Referral reward earned",
       description: `Referral commission · ${money(Number(r.amount))}`,
       amount: Number(r.amount), status: String(r.status), date: r.reversed_at || r.available_at || r.created_at,
@@ -74,7 +107,7 @@ const Notifications = () => {
       detail: r.status === "reversed" ? "This reward was reversed following a payment reversal or refund." : "This reward is linked to a successful subscription made through your referral link.",
       href: "/referrals#rewards-history",
     }));
-    (withdrawals.data || []).forEach((r: any) => rows.push({
+    (withdrawals.data || []).forEach((r) => rows.push({
       id: `withdrawal-${r.id}`, title: r.status === "success" ? "Withdrawal paid" : ["failed", "reversed"].includes(r.status) ? "Withdrawal not completed" : "Withdrawal request update",
       description: `Bank payout · ${money(Number(r.amount))}`,
       amount: Number(r.amount), status: String(r.status), date: r.completed_at || r.requested_at,
@@ -87,20 +120,22 @@ const Notifications = () => {
     // Future realtime arrivals remain unread and can show the badge again.
     if (!initialReadMarked.current) {
       const existingReadIds = (() => {
-        try { return JSON.parse(localStorage.getItem(storageKey) || "[]") as string[]; }
+        try { return storedReadIds(storageKey); }
         catch { return []; }
       })();
       const nextReadIds = Array.from(new Set([...existingReadIds, ...rows.map((row) => row.id)])).slice(-300);
       setReadIds(nextReadIds);
-      try { localStorage.setItem(storageKey, JSON.stringify(nextReadIds)); } catch {}
+      try { localStorage.setItem(storageKey, JSON.stringify(nextReadIds)); } catch {
+        // The current page still tracks read state in memory when storage is unavailable.
+      }
       initialReadMarked.current = true;
     }
     setActivities(rows); setLoading(false);
-  }, [user]);
+  }, [user, storageKey]);
 
   useEffect(() => {
     if (!user) return;
-    try { setReadIds(JSON.parse(localStorage.getItem(storageKey) || "[]")); } catch { setReadIds([]); }
+    setReadIds(storedReadIds(storageKey));
     void load();
     const channel = supabase.channel(`notification-history-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "payments", filter: `user_id=eq.${user.id}` }, () => { void load(); })
@@ -114,11 +149,16 @@ const Notifications = () => {
   const markRead = (id: string) => {
     const next = Array.from(new Set([...readIds, id]));
     setReadIds(next);
-    try { localStorage.setItem(storageKey, JSON.stringify(next.slice(-300))); } catch {}
+    try { localStorage.setItem(storageKey, JSON.stringify(next.slice(-300))); } catch {
+      // The current page still tracks read state in memory when storage is unavailable.
+    }
   };
   const markAllRead = () => {
     const next = Array.from(new Set([...readIds, ...activities.map((a) => a.id)]));
-    setReadIds(next); try { localStorage.setItem(storageKey, JSON.stringify(next.slice(-300))); } catch {}
+    setReadIds(next);
+    try { localStorage.setItem(storageKey, JSON.stringify(next.slice(-300))); } catch {
+      // The current page still tracks read state in memory when storage is unavailable.
+    }
   };
   const icon = (kind: Activity["kind"]) => kind === "payment" ? <CreditCard className="h-5 w-5" /> : kind === "reward" ? <Gift className="h-5 w-5" /> : <Wallet className="h-5 w-5" />;
   const variant = (status: string) => status === "success" || status === "available" ? "default" : status === "failed" || status === "reversed" ? "destructive" : "secondary";

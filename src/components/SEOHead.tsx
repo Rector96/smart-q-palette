@@ -28,7 +28,7 @@ const SEOHead = ({ title, description, path = "" }: SEOHeadProps) => {
     setMeta("twitter:title", title);
     setMeta("twitter:description", description);
 
-    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    const link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (link) link.href = `https://www.weblines.org${path}`;
   }, [title, description, path]);
 

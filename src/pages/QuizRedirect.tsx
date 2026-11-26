@@ -27,8 +27,8 @@ const QuizRedirect = () => {
         if (data?.error) throw new Error(data.error);
         const joinedCode = data?.room?.room_code || roomCode;
         navigate(`/quiz-room/${joinedCode}`);
-      } catch (err: any) {
-        const message = err?.message || "This quiz room could not be joined.";
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "This quiz room could not be joined.";
         toast({ title: "Unable to join quiz", description: message, variant: "destructive" });
         navigate("/live-quiz");
       }

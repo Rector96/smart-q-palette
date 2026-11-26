@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient, type User } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,8 +95,8 @@ const TEMPLATES: Record<string, (name: string) => { subject: string; html: strin
 };
 
 // Fetch ALL users with pagination
-async function getAllUsers(supabase: any) {
-  const allUsers: any[] = [];
+async function getAllUsers(supabase: SupabaseClient): Promise<User[]> {
+  const allUsers: User[] = [];
   let page = 1;
   const perPage = 1000;
   while (true) {

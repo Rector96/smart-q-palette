@@ -46,8 +46,12 @@ const AdminEmail = () => {
         failedEmails: data?.failedEmails,
       });
       toast({ title: `Emails sent to ${data?.sent || 0} of ${data?.total || 0} users!` });
-    } catch (e: any) {
-      toast({ title: "Error sending", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({
+        title: "Error sending",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setSending(false);
     }

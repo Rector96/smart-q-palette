@@ -54,8 +54,8 @@ const Reader = () => {
       const { data: book } = await supabase.from("digital_library").select("*").eq("id", id).single();
       if (!book) { navigate("/library"); return; }
       setTitle(book.title);
-      setAuthor((book as any).author || null);
-      setSummary((book as any).summary || null);
+      setAuthor(book.author || null);
+      setSummary(book.summary || null);
 
       // Preview PDFs are public; full PDFs are returned only by the access-checking function.
       if (isPreview) {

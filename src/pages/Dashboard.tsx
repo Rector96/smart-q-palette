@@ -5,9 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SUBJECTS, EXAM_MODES } from "@/lib/subjects";
+import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
-  Trophy, Target, Clock, ChevronRight,
+  Trophy, Target, Clock, ChevronRight, GraduationCap, Share2,
   Sparkles, Flame, Brain, Shield, Crown, Lock, BookOpen, Users, Gift, Search
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -20,8 +20,9 @@ import OnboardingTour, { useOnboardingTour } from "@/components/OnboardingTour";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import SEOHead from "@/components/SEOHead";
 import "./Dashboard.css";
+import type { LucideIcon } from "lucide-react";
 
-const EXAM_MODE_ICONS: Record<string, any> = {
+const EXAM_MODE_ICONS: Record<ExamMode, LucideIcon> = {
   practice: Brain,
   cbt: Clock,
   mock: BookOpen,
@@ -65,9 +66,13 @@ const Dashboard = () => {
         } else {
           toast({ title: "Payment not confirmed", description: data?.message || "We could not confirm this payment. If money was deducted, contact support with your payment reference.", variant: "destructive" });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         verifiedReferences.current.delete(ref);
-        toast({ title: "Could not verify payment", description: error?.message || "Please refresh this page or contact support with your payment reference.", variant: "destructive" });
+        toast({
+          title: "Could not verify payment",
+          description: error instanceof Error ? error.message : "Please refresh this page or contact support with your payment reference.",
+          variant: "destructive",
+        });
       }
     };
     void verifyPayment();
@@ -112,6 +117,30 @@ const Dashboard = () => {
     navigate("/select-subjects?mode=practice");
   };
 
+  const shareRockcbt = async () => {
+    const shareData = {
+      title: "ROCKCBT — the hottest CBT platform",
+      text: "Hey, I'm using ROCKCBT — the hottest CBT platform! Join me for smarter JAMB, WAEC and NECO practice.",
+      url: `${window.location.origin}/`,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+        toast({ title: "ROCKCBT invite copied", description: "Share it with friends to spread the word." });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast({
+        title: "Could not share ROCKCBT",
+        description: "Please try again or copy the website link.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const statCards = [
     { icon: Trophy, label: "Sessions", value: stats.sessions, color: "text-primary" },
     { icon: Target, label: "Avg Score", value: `${stats.avgScore}%`, color: "text-[hsl(var(--success))]" },
@@ -123,6 +152,7 @@ const Dashboard = () => {
     ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
     { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
     { id: "live-quiz", name: "Live Quiz", description: "Real-time quiz battles", icon: Users, action: () => navigate("/live-quiz") },
+    { id: "past-questions", name: "Past Questions", description: "WAEC and JAMB past questions", icon: GraduationCap, action: () => navigate("/past-questions") },
   ];
   const filteredSubjects = SUBJECTS.filter((subject) =>
     subject.name.toLowerCase().includes(subjectSearch.trim().toLowerCase())
@@ -130,7 +160,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-[100dvh] overflow-x-clip bg-[#F8FAFC]">
-      <SEOHead title="Dashboard – ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
+      <SEOHead title="Dashboard - ROCKCBT" description="Your personalized exam dashboard. Track progress, start practice sessions, and access all features." path="/dashboard" />
       <DesktopHeader profileName={profile.full_name} isPro={isPro} />
       <main className="mx-auto w-full max-w-[1320px] px-3 pb-8 pt-4 sm:px-5 lg:px-6 lg:pb-8 xl:px-7">
         <div className="dashboard-overview">
@@ -145,9 +175,12 @@ const Dashboard = () => {
               <p className="mt-2 max-w-lg text-xs leading-relaxed text-blue-100 sm:text-sm">
                 {isPro ? "You have unlimited access. Keep crushing it!" : `You have ${attemptsLeft} free attempt${attemptsLeft !== 1 ? "s" : ""} remaining. Keep building your confidence!`}
               </p>
-              <motion.div whileTap={{ scale: 0.98 }} data-tour="start-test" className="mt-5">
+              <motion.div whileTap={{ scale: 0.98 }} data-tour="start-test" className="mt-5 flex flex-wrap gap-2">
                 <Button className="h-10 rounded-xl bg-white px-4 text-sm font-bold text-blue-800 shadow-sm hover:bg-blue-50" onClick={handleStartTest}>
                   <Sparkles className="mr-2 h-4 w-4" /> Start Practice Test <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+                <Button variant="outline" className="h-10 rounded-xl border-white/40 bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/20 hover:text-white" onClick={() => void shareRockcbt()}>
+                  <Share2 className="mr-2 h-4 w-4" /> Share ROCKCBT
                 </Button>
               </motion.div>
             </div>
@@ -195,7 +228,7 @@ const Dashboard = () => {
               <div className="dashboard-mode-grid">
                 {allModeCards.map((mode, index) => {
                   const Icon = mode.icon;
-                  const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz";
+                  const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz" && mode.id !== "past-questions";
                   const iconColors = ["bg-blue-50 text-blue-600", "bg-cyan-50 text-cyan-700", "bg-violet-50 text-violet-600", "bg-amber-50 text-amber-600", "bg-emerald-50 text-emerald-600", "bg-indigo-50 text-indigo-600"];
                   return (
                     <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "live-quiz" ? "live-quiz" : undefined}>
@@ -244,7 +277,7 @@ const Dashboard = () => {
                   ))}
                 </div>
               ) : (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">No subjects match “{subjectSearch}”.</p>
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">No subjects match "{subjectSearch}".</p>
               )}
             </section>
           </div>

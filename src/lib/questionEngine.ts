@@ -11,6 +11,7 @@ export interface QuestionWithShuffledOptions {
   correct_answer?: string;
   explanation: string | null;
   passage: string | null;
+  diagram_url: string | null;
   question_type: string | null;
   exam_hint: string | null;
 }
@@ -58,7 +59,9 @@ export async function saveSeenQuestions(userId: string, questionIds: string[]) {
   // Insert in batches of 50
   for (let i = 0; i < entries.length; i += 50) {
     const batch = entries.slice(i, i + 50);
-    await supabase.from("user_seen_questions").upsert(batch as any, { onConflict: "user_id,question_id" });
+    await supabase.from("user_seen_questions").upsert(batch, {
+      onConflict: "user_id,question_id",
+    });
   }
 }
 
@@ -76,7 +79,7 @@ export async function fetchSmartQuestions(
     .select("question_id")
     .eq("user_id", userId);
 
-  const seenIds = new Set((seenData || []).map((s: any) => s.question_id));
+const seenIds = new Set((seenData || []).map((s) => s.question_id));
 
   // Fetch questions for the subject
   const fetchLimit = Math.min(cappedCount * 3, 1000);
@@ -109,7 +112,7 @@ export async function fetchSmartQuestions(
   }
 
   // In revision mode, prefer seen questions
-  let filtered = mode === "revision"
+  const filtered = mode === "revision"
     ? [...shuffleArray(seen), ...shuffleArray(unseen)]
     : [...shuffleArray(unseen), ...shuffleArray(seen)];
 
@@ -137,12 +140,14 @@ export async function fetchSmartQuestions(
   }
 
   return shuffleArray(selected.slice(0, actualCount)).map((q) => {
-    const options = shuffleArray([
+    const sourceOptions = [
       { label: "A", text: q.option_a, originalLabel: "A" },
       { label: "B", text: q.option_b, originalLabel: "B" },
       { label: "C", text: q.option_c, originalLabel: "C" },
       { label: "D", text: q.option_d, originalLabel: "D" },
-    ]).map((opt, idx) => ({
+      ...(q.option_e?.trim() ? [{ label: "E", text: q.option_e, originalLabel: "E" }] : []),
+    ];
+    const options = shuffleArray(sourceOptions).map((opt, idx) => ({
       ...opt,
       label: String.fromCharCode(65 + idx),
     }));
@@ -160,6 +165,7 @@ export async function fetchSmartQuestions(
       correct_answer: correctOption?.label || "A",
       explanation: q.explanation,
       passage: q.passage,
+      diagram_url: q.diagram_url,
       question_type: q.question_type,
       exam_hint: q.exam_hint,
     };

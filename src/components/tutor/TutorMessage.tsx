@@ -13,19 +13,41 @@ export type TutorLesson = {
 export type TutorChat = { type: "chat"; message: string };
 export type TutorStructured = TutorLesson | TutorChat;
 
-function loadMathJax(): Promise<any> {
-  const w = window as any;
-  if (w.MathJax?.typesetPromise) return Promise.resolve(w.MathJax);
-  if (w.__rockcbtMathJaxPromise) return w.__rockcbtMathJaxPromise;
-  w.MathJax = {
+type MathJaxRuntime = {
+  typesetPromise?: (elements?: HTMLElement[]) => Promise<void>;
+  typesetClear?: (elements?: HTMLElement[]) => void;
+  tex?: { inlineMath: string[][]; displayMath: string[][]; packages: { "[+]": string[] } };
+  options?: { skipHtmlTags: string[] };
+  startup?: { typeset: boolean };
+};
+type LoadedMathJax = MathJaxRuntime & { typesetPromise: (elements?: HTMLElement[]) => Promise<void> };
+
+declare global {
+  interface Window {
+    MathJax?: MathJaxRuntime;
+    __rockcbtMathJaxPromise?: Promise<LoadedMathJax>;
+  }
+}
+
+const isMathJaxLoaded = (value: MathJaxRuntime | undefined): value is LoadedMathJax =>
+  typeof value?.typesetPromise === "function";
+
+function loadMathJax(): Promise<LoadedMathJax> {
+  if (isMathJaxLoaded(window.MathJax)) return Promise.resolve(window.MathJax);
+  if (window.__rockcbtMathJaxPromise) return window.__rockcbtMathJaxPromise;
+  window.MathJax = {
     tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]], packages: { "[+]": ["ams"] } },
     options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
     startup: { typeset: false },
   };
-  w.__rockcbtMathJaxPromise = new Promise((resolve, reject) => {
+  window.__rockcbtMathJaxPromise = new Promise<LoadedMathJax>((resolve, reject) => {
+    const resolveLoadedMathJax = () => {
+      if (isMathJaxLoaded(window.MathJax)) resolve(window.MathJax);
+      else reject(new Error("MathJax loaded without a formula renderer."));
+    };
     const existing = document.getElementById("rockcbt-mathjax") as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => resolve((window as any).MathJax), { once: true });
+      existing.addEventListener("load", resolveLoadedMathJax, { once: true });
       existing.addEventListener("error", reject, { once: true });
       return;
     }
@@ -33,27 +55,29 @@ function loadMathJax(): Promise<any> {
     script.id = "rockcbt-mathjax";
     script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
     script.async = true;
-    script.onload = () => resolve((window as any).MathJax);
+    script.onload = resolveLoadedMathJax;
     script.onerror = reject;
     document.head.appendChild(script);
   });
-  return w.__rockcbtMathJaxPromise;
+  return window.__rockcbtMathJaxPromise;
 }
 
 function FormulaDisplay({ formula }: { formula: string }) {
   const formulaRef = useRef<HTMLDivElement>(null);
   const [mathReady, setMathReady] = useState(false);
   useEffect(() => {
+    const formulaElement = formulaRef.current;
+    if (!formulaElement) return;
     let cancelled = false;
     loadMathJax().then(async (mathJax) => {
-      if (cancelled || !formulaRef.current) return;
-      await mathJax.typesetPromise([formulaRef.current]);
+      if (cancelled) return;
+      await mathJax.typesetPromise([formulaElement]);
       if (!cancelled) setMathReady(true);
     }).catch(() => setMathReady(false));
     return () => {
       cancelled = true;
-      const mathJax = (window as any).MathJax;
-      if (mathJax?.typesetClear && formulaRef.current) mathJax.typesetClear([formulaRef.current]);
+      const mathJax = window.MathJax;
+      if (mathJax?.typesetClear) mathJax.typesetClear([formulaElement]);
     };
   }, [formula]);
   return (

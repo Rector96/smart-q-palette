@@ -12,7 +12,37 @@ type CustomerControl = { user_id: string; full_name: string | null; email: strin
 
 type AdminWallet = { user_id: string; customer_name: string; customer_email: string; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; updated_at: string; is_subscribed: boolean; referral_code: string | null; withdrawals_blocked: boolean; withdrawals_block_reason: string | null };
 type AdminTransaction = { id: string; user_id: string; customer_name: string; customer_email: string; transaction_type: string; amount: number; status: string; description: string | null; created_at: string };
-type AdminOverview = { rewards: any[]; withdrawals: any[]; referral_payments: any[]; monthly_referral_performance: any[]; summary: { users: number; available_balance: number; pending_balance: number; lifetime_earned: number; lifetime_paid: number; recovery_balance: number; referral_subscription_revenue: number; referral_subscription_count: number; referral_reward_cost: number; referral_payouts_paid: number; referral_net_before_fees: number; rewards: number; withdrawals: number }; wallets: AdminWallet[]; transactions: AdminTransaction[]; rewards: any[]; withdrawals: any[] };
+type AdminReward = {
+  id: string; amount: number; status: string; created_at: string;
+  referrer_name: string; referred_name: string; payment_reference: string;
+};
+type AdminWithdrawal = Withdrawal & { customer_name: string; customer_email: string };
+type ReferralPayment = {
+  id: string; user_id: string; amount: number; gross_amount: number; refund_amount: number; net_amount: number;
+  reference: string | null; status: string; payment_method: string | null; verified_at: string | null;
+  customer_name: string; customer_email: string; referrer_name: string; reward_credited: boolean;
+};
+type MonthlyReferralPerformance = {
+  month: string; subscriptions: number; payments: number; gross_revenue: number; refunds: number;
+  net_revenue: number; reward_cost: number; net_after_rewards: number;
+};
+type AdminOverview = {
+  rewards: AdminReward[];
+  withdrawals: AdminWithdrawal[];
+  referral_payments: ReferralPayment[];
+  monthly_referral_performance: MonthlyReferralPerformance[];
+  detail_records_limited: boolean;
+  summary: {
+    users: number; available_balance: number; pending_balance: number; lifetime_earned: number;
+    lifetime_paid: number; recovery_balance: number; verified_payments: number; active_subscriptions: number;
+    gross_revenue: number; refunds: number; net_revenue: number; referral_reward_cost: number;
+    completed_payouts: number; reserved_payouts: number; failed_payouts: number; reversed_payouts: number;
+    completed_payout_count: number; reserved_payout_count: number; failed_payout_count: number; reversed_payout_count: number;
+    net_after_reward_cost: number; rewards: number; withdrawals: number;
+  };
+  wallets: AdminWallet[];
+  transactions: AdminTransaction[];
+};
 
 type Withdrawal = {
   id: string;
@@ -33,6 +63,9 @@ const money = (value: number) => new Intl.NumberFormat("en-NG", {
 const AdminReferrals = () => {
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [openWithdrawalCount, setOpenWithdrawalCount] = useState(0);
+  const [legacyOtpCount, setLegacyOtpCount] = useState(0);
+  const [withdrawalDetailsLimited, setWithdrawalDetailsLimited] = useState(false);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -49,7 +82,7 @@ const AdminReferrals = () => {
     setLoading(false);
     if (error || !data?.withdrawals) {
       let message = data?.error || error?.message || "Could not load referral payouts.";
-      const context = (error as any)?.context;
+      const context = error && "context" in error && error.context instanceof Response ? error.context : null;
       if (context && typeof context.clone === "function") {
         try { const body = await context.clone().json(); message = body?.error || body?.message || message; } catch { /* keep safe fallback */ }
       }
@@ -57,6 +90,9 @@ const AdminReferrals = () => {
       return;
     }
     setWithdrawals(data.withdrawals as Withdrawal[]);
+    setOpenWithdrawalCount(Number.isSafeInteger(data.withdrawal_count) ? data.withdrawal_count : data.withdrawals.length);
+    setLegacyOtpCount(Number.isSafeInteger(data.otp_count) ? data.otp_count : 0);
+    setWithdrawalDetailsLimited(data.details_limited === true);
   }, [toast]);
 
   const loadOverview = useCallback(async () => {
@@ -145,7 +181,6 @@ const AdminReferrals = () => {
   };
 
   const statusLabel = (status: string) => status === "otp" ? "Legacy OTP — needs review" : status === "processing" ? "Processing" : status;
-  const legacyOtpCount = withdrawals.filter((item) => item.status === "otp").length;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -181,14 +216,21 @@ const AdminReferrals = () => {
           <h1>Referral Programme Financial Report</h1>
           <p className="pdf-muted">Official administrative report · Generated {new Date().toLocaleString("en-NG")}</p>
           <p className="pdf-muted">Reporting scope: verified ₦2,500 lifetime-access subscriptions with recorded referral attribution. Currency: Nigerian Naira (NGN).</p>
+          <p className="pdf-muted">Summary totals cover all matching records. Detailed registers are limited to recent records and are not a complete transaction export.</p>
         </div>
         {overview && <>
           <h2>Financial summary</h2>
           <div className="pdf-grid">
-            <div className="pdf-card"><span className="pdf-muted">Confirmed referral revenue</span><div className="pdf-value">{money(overview.summary.referral_subscription_revenue)}</div></div>
-            <div className="pdf-card"><span className="pdf-muted">Verified subscriptions</span><div className="pdf-value">{overview.summary.referral_subscription_count}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Gross referred revenue</span><div className="pdf-value">{money(overview.summary.gross_revenue)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Refunds</span><div className="pdf-value">{money(overview.summary.refunds)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Net referred revenue</span><div className="pdf-value">{money(overview.summary.net_revenue)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Active subscriptions</span><div className="pdf-value">{overview.summary.active_subscriptions}</div></div>
             <div className="pdf-card"><span className="pdf-muted">Referral reward cost</span><div className="pdf-value">{money(overview.summary.referral_reward_cost)}</div></div>
-            <div className="pdf-card"><span className="pdf-muted">Net before fees</span><div className="pdf-value">{money(overview.summary.referral_net_before_fees)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Net after rewards, before fees</span><div className="pdf-value">{money(overview.summary.net_after_reward_cost)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Completed payouts ({overview.summary.completed_payout_count})</span><div className="pdf-value">{money(overview.summary.completed_payouts)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Reserved payouts ({overview.summary.reserved_payout_count})</span><div className="pdf-value">{money(overview.summary.reserved_payouts)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Failed payouts ({overview.summary.failed_payout_count})</span><div className="pdf-value">{money(overview.summary.failed_payouts)}</div></div>
+            <div className="pdf-card"><span className="pdf-muted">Reversed payouts ({overview.summary.reversed_payout_count})</span><div className="pdf-value">{money(overview.summary.reversed_payouts)}</div></div>
           </div>
           <div className="pdf-grid">
             <div className="pdf-card"><span className="pdf-muted">Total wallet customers</span><div className="pdf-value">{overview.summary.users}</div></div>
@@ -197,12 +239,12 @@ const AdminReferrals = () => {
             <div className="pdf-card"><span className="pdf-muted">Lifetime payouts</span><div className="pdf-value">{money(overview.summary.lifetime_paid)}</div></div>
           </div>
           <h2>Monthly referral performance</h2>
-          <table><thead><tr><th>Month</th><th>Subscriptions</th><th>Revenue</th><th>Reward cost</th><th>Net before fees</th></tr></thead>
-            <tbody>{overview.monthly_referral_performance.map((row) => <tr key={row.month}><td>{row.month}</td><td>{row.subscriptions}</td><td>{money(row.revenue)}</td><td>{money(row.rewards)}</td><td>{money(row.net)}</td></tr>)}</tbody>
+          <table><thead><tr><th>Month</th><th>Active subscriptions</th><th>Gross revenue</th><th>Refunds</th><th>Net revenue</th><th>Reward cost</th><th>Net after rewards</th></tr></thead>
+            <tbody>{overview.monthly_referral_performance.map((row) => <tr key={row.month}><td>{row.month}</td><td>{row.subscriptions}</td><td>{money(row.gross_revenue)}</td><td>{money(row.refunds)}</td><td>{money(row.net_revenue)}</td><td>{money(row.reward_cost)}</td><td>{money(row.net_after_rewards)}</td></tr>)}</tbody>
           </table>
           <h2>Referred subscription payment register</h2>
-          <table><thead><tr><th>Subscriber</th><th>Referrer</th><th>Payment reference</th><th>Amount</th><th>Reward status</th><th>Confirmed date</th></tr></thead>
-            <tbody>{overview.referral_payments.map((payment) => <tr key={payment.id}><td>{payment.customer_name}<br/>{payment.customer_email}</td><td>{payment.referrer_name}</td><td>{payment.reference || payment.id}</td><td>{money(payment.amount)}</td><td>{payment.reward_credited ? "Credited" : "Not credited"}</td><td>{payment.verified_at ? new Date(payment.verified_at).toLocaleDateString("en-NG") : "—"}</td></tr>)}</tbody>
+          <table><thead><tr><th>Subscriber</th><th>Referrer</th><th>Payment reference</th><th>Status</th><th>Gross</th><th>Refunds</th><th>Net</th><th>Reward status</th><th>Confirmed date</th></tr></thead>
+            <tbody>{overview.referral_payments.map((payment) => <tr key={payment.id}><td>{payment.customer_name}<br/>{payment.customer_email}</td><td>{payment.referrer_name}</td><td>{payment.reference || payment.id}</td><td>{payment.status}</td><td>{money(payment.gross_amount)}</td><td>{money(payment.refund_amount)}</td><td>{money(payment.net_amount)}</td><td>{payment.reward_credited ? "Credited" : "Not credited"}</td><td>{payment.verified_at ? new Date(payment.verified_at).toLocaleDateString("en-NG") : "—"}</td></tr>)}</tbody>
           </table>
           <h2>Referral reward register</h2>
           <table><thead><tr><th>Referrer</th><th>Referred customer</th><th>Payment reference</th><th>Reward</th><th>Status</th><th>Date</th></tr></thead>
@@ -225,13 +267,15 @@ const AdminReferrals = () => {
       </section>
       <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-7">
         <section className="grid gap-3 sm:grid-cols-2">
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Legacy OTP requests to review</p><p className="mt-1 text-2xl font-bold">{legacyOtpCount}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open referral payouts</p><p className="mt-1 text-2xl font-bold">{withdrawals.length}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Legacy OTP requests to review</p><p className="mt-1 text-2xl font-bold">{legacyOtpCount}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open referral payouts</p><p className="mt-1 text-2xl font-bold">{openWithdrawalCount}</p></CardContent></Card>
         </section>
+          {withdrawalDetailsLimited && <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">The exact open-payout count is shown above; only the latest 100 requests are listed below.</p>}
 
         <section className="space-y-3">
           <div><h2 className="flex items-center gap-2 text-base font-bold"><Activity className="h-4 w-4" />Financial control centre</h2><p className="text-xs text-muted-foreground">Live wallet positions and the referral money trail. Amounts are in naira; refresh or use the activity stream to monitor changes.</p></div>
           {overviewLoading && !overview ? <div className="py-8 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading financial records…</div> : overview ? <>
+            {overview.detail_records_limited && <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">Summary totals include all records. Detailed tables show only the latest 500 records (up to 2,000 referred payments) and are not a complete transaction export.</p>}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><Users className="h-3.5 w-3.5"/>Wallet customers</p><p className="mt-1 text-2xl font-bold tabular-nums">{overview.summary.users}</p></CardContent></Card>
               <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><Wallet className="h-3.5 w-3.5"/>Available wallet funds</p><p className="mt-1 text-xl font-bold tabular-nums">{money(overview.summary.available_balance)}</p></CardContent></Card>
@@ -239,26 +283,33 @@ const AdminReferrals = () => {
               <Card><CardContent className="p-4"><p className="flex items-center gap-1 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5"/>Lifetime paid out</p><p className="mt-1 text-xl font-bold tabular-nums">{money(overview.summary.lifetime_paid)}</p></CardContent></Card>
             </div>
             <div className="space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">Referral programme financial report</h3><p className="text-xs text-muted-foreground">Only confirmed subscription payments from users with a recorded referral attribution are counted. This is subscription revenue, not all platform payments.</p></div><Button variant="outline" size="sm" onClick={downloadFinancialReport}><Download className="mr-2 h-4 w-4"/>Download PDF</Button></div>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">Referral programme financial report</h3><p className="text-xs text-muted-foreground">Verified lifetime-access Paystack payments with referral attribution. Gross revenue, recorded refunds and net revenue are separate; net after rewards excludes Paystack fees, taxes and other expenses.</p></div><Button variant="outline" size="sm" onClick={downloadFinancialReport}><Download className="mr-2 h-4 w-4"/>Download PDF</Button></div>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Confirmed referred-payment revenue</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_subscription_revenue)}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Verified referred payments</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.referral_subscription_count}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral reward credits</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_reward_cost)}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Net after rewards, before fees</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_net_before_fees)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Gross referred revenue</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.gross_revenue)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Refunds</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.refunds)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Net referred revenue</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.net_revenue)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Active subscriptions</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.active_subscriptions}</p></CardContent></Card>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Rewarded referrals</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.rewards.length}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral rewards already paid out</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_payouts_paid)}</p></CardContent></Card>
-                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral rewards earned (including unpaid)</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_reward_cost)}</p></CardContent></Card>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Referral reward cost</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.referral_reward_cost)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Net after rewards, before fees</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.net_after_reward_cost)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Completed payouts · {overview.summary.completed_payout_count} transfers</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.completed_payouts)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Reserved payouts · {overview.summary.reserved_payout_count} transfers</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.reserved_payouts)}</p></CardContent></Card>
+              </div>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Failed payouts · {overview.summary.failed_payout_count} transfers</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.failed_payouts)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Reversed payouts · {overview.summary.reversed_payout_count} transfers</p><p className="mt-1 text-lg font-bold tabular-nums">{money(overview.summary.reversed_payouts)}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Verified referred payments</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.verified_payments}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Recorded reward rows</p><p className="mt-1 text-lg font-bold tabular-nums">{overview.summary.rewards}</p></CardContent></Card>
               </div>
               <Card><CardContent className="space-y-3 p-4">
-                <div><h3 className="font-bold">Monthly referral performance</h3><p className="text-xs text-muted-foreground">Subscription revenue less referral reward credits, grouped by payment confirmation month.</p></div>
-                <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead className="bg-muted"><tr><th className="p-3">Month</th><th className="p-3">Subscriptions</th><th className="p-3">Revenue</th><th className="p-3">Reward cost</th><th className="p-3">Net</th></tr></thead><tbody>{overview.monthly_referral_performance.map((row) => <tr key={row.month} className="border-t"><td className="p-3 font-medium">{row.month}</td><td className="p-3">{row.subscriptions}</td><td className="p-3 tabular-nums">{money(row.revenue)}</td><td className="p-3 tabular-nums">{money(row.rewards)}</td><td className="p-3 font-semibold tabular-nums">{money(row.net)}</td></tr>)}</tbody></table></div>
+                <div><h3 className="font-bold">Monthly referral performance</h3><p className="text-xs text-muted-foreground">Gross revenue less refunds gives net revenue; net after rewards excludes provider fees and taxes.</p></div>
+                <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead className="bg-muted"><tr><th className="p-3">Month</th><th className="p-3">Active subscriptions</th><th className="p-3">Gross revenue</th><th className="p-3">Refunds</th><th className="p-3">Net revenue</th><th className="p-3">Reward cost</th><th className="p-3">Net after rewards</th></tr></thead><tbody>{overview.monthly_referral_performance.map((row) => <tr key={row.month} className="border-t"><td className="p-3 font-medium">{row.month}</td><td className="p-3">{row.subscriptions}</td><td className="p-3 tabular-nums">{money(row.gross_revenue)}</td><td className="p-3 tabular-nums">{money(row.refunds)}</td><td className="p-3 tabular-nums">{money(row.net_revenue)}</td><td className="p-3 tabular-nums">{money(row.reward_cost)}</td><td className="p-3 font-semibold tabular-nums">{money(row.net_after_rewards)}</td></tr>)}</tbody></table></div>
                 {overview.monthly_referral_performance.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No confirmed referred subscriptions found yet.</p>}
               </CardContent></Card>
               <Card><CardContent className="space-y-3 p-4">
-                <div><h3 className="font-bold">Referred subscription payments</h3><p className="text-xs text-muted-foreground">Payment, subscriber, referrer and fixed reward status for each successful subscription.</p></div>
-                <div className="max-h-[360px] overflow-auto"><table className="w-full min-w-[720px] text-left text-xs"><thead className="sticky top-0 bg-muted"><tr><th className="p-3">Subscriber</th><th className="p-3">Referrer</th><th className="p-3">Payment</th><th className="p-3">Amount</th><th className="p-3">Reward</th><th className="p-3">Confirmed</th></tr></thead><tbody>{overview.referral_payments.slice(0,200).map((payment) => <tr key={payment.id} className="border-t"><td className="p-3">{payment.customer_name}<p className="text-muted-foreground">{payment.customer_email}</p></td><td className="p-3">{payment.referrer_name}</td><td className="p-3">{payment.reference || payment.id.slice(0,8)}</td><td className="p-3 tabular-nums">{money(payment.amount)}</td><td className="p-3"><Badge variant={payment.reward_credited ? "default" : "secondary"}>{payment.reward_credited ? "Credited" : "Not credited"}</Badge></td><td className="p-3">{payment.verified_at ? new Date(payment.verified_at).toLocaleDateString() : "—"}</td></tr>)}</tbody></table></div>
+                <div><h3 className="font-bold">Referred subscription payments</h3><p className="text-xs text-muted-foreground">Detailed entries distinguish gross amount, recorded refunds, remaining net amount and payment status.</p></div>
+                <div className="max-h-[360px] overflow-auto"><table className="w-full min-w-[1120px] text-left text-xs"><thead className="sticky top-0 bg-muted"><tr><th className="p-3">Subscriber</th><th className="p-3">Referrer</th><th className="p-3">Payment</th><th className="p-3">Status</th><th className="p-3">Method</th><th className="p-3">Gross</th><th className="p-3">Refund</th><th className="p-3">Net</th><th className="p-3">Reward</th><th className="p-3">Confirmed</th></tr></thead><tbody>{overview.referral_payments.slice(0,200).map((payment) => <tr key={payment.id} className="border-t"><td className="p-3">{payment.customer_name}<p className="text-muted-foreground">{payment.customer_email}</p></td><td className="p-3">{payment.referrer_name}</td><td className="p-3">{payment.reference || payment.id.slice(0,8)}</td><td className="p-3"><Badge variant={payment.status === "success" ? "default" : "destructive"}>{payment.status}</Badge></td><td className="p-3">{payment.payment_method || "—"}</td><td className="p-3 tabular-nums">{money(payment.gross_amount)}</td><td className="p-3 tabular-nums">{money(payment.refund_amount)}</td><td className="p-3 tabular-nums">{money(payment.net_amount)}</td><td className="p-3"><Badge variant={payment.reward_credited ? "default" : "secondary"}>{payment.reward_credited ? "Credited" : "Not credited"}</Badge></td><td className="p-3">{payment.verified_at ? new Date(payment.verified_at).toLocaleDateString() : "—"}</td></tr>)}</tbody></table></div>
                 {overview.referral_payments.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No referred subscription payments recorded yet.</p>}
               </CardContent></Card>
             </div>

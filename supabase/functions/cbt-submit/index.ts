@@ -33,11 +33,20 @@ Deno.serve(async (req: Request) => {
     if (!sessionId || !Array.isArray(answers) || answers.length < 1 || answers.length > 720) {
       return respond({ error: "Invalid exam submission." }, 400);
     }
-    const normalized = answers.map((answer: any) => ({
-      question_id: answer?.question_id,
-      selected_answer: answer?.selected_answer,
-      time_spent_seconds: answer?.time_spent_seconds,
-    }));
+
+    const normalized = answers.map((answer: unknown) => {
+  if (!answer || typeof answer !== "object") {
+    throw new Error("Invalid answer format.");
+  }
+
+    const item = answer as Record<string, unknown>;
+
+    return {
+      question_id: item.question_id,
+      selected_answer: item.selected_answer,
+      time_spent_seconds: item.time_spent_seconds,
+    };
+  });
     const { data, error } = await admin.rpc("submit_cbt_session", {
       p_session_id: sessionId,
       p_user_id: authData.user.id,

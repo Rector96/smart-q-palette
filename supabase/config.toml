@@ -29,3 +29,12 @@ verify_jwt = false
 
 [functions.live-quiz]
 verify_jwt = true
+
+[functions.sdashapi-start]
+verify_jwt = true
+
+[functions.sdashapi-submit]
+verify_jwt = true
+
+[functions.sdashapi-result]
+verify_jwt = true

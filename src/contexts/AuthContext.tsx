@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { Session, User } from "@supabase/supabase-js";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { captureReferralFromSearch } from "@/lib/referral";
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, referralCode?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, referralCode?: string, referralSource?: "link" | "typed") => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -16,11 +18,16 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const welcomeEmailSent = useRef(false);
+
+  useEffect(() => {
+    captureReferralFromSearch(location.search);
+  }, [location.search]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -37,10 +44,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           welcomeEmailSent.current = true;
           const meta = session.user.user_metadata;
           try {
-            await supabase.functions.invoke("send-email", {
+            const { error } = await supabase.functions.invoke("send-email", {
               body: { type: "welcome", email: session.user.email, name: meta?.full_name || "Student" },
             });
-          } catch {}
+            if (error) console.error("Could not send welcome email:", error.message);
+          } catch (error) {
+            console.error("Could not send welcome email:", error);
+          }
         }
       }
     });
@@ -54,7 +64,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, referralCode?: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    referralCode?: string,
+    referralSource?: "link" | "typed",
+  ) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -62,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: {
           full_name: fullName,
           ...(referralCode ? { referral_code: referralCode.toUpperCase() } : {}),
+          ...(referralCode && referralSource ? { referral_source: referralSource } : {}),
         },
         emailRedirectTo: window.location.origin,
       },

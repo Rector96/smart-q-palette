@@ -16,6 +16,7 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [paymentPending, setPaymentPending] = useState(false);
 
   const handlePaystack = async () => {
     if (!user) return;
@@ -29,13 +30,28 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
       });
       if (res.error) throw new Error(res.error.message);
       const result = res.data;
+
+      if (result?.pending_reconciliation) {
+        setPaymentPending(true);
+        toast({
+          title: "Payment status being checked",
+          description: `${result.error || "We could not confirm the payment status."} Reference: ${result.reference || "Please contact support."} Do not initiate another payment yet.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (result?.data?.authorization_url) {
         window.location.href = result.data.authorization_url;
       } else {
         throw new Error("Failed to initialize payment");
       }
-    } catch (err: any) {
-      toast({ title: "Payment error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({
+        title: "Payment error",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -108,10 +124,10 @@ const SubscriptionModal = ({ open, onOpenChange }: Props) => {
           <Button
             className="w-full h-12 text-sm font-bold rounded-xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
             onClick={handlePaystack}
-            disabled={loading}
+            disabled={loading || paymentPending}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CreditCard className="h-4 w-4 mr-2" />}
-            Subscribe Now
+            {paymentPending ? "Payment Check Pending" : "Subscribe Now"}
           </Button>
           <Button
             variant="ghost"

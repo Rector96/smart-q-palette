@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isTransferSettlementRecorded } from "../_shared/financial-reconciliation.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,44 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...cors, "Content-Type": "application/json" },
 });
+
+type Numeric = number | string;
+type ProfileRow = { user_id: string; full_name: string | null; email: string | null; is_subscribed?: boolean };
+type ReferralProfileRow = {
+  user_id: string; referral_code?: string | null; withdrawals_blocked?: boolean;
+  withdrawals_block_reason?: string | null;
+};
+type BankRow = { bank_name: string; account_name: string; account_number_masked: string };
+type ReferralWithdrawalRow = {
+  id: string; user_id: string; bank_account_id: string; amount: Numeric; currency: string;
+  status: string; reference: string; paystack_transfer_code: string | null;
+  failure_reason: string | null; requested_at: string; completed_at: string | null;
+  referral_bank_accounts: BankRow | BankRow[] | null;
+};
+type ReferralWalletRow = {
+  user_id: string; pending_balance: Numeric; available_balance: Numeric; lifetime_earned: Numeric;
+  lifetime_paid: Numeric; recovery_balance: Numeric; updated_at: string;
+};
+type ReferralTransactionRow = {
+  id: string; user_id: string; transaction_type: string; amount: Numeric; status: string;
+  reference_type: string; reference_id: string; idempotency_key: string;
+  description: string | null; created_at: string;
+};
+type ReferralRewardRow = {
+  id: string; payment_id: string; referrer_user_id: string; referred_user_id: string;
+  amount: Numeric; status: string; created_at: string; available_at: string | null; reversed_at: string | null;
+};
+type ReferralAttributionRow = {
+  referred_user_id: string; referrer_user_id: string; referral_code: string; created_at: string;
+};
+type PaymentRow = {
+  id: string; user_id: string; amount: Numeric; refunded_amount_kobo: Numeric;
+  currency: string; status: string; payment_method: string | null;
+  plan_id: string | null; verified_at: string | null; created_at: string;
+  reference?: string | null;
+};
+type PaymentDetailsRow = { id: string; reference: string | null; amount: Numeric; status: string; verified_at: string | null };
+type WithdrawalControlRow = { user_id: string; withdrawals_blocked: boolean; withdrawals_block_reason: string | null };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -40,82 +79,244 @@ serve(async (req) => {
     const action = typeof body?.action === "string" ? body.action : "";
 
     if (action === "list") {
-      const { data: rows, error } = await serviceClient.from("referral_withdrawals")
-        .select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at,referral_bank_accounts(bank_name,account_name,account_number_masked)")
-        .in("status", ["otp", "processing", "queued"])
-        .order("requested_at", { ascending: false }).limit(100);
-      if (error) {
-        console.error("Could not list referral withdrawals:", error.message);
+      const [withdrawalResult, otpCountResult] = await Promise.all([
+        serviceClient.from("referral_withdrawals")
+          .select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at,referral_bank_accounts(bank_name,account_name,account_number_masked)", { count: "exact" })
+          .in("status", ["otp", "processing", "queued"])
+          .order("requested_at", { ascending: false }).limit(100),
+        serviceClient.from("referral_withdrawals")
+          .select("id", { count: "exact", head: true }).eq("status", "otp"),
+      ]);
+      if (withdrawalResult.error || otpCountResult.error) {
+        console.error("Could not list referral withdrawals:", withdrawalResult.error?.message || otpCountResult.error?.message);
         return json({ error: "Could not load referral withdrawals." }, 500);
       }
-      const userIds = [...new Set((rows || []).map((row: any) => row.user_id))];
-      const { data: profiles } = userIds.length
+      const withdrawalRows = (withdrawalResult.data || []) as ReferralWithdrawalRow[];
+      const userIds = [...new Set(withdrawalRows.map((row) => row.user_id))];
+      const { data: profiles, error: profilesError } = userIds.length
         ? await serviceClient.from("profiles").select("user_id,full_name,email").in("user_id", userIds)
-        : { data: [] as any[] };
-      const profileMap = new Map((profiles || []).map((profile: any) => [profile.user_id, profile]));
-      const withdrawals = (rows || []).map((row: any) => ({
+        : { data: [] as ProfileRow[], error: null };
+      if (profilesError) {
+        console.error("Could not load withdrawal customer details:", profilesError.message);
+        return json({ error: "Could not load withdrawal customer details." }, 500);
+      }
+      const profileRows = (profiles || []) as ProfileRow[];
+      const profileMap = new Map(profileRows.map((profile) => [profile.user_id, profile] as const));
+      const withdrawals = withdrawalRows.map((row) => ({
         ...row,
         customer_name: profileMap.get(row.user_id)?.full_name || "Customer",
         customer_email: profileMap.get(row.user_id)?.email || "",
         bank: Array.isArray(row.referral_bank_accounts) ? row.referral_bank_accounts[0] : row.referral_bank_accounts,
       }));
-      return json({ withdrawals });
+      const withdrawalCount = withdrawalResult.count ?? withdrawals.length;
+      return json({
+        withdrawals,
+        withdrawal_count: withdrawalCount,
+        otp_count: otpCountResult.count ?? 0,
+        details_limited: withdrawalCount > withdrawals.length,
+      });
+    }
+
+    if (action === "verify_transfer") {
+      const withdrawalId = typeof body?.withdrawal_id === "string" ? body.withdrawal_id.trim() : "";
+      if (!withdrawalId) return json({ error: "Select a withdrawal to verify." }, 400);
+
+      const { data: withdrawal, error: lookupError } = await serviceClient.from("referral_withdrawals")
+        .select("id,status,reference,paystack_transfer_code")
+        .eq("id", withdrawalId).maybeSingle();
+      if (lookupError) {
+        console.error("Could not load referral withdrawal for verification:", lookupError.message);
+        return json({ error: "Could not load this withdrawal." }, 500);
+      }
+      if (!withdrawal) return json({ error: "Withdrawal request was not found." }, 404);
+      if (["success", "failed", "reversed"].includes(withdrawal.status)) {
+        return json({
+          verified: true,
+          status: withdrawal.status,
+          message: `This transfer is already recorded as ${withdrawal.status}.`,
+        });
+      }
+
+      const response = await fetch(
+        `https://api.paystack.co/transfer/verify/${encodeURIComponent(withdrawal.reference)}`,
+        {
+          headers: { Authorization: `Bearer ${paystackSecret}` },
+          signal: AbortSignal.timeout(30000),
+        },
+      );
+      const payload = await response.json().catch(() => null);
+      const transfer = payload?.data;
+      if (!response.ok || payload?.status !== true || !transfer || typeof transfer.status !== "string") {
+        console.warn("Paystack transfer verification could not be confirmed:", {
+          reference: withdrawal.reference,
+          httpStatus: response.status,
+          message: typeof payload?.message === "string" ? payload.message : "invalid_response",
+        });
+        return json({
+          verified: false,
+          error: "Paystack status could not be confirmed. The reserved balance has not been changed.",
+        }, 502);
+      }
+      if (typeof transfer.reference === "string" && transfer.reference !== withdrawal.reference) {
+        console.error("Paystack returned a different transfer reference during verification.");
+        return json({
+          verified: false,
+          error: "Paystack returned a reference that does not match this withdrawal.",
+        }, 502);
+      }
+
+      const transferStatus = transfer.status.toLowerCase();
+      if (["success", "failed", "reversed"].includes(transferStatus)) {
+        const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
+          p_reference: withdrawal.reference,
+          p_outcome: transferStatus,
+          p_transfer_code: typeof transfer.transfer_code === "string"
+            ? transfer.transfer_code
+            : withdrawal.paystack_transfer_code,
+          p_failure_reason: typeof payload.message === "string"
+            ? payload.message
+            : "Paystack could not complete the transfer.",
+        });
+        const settlementRecorded = !settlementError &&
+          isTransferSettlementRecorded(settlement, transferStatus);
+        if (!settlementRecorded) {
+          console.error("Verified transfer could not be settled:", {
+            reference: withdrawal.reference,
+            settlementError: settlementError?.message,
+            settlement,
+          });
+          return json({
+            verified: false,
+            status: "pending_reconciliation",
+            error: "Paystack returned a final status, but the wallet settlement could not be confirmed. Funds remain under reconciliation.",
+          }, 202);
+        }
+        return json({
+          verified: true,
+          status: transferStatus,
+          message: `Paystack confirmed ${transferStatus}; the withdrawal record was reconciled.`,
+        });
+      }
+
+      if (!["otp", "pending", "processing", "queued"].includes(transferStatus)) {
+        console.warn("Paystack returned an unrecognized transfer status:", {
+          reference: withdrawal.reference,
+          status: transferStatus,
+        });
+        return json({
+          verified: false,
+          status: "pending_reconciliation",
+          error: "Paystack returned an unrecognized status. Funds remain reserved pending review.",
+        }, 202);
+      }
+
+      const nextStatus = transferStatus === "otp" ? "otp" : "processing";
+      const { data: updatedWithdrawal, error: updateError } = await serviceClient.from("referral_withdrawals")
+        .update({ status: nextStatus })
+        .eq("id", withdrawal.id)
+        .in("status", ["otp", "processing", "queued"])
+        .select("id,status").maybeSingle();
+      if (updateError || !updatedWithdrawal) {
+        console.error("Could not update nonterminal transfer status:", updateError?.message || "withdrawal status changed concurrently");
+        return json({
+          verified: false,
+          status: "pending_reconciliation",
+          error: "Paystack returned a non-final status, but the database could not confirm the latest state. Funds remain reserved.",
+        }, 202);
+      }
+      return json({
+        verified: true,
+        status: transferStatus,
+        message: `Paystack reports ${transferStatus}. The withdrawal funds remain reserved.`,
+      });
     }
 
 
-
     if (action === "overview") {
-      const [walletResult, transactionResult, rewardResult, withdrawalResult, attributionResult, paymentResult] = await Promise.all([
+      const [walletResult, transactionResult, rewardResult, withdrawalResult, attributionResult, paymentResult, summaryResult] = await Promise.all([
         serviceClient.from("referral_wallets").select("user_id,pending_balance,available_balance,lifetime_earned,lifetime_paid,recovery_balance,updated_at").order("updated_at", { ascending: false }).limit(500),
         serviceClient.from("referral_wallet_transactions").select("id,user_id,transaction_type,amount,status,reference_type,reference_id,idempotency_key,description,created_at").order("created_at", { ascending: false }).limit(500),
         serviceClient.from("referral_rewards").select("id,payment_id,referrer_user_id,referred_user_id,amount,status,created_at,available_at,reversed_at").order("created_at", { ascending: false }).limit(500),
         serviceClient.from("referral_withdrawals").select("id,user_id,bank_account_id,amount,currency,status,reference,paystack_transfer_code,failure_reason,requested_at,completed_at,referral_bank_accounts(bank_name,account_name,account_number_masked)").order("requested_at", { ascending: false }).limit(500),
         serviceClient.from("referral_attributions").select("referred_user_id,referrer_user_id,referral_code,created_at").order("created_at", { ascending: false }).limit(500),
-        serviceClient.from("payments").select("id,user_id,amount,currency,status,plan_id,verified_at,created_at").eq("status", "success").eq("amount", 2500).eq("currency", "NGN").eq("plan_id", "lifetime_access").not("verified_at", "is", null).order("verified_at", { ascending: false }).limit(2000),
+        serviceClient.from("payments").select("id,user_id,amount,refunded_amount_kobo,currency,status,payment_method,plan_id,reference,verified_at,created_at").in("status", ["success", "refunded"]).eq("payment_method", "paystack").eq("amount", 2500).eq("currency", "NGN").eq("plan_id", "lifetime_access").not("verified_at", "is", null).order("verified_at", { ascending: false }).limit(2000),
+        serviceClient.rpc("get_referral_admin_summary", { p_actor_user_id: authData.user.id }),
       ]);
-      const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error || paymentResult.error;
+      const failure = walletResult.error || transactionResult.error || rewardResult.error || withdrawalResult.error || attributionResult.error || paymentResult.error || summaryResult.error;
       if (failure) {
         console.error("Referral financial overview failed:", failure.message);
         return json({ error: "Could not load the complete referral financial overview." }, 500);
       }
+      if (!summaryResult.data?.summary || !Array.isArray(summaryResult.data.monthly_referral_performance)) {
+        console.error("Referral financial summary returned an invalid response.");
+        return json({ error: "Could not load the complete referral financial overview." }, 500);
+      }
+      const walletRows = (walletResult.data || []) as ReferralWalletRow[];
+      const transactionRows = (transactionResult.data || []) as ReferralTransactionRow[];
+      const rewardRows = (rewardResult.data || []) as ReferralRewardRow[];
+      const withdrawalRows = (withdrawalResult.data || []) as ReferralWithdrawalRow[];
+      const attributionRows = (attributionResult.data || []) as ReferralAttributionRow[];
+      const paymentRows = (paymentResult.data || []) as PaymentRow[];
+      const paymentUserIds = [...new Set(paymentRows.map((row) => row.user_id))];
+      const paymentUserIdChunks: string[][] = [];
+      for (let offset = 0; offset < paymentUserIds.length; offset += 500) {
+        paymentUserIdChunks.push(paymentUserIds.slice(offset, offset + 500));
+      }
+      const displayedAttributionResults = await Promise.all(paymentUserIdChunks.map((ids) =>
+        serviceClient.from("referral_attributions")
+          .select("referred_user_id,referrer_user_id,referral_code,created_at")
+          .in("referred_user_id", ids)
+      ));
+      const displayedAttributionError = displayedAttributionResults.find((result) => result.error)?.error;
+      if (displayedAttributionError) {
+        console.error("Could not load referred payment attribution:", displayedAttributionError.message);
+        return json({ error: "Referred payment details could not be loaded." }, 500);
+      }
+      const displayedAttributions = displayedAttributionResults.flatMap((result) =>
+        (result.data || []) as ReferralAttributionRow[]
+      );
       const ids = [...new Set([
-        ...(walletResult.data || []).map((r: any) => r.user_id),
-        ...(transactionResult.data || []).map((r: any) => r.user_id),
-        ...(rewardResult.data || []).flatMap((r: any) => [r.referrer_user_id, r.referred_user_id]),
-        ...(withdrawalResult.data || []).map((r: any) => r.user_id),
-        ...(attributionResult.data || []).flatMap((r: any) => [r.referrer_user_id, r.referred_user_id]),
-        ...(paymentResult.data || []).map((r: any) => r.user_id),
-      ].filter(Boolean))];
+        ...walletRows.map((row) => row.user_id),
+        ...transactionRows.map((row) => row.user_id),
+        ...rewardRows.flatMap((row) => [row.referrer_user_id, row.referred_user_id]),
+        ...withdrawalRows.map((row) => row.user_id),
+        ...attributionRows.flatMap((row) => [row.referrer_user_id, row.referred_user_id]),
+        ...displayedAttributions.flatMap((row) => [row.referrer_user_id, row.referred_user_id]),
+        ...paymentRows.map((row) => row.user_id),
+      ])];
       const { data: profiles, error: profilesError } = ids.length
         ? await serviceClient.from("profiles").select("user_id,full_name,email,is_subscribed").in("user_id", ids)
-        : { data: [], error: null };
+        : { data: [] as ProfileRow[], error: null };
       if (profilesError) return json({ error: "Customer details could not be loaded." }, 500);
       const { data: referralProfiles, error: referralProfilesError } = ids.length
         ? await serviceClient.from("referral_profiles").select("user_id,referral_code,withdrawals_blocked,withdrawals_block_reason,withdrawals_block_source").in("user_id", ids)
-        : { data: [], error: null };
+        : { data: [] as ReferralProfileRow[], error: null };
       if (referralProfilesError) return json({ error: "Referral account controls could not be loaded." }, 500);
-      const paymentIds = [...new Set((rewardResult.data || []).map((r: any) => r.payment_id).filter(Boolean))];
+      const paymentIds = [...new Set(rewardRows.map((row) => row.payment_id))];
       const { data: payments, error: paymentsError } = paymentIds.length
         ? await serviceClient.from("payments").select("id,reference,amount,status,verified_at").in("id", paymentIds)
-        : { data: [], error: null };
+        : { data: [] as PaymentDetailsRow[], error: null };
       if (paymentsError) return json({ error: "Referral subscription payment details could not be loaded." }, 500);
-      const paymentMap = new Map((payments || []).map((r: any) => [r.id, r]));
-      const profileMap = new Map((profiles || []).map((r: any) => [r.user_id, r]));
-      const referralMap = new Map((referralProfiles || []).map((r: any) => [r.user_id, r]));
-      const enrich = (row: any, idField = "user_id") => ({
+      const paymentRowsForRewards = (payments || []) as PaymentDetailsRow[];
+      const profileRows = (profiles || []) as ProfileRow[];
+      const referralProfileRows = (referralProfiles || []) as ReferralProfileRow[];
+      const paymentMap = new Map(paymentRowsForRewards.map((row) => [row.id, row] as const));
+      const profileMap = new Map(profileRows.map((row) => [row.user_id, row] as const));
+      const referralMap = new Map(referralProfileRows.map((row) => [row.user_id, row] as const));
+      const enrich = <T extends { user_id: string }>(row: T) => ({
         ...row,
-        customer_name: profileMap.get(row[idField])?.full_name || "Customer",
-        customer_email: profileMap.get(row[idField])?.email || "",
+        customer_name: profileMap.get(row.user_id)?.full_name || "Customer",
+        customer_email: profileMap.get(row.user_id)?.email || "",
       });
-      const wallets = (walletResult.data || []).map((row: any) => ({
+      const wallets = walletRows.map((row) => ({
         ...enrich(row),
         is_subscribed: profileMap.get(row.user_id)?.is_subscribed === true,
         referral_code: referralMap.get(row.user_id)?.referral_code || null,
         withdrawals_blocked: referralMap.get(row.user_id)?.withdrawals_blocked === true,
         withdrawals_block_reason: referralMap.get(row.user_id)?.withdrawals_block_reason || null,
       }));
-      const transactions = (transactionResult.data || []).map((row: any) => enrich(row));
-      const rewards = (rewardResult.data || []).map((row: any) => ({
+      const transactions = transactionRows.map((row) => enrich(row));
+      const rewards = rewardRows.map((row) => ({
         ...row,
         referrer_name: profileMap.get(row.referrer_user_id)?.full_name || "Customer",
         referrer_email: profileMap.get(row.referrer_user_id)?.email || "",
@@ -126,67 +327,52 @@ serve(async (req) => {
         payment_status: paymentMap.get(row.payment_id)?.status || "unknown",
         payment_verified_at: paymentMap.get(row.payment_id)?.verified_at || null,
       }));
-      const withdrawals = (withdrawalResult.data || []).map((row: any) => ({
+      const withdrawals = withdrawalRows.map((row) => ({
         ...enrich(row),
         bank: Array.isArray(row.referral_bank_accounts) ? row.referral_bank_accounts[0] : row.referral_bank_accounts,
       }));
-      const total = (key: string) => wallets.reduce((sum: number, row: any) => sum + Number(row[key] || 0), 0);
-      const referralPayments = (paymentResult.data || []).filter((payment: any) =>
-        (attributionResult.data || []).some((attribution: any) => attribution.referred_user_id === payment.user_id)
+      const referralPayments = paymentRows.filter((payment) =>
+        displayedAttributions.some((attribution) => attribution.referred_user_id === payment.user_id)
       );
-      const referralRevenue = referralPayments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0);
-      const qualifyingPaymentIds = new Set(referralPayments.map((payment: any) => payment.id));
-      const qualifyingRewards = (rewardResult.data || []).filter((reward: any) => qualifyingPaymentIds.has(reward.payment_id) && reward.status !== "reversed");
-      const referralPaymentIds = new Set(qualifyingRewards.map((reward: any) => reward.payment_id));
-      const rewardTotal = qualifyingRewards.reduce((sum: number, reward: any) => sum + Number(reward.amount || 0), 0);
-      const successfulPayouts = withdrawals.filter((row: any) => row.status === "success").reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
-      const monthly = new Map<string, { subscriptions: number; revenue: number; rewards: number }>();
-      for (const payment of referralPayments) {
-        const key = new Date(payment.verified_at).toISOString().slice(0, 7);
-        const current = monthly.get(key) || { subscriptions: 0, revenue: 0, rewards: 0 };
-        current.subscriptions += 1;
-        current.revenue += Number(payment.amount || 0);
-        monthly.set(key, current);
+      const displayedPaymentIds = referralPayments.map((payment) => payment.id);
+      const displayedPaymentIdChunks: string[][] = [];
+      for (let offset = 0; offset < displayedPaymentIds.length; offset += 500) {
+        displayedPaymentIdChunks.push(displayedPaymentIds.slice(offset, offset + 500));
       }
-      for (const reward of qualifyingRewards) {
-        const payment = referralPayments.find((item: any) => item.id === reward.payment_id);
-        if (payment) {
-          const key = new Date(payment.verified_at).toISOString().slice(0, 7);
-          const current = monthly.get(key) || { subscriptions: 0, revenue: 0, rewards: 0 };
-          current.rewards += Number(reward.amount || 0);
-          monthly.set(key, current);
-        }
+      const displayedRewardResults = await Promise.all(displayedPaymentIdChunks.map((ids) =>
+        serviceClient.from("referral_rewards").select("payment_id")
+          .in("payment_id", ids).neq("status", "reversed")
+      ));
+      const displayedRewardError = displayedRewardResults.find((result) => result.error)?.error;
+      if (displayedRewardError) {
+        console.error("Could not load referral reward statuses:", displayedRewardError.message);
+        return json({ error: "Referral payment reward statuses could not be loaded." }, 500);
       }
-      const referralPaymentsEnriched = referralPayments.map((payment: any) => {
-        const attribution = (attributionResult.data || []).find((item: any) => item.referred_user_id === payment.user_id);
+      const rewardedPaymentIds = new Set(
+        displayedRewardResults.flatMap((result) => (result.data || []).map((reward) => reward.payment_id)),
+      );
+      const referralPaymentsEnriched = referralPayments.map((payment) => {
+        const attribution = displayedAttributions.find((item) => item.referred_user_id === payment.user_id);
+        const grossAmount = Number(payment.amount);
+        const refundAmount = Number(payment.refunded_amount_kobo || 0) / 100;
         return {
           ...payment,
+          gross_amount: grossAmount,
+          refund_amount: refundAmount,
+          net_amount: grossAmount - refundAmount,
           customer_name: profileMap.get(payment.user_id)?.full_name || "Customer",
           customer_email: profileMap.get(payment.user_id)?.email || "",
           referrer_name: attribution ? profileMap.get(attribution.referrer_user_id)?.full_name || "Referrer" : "Unknown",
-          reward_credited: referralPaymentIds.has(payment.id),
+          reward_credited: rewardedPaymentIds.has(payment.id),
         };
       });
       return json({
-        summary: {
-          users: wallets.length,
-          available_balance: total("available_balance"),
-          pending_balance: total("pending_balance"),
-          lifetime_earned: total("lifetime_earned"),
-          lifetime_paid: total("lifetime_paid"),
-          recovery_balance: total("recovery_balance"),
-          referral_subscription_revenue: referralRevenue,
-          referral_subscription_count: referralPayments.length,
-          referral_reward_cost: rewardTotal,
-          referral_payouts_paid: successfulPayouts,
-          referral_net_before_fees: referralRevenue - rewardTotal,
-          rewards: rewards.length,
-          withdrawals: withdrawals.length,
-        },
+        summary: summaryResult.data.summary,
         wallets, transactions, rewards, withdrawals,
         referral_payments: referralPaymentsEnriched,
-        monthly_referral_performance: [...monthly.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, values]) => ({ month, ...values, net: values.revenue - values.rewards })),
+        monthly_referral_performance: summaryResult.data.monthly_referral_performance,
         attributions: attributionResult.data || [],
+        detail_records_limited: true,
       });
     }
 
@@ -206,16 +392,17 @@ serve(async (req) => {
         console.error("Referral customer search failed:", searchError.message);
         return json({ error: "Customer search is temporarily unavailable." }, 500);
       }
-      const profiles = matches || [];
-      const userIds = profiles.map((profile: any) => profile.user_id);
+      const profiles = (matches || []) as ProfileRow[];
+      const userIds = profiles.map((profile) => profile.user_id);
       const { data: controls, error: controlsError } = userIds.length
         ? await serviceClient.from("referral_profiles")
             .select("user_id,withdrawals_blocked,withdrawals_block_reason")
             .in("user_id", userIds)
-        : { data: [], error: null };
+        : { data: [] as WithdrawalControlRow[], error: null };
       if (controlsError) return json({ error: "Customer withdrawal controls could not be loaded." }, 500);
-      const controlMap = new Map((controls || []).map((control: any) => [control.user_id, control]));
-      return json({ customers: profiles.map((profile: any) => ({
+      const controlRows = (controls || []) as WithdrawalControlRow[];
+      const controlMap = new Map(controlRows.map((control) => [control.user_id, control] as const));
+      return json({ customers: profiles.map((profile) => ({
         ...profile,
         withdrawals_blocked: controlMap.get(profile.user_id)?.withdrawals_blocked === true,
         withdrawals_block_reason: controlMap.get(profile.user_id)?.withdrawals_block_reason || null,
@@ -278,43 +465,74 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
         body: JSON.stringify({ transfer_code: withdrawal.paystack_transfer_code, otp }),
+        signal: AbortSignal.timeout(30000),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.status !== true) {
         const message = String(payload?.message || "Paystack could not approve this transfer.");
-        // Paystack treats an incorrect OTP as a failed transfer. Release the
-        // reserved wallet balance only for a definite client-side rejection.
-        if (response.status >= 400 && response.status < 500 && response.status !== 401 && response.status !== 429) {
-          await serviceClient.rpc("settle_referral_withdrawal", {
-            p_reference: withdrawal.reference,
-            p_outcome: "failed",
-            p_transfer_code: withdrawal.paystack_transfer_code,
-            p_failure_reason: message,
-          });
-        }
-        return json({ error: message }, response.status >= 500 ? 502 : 400);
+        console.warn("Paystack did not confirm OTP finalization; funds remain reserved:", {
+          reference: withdrawal.reference,
+          httpStatus: response.status,
+          message,
+        });
+        return json({
+          error: message,
+          pending_reconciliation: true,
+          warning: "Paystack did not confirm the transfer outcome. The reserved balance has not been released; check the transfer status before retrying.",
+        }, response.status >= 500 || response.status === 401 || response.status === 429 ? 502 : 400);
       }
 
       const transferStatus = String(payload?.data?.status || "").toLowerCase();
-      if (transferStatus === "failed" || transferStatus === "reversed") {
-        await serviceClient.rpc("settle_referral_withdrawal", {
+      if (transferStatus === "success" || transferStatus === "failed" || transferStatus === "reversed") {
+        const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
           p_reference: withdrawal.reference,
           p_outcome: transferStatus,
           p_transfer_code: withdrawal.paystack_transfer_code,
           p_failure_reason: payload?.message || "Paystack could not complete the transfer.",
         });
-        return json({ finalized: false, status: transferStatus, error: "Paystack did not queue the transfer. The reserved amount has been returned to the user's wallet." }, 400);
+        const settlementRecorded = !settlementError &&
+          isTransferSettlementRecorded(settlement, transferStatus);
+        if (!settlementRecorded) {
+          console.error("Paystack reported a terminal transfer outcome but settlement was not confirmed:", {
+            reference: withdrawal.reference,
+            settlementError: settlementError?.message,
+            settlement,
+          });
+          return json({
+            finalized: false,
+            status: "pending_reconciliation",
+            reference: withdrawal.reference,
+            warning: "Paystack reported a transfer outcome, but wallet settlement could not be confirmed. The request remains under review.",
+          }, 202);
+        }
+        return json({
+          finalized: transferStatus === "success",
+          status: transferStatus,
+          reference: withdrawal.reference,
+          message: transferStatus === "success"
+            ? "Paystack confirmed the transfer and wallet settlement was recorded."
+            : "Paystack confirmed the transfer did not complete and wallet settlement was recorded.",
+        }, transferStatus === "success" ? 200 : 409);
       }
 
-      const { error: updateError } = await serviceClient.from("referral_withdrawals")
-        .update({ status: "processing" }).eq("id", withdrawal.id).eq("status", "otp");
-      if (updateError) {
-        console.error("Could not update finalized referral withdrawal:", updateError.message);
-        return json({ finalized: true, status: "processing", warning: "Paystack accepted the OTP, but the dashboard status needs refreshing." });
+      const { data: savedWithdrawal, error: updateError } = await serviceClient.from("referral_withdrawals")
+        .update({ status: "processing" }).eq("id", withdrawal.id).eq("status", "otp")
+        .select("id,status").maybeSingle();
+      if (updateError || !savedWithdrawal) {
+        console.error("Could not update finalized referral withdrawal:", updateError?.message);
+        const { data: currentWithdrawal, error: currentError } = await serviceClient.from("referral_withdrawals")
+          .select("status").eq("id", withdrawal.id).maybeSingle();
+        return json({
+          finalized: true,
+          status: currentError || !currentWithdrawal ? "pending_reconciliation" : currentWithdrawal.status,
+          reference: withdrawal.reference,
+          pending_reconciliation: true,
+          warning: "Paystack accepted the OTP, but the database status could not be confirmed. Do not submit another withdrawal.",
+        }, 202);
       }
       return json({
         finalized: true,
-        status: "processing",
+        status: savedWithdrawal.status,
         message: "Transfer authorisation accepted. Paystack is processing the payout; the customer will be notified when it is confirmed.",
       });
     }

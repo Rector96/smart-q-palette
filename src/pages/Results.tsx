@@ -1,375 +1,524 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { RotateCcw, Share2, Trophy, CheckCircle2, XCircle, Clock, Target, AlertCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Copy,
+  ExternalLink,
+  Linkedin,
+  RotateCcw,
+  Share2,
+  Twitter,
+  XCircle,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import ShareResultHighlight from "@/components/ShareResultHighlight";
-import ResultShareModal from "@/components/ResultShareModal";
+import { cn } from "@/lib/utils";
+import type { Database } from "@/integrations/supabase/types";
+import QuizResultMobileShare from "@/components/QuizResultMobileShare";
+import "./QuizRoom.css";
+import "./Results.css";
+
+type ExamSession = Database["public"]["Tables"]["exam_sessions"]["Row"];
+type QuestionRow = Database["public"]["Tables"]["questions"]["Row"];
+type ResultQuestion = Pick<
+  QuestionRow,
+  | "id"
+  | "topic"
+  | "question_text"
+  | "option_a"
+  | "option_b"
+  | "option_c"
+  | "option_d"
+  | "option_e"
+  | "correct_answer"
+  | "explanation"
+  | "diagram_url"
+>;
+type HistoryRow = Pick<
+  Database["public"]["Tables"]["user_history"]["Row"],
+  "id" | "question_id" | "selected_answer" | "is_correct" | "session_id"
+> & {
+  questions: ResultQuestion | null;
+};
+type AnswerFilter = "all" | "wrong" | "correct";
+
+const getSessionShareSubject = (
+  session: Pick<ExamSession, "subjects" | "examination" | "exam_year">,
+) => {
+  const exam = [session.examination, session.exam_year ? String(session.exam_year) : null]
+    .filter(Boolean)
+    .join(" · ");
+  const subjects = (session.subjects || []).join(" · ");
+  return [exam, subjects].filter(Boolean).join(" — ") || "Practice";
+};
 
 const Results = () => {
   const { toast } = useToast();
   const { sessionId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<ExamSession | null>(null);
   const [profileName, setProfileName] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
-  const [history, setHistory] = useState<any[]>([]);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [answerFilter, setAnswerFilter] = useState<AnswerFilter>("all");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
-    if (!user || !sessionId) return;
+    setSession(null);
+    setHistory([]);
+    setTopicBreakdown({});
+    setProfileName("");
+    setReferralCode("");
+    if (!user || !sessionId) {
+      setLoading(false);
+      setLoadError("This result could not be found.");
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    setAnswerFilter("all");
+
     const fetchResults = async () => {
-      const [{ data: sess }, { data: prof }, { data: hist }] = await Promise.all([
-        supabase.from("exam_sessions").select("*").eq("id", sessionId).single(),
-        supabase.from("profiles").select("full_name").eq("user_id", user.id).single(),
-        supabase.from("user_history").select("*, questions(*)").eq("session_id", sessionId),
-      ]);
-      if (sess) setSession(sess);
-      if (prof?.full_name) setProfileName(prof.full_name);
-      if (hist) {
-        setHistory(hist);
+      try {
+        const [
+          { data: sessionData, error: sessionError },
+          { data: profile, error: profileError },
+          { data: referralProfile, error: referralError },
+          { data: answers, error: historyError },
+        ] = await Promise.all([
+          supabase.from("exam_sessions")
+            .select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,completed,started_at,completed_at,examination,exam_year")
+            .eq("id", sessionId)
+            .single(),
+          supabase.from("profiles")
+            .select("full_name")
+            .eq("user_id", user.id)
+            .single(),
+          supabase.from("referral_profiles")
+            .select("referral_code")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase.from("user_history")
+            .select("id,question_id,selected_answer,is_correct,session_id,questions(id,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url)")
+            .eq("session_id", sessionId)
+            .order("answered_at", { ascending: true }),
+        ]);
+
+        if (!active) return;
+        if (sessionError) {
+          setLoadError(sessionError.message);
+          toast({ title: "Could not load quiz results", description: sessionError.message, variant: "destructive" });
+          return;
+        }
+
+        setSession(sessionData);
+        if (profileError) {
+          toast({ title: "Could not load your profile", description: profileError.message, variant: "destructive" });
+        }
+        if (profile?.full_name) setProfileName(profile.full_name);
+        if (referralError) {
+          toast({ title: "Could not load your referral code", description: referralError.message, variant: "destructive" });
+        }
+        if (referralProfile?.referral_code) setReferralCode(referralProfile.referral_code);
+
+        if (historyError) {
+          toast({ title: "Could not load your answers", description: historyError.message, variant: "destructive" });
+          setHistory([]);
+          setTopicBreakdown({});
+          return;
+        }
+
+        const resultHistory = answers || [];
+        setHistory(resultHistory);
         const breakdown: Record<string, { correct: number; total: number }> = {};
-        hist.forEach((h: any) => {
-          const topic = h.questions?.topic || "Unknown";
+        resultHistory.forEach((answer) => {
+          const topic = answer.questions?.topic || "Unknown";
           if (!breakdown[topic]) breakdown[topic] = { correct: 0, total: 0 };
-          breakdown[topic].total++;
-          if (h.is_correct) breakdown[topic].correct++;
+          breakdown[topic].total += 1;
+          if (answer.is_correct) breakdown[topic].correct += 1;
         });
         setTopicBreakdown(breakdown);
+      } catch (error) {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : "Please try again.";
+        setLoadError(message);
+        toast({ title: "Could not load quiz results", description: message, variant: "destructive" });
+      } finally {
+        if (active) setLoading(false);
       }
     };
-    fetchResults();
-  }, [user, sessionId]);
 
-  const handleShare = () => {
-    setShowShareModal(true);
-  };
+    void fetchResults();
+    return () => {
+      active = false;
+    };
+  }, [sessionId, toast, user]);
 
-  const handleWhatsAppShare = () => {
-    if (!session) return;
-    const score = Math.round(Number(session.score_percentage) || 0);
-    const grade = getGrade(score);
-    const text = `🎓 *ROCKCBT Result*\n\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\n\nCan you beat me? 🚀\n👉 https://weblines.org`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
-  const handleFacebookShare = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://weblines.org")}&quote=${encodeURIComponent(`I scored ${Math.round(Number(session?.score_percentage) || 0)}% on ROCKCBT! Can you beat me? 🚀`)}`, "_blank");
-  };
-
-  const handleCopyLink = async () => {
-    if (!session || !user) return;
+  const createShareLink = async () => {
+    if (!session || !sessionId || !user) return "";
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    await supabase.from("shared_exams").insert({
+    const { error } = await supabase.from("shared_exams").insert({
       share_code: code,
       creator_id: user.id,
-      session_id: sessionId!,
+      session_id: sessionId,
       mode: session.mode,
       subjects: session.subjects,
       examination: session.examination,
       exam_year: session.exam_year,
-    } as any);
-    const score = Math.round(Number(session.score_percentage) || 0);
-    const grade = getGrade(score);
-    const shareText = `🎓 ROCKCBT Result\nName: ${profileName || "Student"}\nScore: ${score}%\nGrade: ${grade}\n${session.correct_answers}/${session.total_questions} correct\nCan you beat me? 🚀\n👉 ${window.location.origin}/s/${code}`;
+    });
+    if (error) {
+      toast({ title: "Could not create a share link", description: error.message, variant: "destructive" });
+      return "";
+    }
+    return `${window.location.origin}/s/${code}`;
+  };
+
+  const handleCopyLink = async () => {
+    if (sharing) return;
+    setSharing(true);
     try {
-      await navigator.clipboard.writeText(shareText);
-      toast({ title: "Copied! 🔗", description: "Share text copied to clipboard" });
-    } catch {
-      toast({ title: "Share link", description: `${window.location.origin}/s/${code}` });
+      const link = await createShareLink();
+      if (!link) return;
+      try {
+        await navigator.clipboard.writeText(link);
+        toast({ title: "Link copied", description: "Your result link is ready to share." });
+      } catch {
+        toast({ title: "Copy your result link", description: link, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({
+        title: "Could not create a share link",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSharing(false);
     }
   };
 
+  const handleSocialShare = async (platform: "twitter" | "linkedin") => {
+    const shareSession = session;
+    if (sharing || !shareSession) return;
+    setSharing(true);
+    const popup = window.open("about:blank", "_blank");
+    try {
+      const link = await createShareLink();
+      if (!link) {
+        popup?.close();
+        return;
+      }
+      if (!popup) {
+        toast({ title: "Allow pop-ups to share", description: link, variant: "destructive" });
+        return;
+      }
+
+      const score = Math.round(Number(shareSession.score_percentage) || 0);
+      const text = `${profileName || "A RockCBT student"} scored ${score}% in ${getSessionShareSubject(shareSession)}. Can you beat my score?`;
+      const target = platform === "twitter"
+        ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`
+        : `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`;
+      popup.opener = null;
+      popup.location.href = target;
+    } catch (error) {
+      popup?.close();
+      toast({
+        title: "Could not open the share window",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    const shareSession = session;
+    if (sharing || !navigator.share || !shareSession) return;
+    setSharing(true);
+    try {
+      const link = await createShareLink();
+      if (!link) return;
+      await navigator.share({
+        title: "Can you beat my RockCBT score?",
+        text: `${profileName || "A RockCBT student"} scored ${shareSession.correct_answers}/${shareSession.total_questions} in ${getSessionShareSubject(shareSession)}.`,
+        url: link,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast({
+        title: "Could not share your result",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const correctCount = history.filter((answer) => answer.is_correct).length;
+  const wrongCount = history.length - correctCount;
+  const filteredHistory = useMemo(
+    () => history
+      .map((answer, index) => ({ answer, index }))
+      .filter(({ answer }) => answerFilter === "all" ||
+        (answerFilter === "correct" ? answer.is_correct : !answer.is_correct)),
+    [answerFilter, history],
+  );
+  const weakTopics = Object.entries(topicBreakdown)
+    .filter(([topic, result]) => topic !== "Unknown" && result.total > 0 && result.correct / result.total < 0.5)
+    .map(([topic]) => topic)
+    .slice(0, 3);
+  const weakestTopic = Object.entries(topicBreakdown)
+    .filter(([topic, result]) => topic !== "Unknown" && result.total > 0 && result.correct / result.total <= 0.5)
+    .map(([topic, result]) => ({
+      topic,
+      accuracy: Math.round((result.correct / result.total) * 100),
+    }))
+    .sort((a, b) => a.accuracy - b.accuracy)[0] || null;
+
+  if (loading) {
+    return <div className="cbt-results-state" role="status">Loading your result…</div>;
+  }
   if (!session) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <div className="cbt-results-state" role="alert">{loadError || "This result could not be found."}</div>;
   }
 
-  const score = Number(session.score_percentage) || 0;
-  const roundedScore = Math.round(score);
-  const duration = session.duration_seconds || 0;
-  const mins = Math.floor(duration / 60);
+  const totalQuestions = Number(session.total_questions) || 0;
+  const correctAnswers = Number(session.correct_answers) || 0;
+  const wrongAnswers = Math.max(0, totalQuestions - correctAnswers);
+  const durationMinutes = Math.floor((Number(session.duration_seconds) || 0) / 60);
+  const roundedScore = Math.round(Number(session.score_percentage) || 0);
 
   return (
-    <div className="min-h-[100dvh] overflow-x-clip bg-gradient-to-br from-[#123b73] via-[#1767a5] to-[#10a987] safe-area-top">
-      {/* Gradient Header */}
-      <div className="mx-auto max-w-2xl px-4 pt-8 pb-5 text-center text-white sm:pt-10">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }}>
-          <h1 className="text-2xl font-extrabold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            {getHeadline(roundedScore)}
-          </h1>
-          <p className="text-sm opacity-90">{getSubHeadline(roundedScore)}</p>
-        </motion.div>
-      </div>
-
-      {/* Session milestone celebration */}
-      {session.total_questions >= 10 && (
-        <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }} className="mx-auto max-w-2xl px-3 pb-3 sm:px-4">
-          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-4 py-3 text-center text-white">
-            <div className="text-2xl mb-1">{session.total_questions >= 50 ? "🏆" : session.total_questions >= 25 ? "🚀" : "✨"}</div>
-            <p className="font-bold">{session.total_questions >= 50 ? "Big practice session!" : session.total_questions >= 25 ? "Great momentum!" : "Practice milestone reached!"}</p>
-            <p className="text-sm text-white/85">You completed {session.total_questions} questions this session. Keep building your skills!</p>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Learning XP earned from this completed session */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mx-auto max-w-2xl px-3 pb-3 sm:px-4">
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white backdrop-blur-md">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/75">Learning rewards</p>
-            <p className="mt-0.5 text-lg font-extrabold">+{(Number(session.correct_answers) || 0) * 10 + 25} XP</p>
-            <p className="text-xs text-white/80">10 XP per correct answer + 25 XP for completing the session</p>
-          </div>
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl">⚡</div>
-        </div>
-      </motion.div>
-
-      {/* Main Content Card */}
-      <div className="mx-auto max-w-2xl px-3 pb-8 sm:px-4">
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-          <Card className="overflow-hidden rounded-[28px] border-0 shadow-2xl">
-            <CardContent className="p-4 pt-6 sm:p-7 sm:pt-8">
-              {/* Score Circle */}
-              <div className="flex justify-center mb-4">
-                <div className="relative inline-flex items-center justify-center w-32 h-32">
-                  <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
-                    <motion.circle
-                      cx="50" cy="50" r="42" fill="none"
-                      stroke={getScoreColor(roundedScore)}
-                      strokeWidth="8" strokeLinecap="round"
-                      initial={{ strokeDasharray: "0 264" }}
-                      animate={{ strokeDasharray: `${roundedScore * 2.64} 264` }}
-                      transition={{ duration: 1.5, ease: "easeOut" }}
-                    />
-                  </svg>
-                  <span className="absolute text-3xl font-extrabold">{roundedScore}%</span>
-                </div>
-              </div>
-
-              <div className="text-center mb-4">
-                <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold">
-                  {session.examination || "Practice"}{session.exam_year ? ` · ${session.exam_year}` : ""}
+    <main className="cbt-results-page">
+      <header className="cbt-results-header">
+        <div className="cbt-results-heading">
+          <h1><BookOpen aria-hidden="true" />{getSessionShareSubject(session)}</h1>
+          <p>
+            {roundedScore < 70 && weakTopics.length > 0
+              ? <>You need more practice in {weakTopics.map((topic, index) => (
+                <span key={topic}>
+                  {index > 0 && (index === weakTopics.length - 1 ? " and " : ", ")}
+                  <strong>{topic}</strong>
                 </span>
-                <p className="text-xs text-muted-foreground mt-1">{(session.subjects || []).join(" · ")}</p>
-              </div>
-
-              {/* Weak Topics Message */}
-              {Object.keys(topicBreakdown).length > 0 && (
-                <WeakTopicsMessage topicBreakdown={topicBreakdown} score={roundedScore} />
+              ))}.</>
+              : roundedScore >= 70
+                ? "Strong work. Keep building on what you know."
+                : "Review the explanations below and try again."}
+          </p>
+        </div>
+        <div className="cbt-results-actions">
+          <Button type="button" className="cbt-results-retry" onClick={() => navigate("/select-subjects?mode=practice")}>
+            <RotateCcw aria-hidden="true" /> Retry Test
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" className="cbt-results-share" disabled={sharing}>
+                <Share2 aria-hidden="true" /> Share Result <ChevronDown aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="cbt-results-share-menu">
+              <DropdownMenuItem onSelect={() => void handleCopyLink()}>
+                <Copy aria-hidden="true" /> Copy Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleSocialShare("twitter")}>
+                <Twitter aria-hidden="true" /> Tweet
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleSocialShare("linkedin")}>
+                <Linkedin aria-hidden="true" /> Post to LinkedIn
+              </DropdownMenuItem>
+              {typeof navigator !== "undefined" && "share" in navigator && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => void handleNativeShare()}>
+                    <ExternalLink aria-hidden="true" /> Share to another app
+                  </DropdownMenuItem>
+                </>
               )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button type="button" variant="outline" className="cbt-results-dashboard" onClick={() => navigate("/dashboard")}>
+            Dashboard
+          </Button>
+        </div>
+      </header>
 
-              {/* Action Buttons */}
-              <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-center">
-                <Button size="sm" className="h-11 w-full gap-2 rounded-xl px-5 text-xs font-semibold sm:h-10 sm:w-auto sm:rounded-full" onClick={() => navigate("/select-subjects?mode=practice")}>
-                  <RotateCcw className="h-3.5 w-3.5" /> Retry Test
-                </Button>
-                <Button size="sm" className="h-11 w-full gap-2 rounded-xl bg-green-600 px-5 text-xs font-semibold text-white hover:bg-green-700 sm:h-10 sm:w-auto sm:rounded-full" onClick={handleShare}>
-                  <Share2 className="h-3.5 w-3.5" /> Share Result
-                </Button>
-                <Button variant="outline" size="sm" className="h-11 w-full gap-2 rounded-xl px-5 text-xs font-semibold sm:h-10 sm:w-auto sm:rounded-full" onClick={() => navigate("/dashboard")}>
-                  <Trophy className="h-3.5 w-3.5" /> Dashboard
-                </Button>
+      <div className="cbt-results-grid">
+        <div className="cbt-results-left-column">
+          <section className="cbt-results-stats" aria-label="Quiz summary">
+            <div className="cbt-results-stat cbt-results-stat-correct">
+              <CheckCircle2 aria-hidden="true" />
+              <span>Correct: {correctAnswers}/{totalQuestions}</span>
+            </div>
+            <div className="cbt-results-stat cbt-results-stat-wrong">
+              <XCircle aria-hidden="true" />
+              <span>Wrong: {wrongAnswers}/{totalQuestions}</span>
+            </div>
+            <div className="cbt-results-stat cbt-results-stat-time">
+              <Clock aria-hidden="true" />
+              <span>Time: {durationMinutes} min</span>
+            </div>
+          </section>
+
+          <section className="cbt-results-topic-panel" aria-labelledby="cbt-topic-title">
+            <div className="cbt-results-panel-heading">
+              <h2 id="cbt-topic-title">Topic Breakdown</h2>
+              <div className="cbt-results-topic-legend" aria-label="Topic performance legend">
+                <span className="is-weak">Weak Area</span>
+                <span className="is-strong">Strong</span>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Stats Row */}
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }} className="mt-3 grid grid-cols-3 gap-2 sm:mt-4 sm:gap-3">
-          <Card className="rounded-2xl shadow-lg border-0">
-            <CardContent className="p-2.5 text-center sm:p-4">
-              <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
-              <p className="text-xs text-muted-foreground">Correct</p>
-              <p className="text-lg font-bold sm:text-xl">{session.correct_answers}</p>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl shadow-lg border-0">
-            <CardContent className="p-4 text-center">
-              <XCircle className="h-5 w-5 mx-auto mb-1 text-red-500" />
-              <p className="text-xs text-muted-foreground">Wrong</p>
-              <p className="text-xl font-bold">{session.total_questions - session.correct_answers}</p>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl shadow-lg border-0">
-            <CardContent className="p-4 text-center">
-              <Clock className="h-5 w-5 mx-auto mb-1 text-blue-500" />
-              <p className="text-xs text-muted-foreground">Time</p>
-              <p className="text-xl font-bold">{mins} min</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Topic Breakdown */}
-        {Object.keys(topicBreakdown).length > 0 && (
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}>
-            <Card className="rounded-2xl shadow-lg border-0 mt-4">
-              <CardHeader className="pb-2 px-5 pt-5">
-                <CardTitle className="text-base font-bold">Topic Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent className="px-5 pb-5 space-y-4">
-                {Object.entries(topicBreakdown).map(([topic, data]) => {
-                  const pct = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-                  const status = pct >= 70 ? "Strong" : pct >= 40 ? "Average" : pct === 0 ? "Weak Area" : "Needs Improvement";
-                  const statusColor = pct >= 70 ? "text-green-600" : pct >= 40 ? "text-orange-500" : "text-red-500";
-                  const barColor = pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-orange-400" : "bg-red-500";
-                  const icon = pct >= 70 ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <AlertCircle className="h-4 w-4 text-red-500" />;
-
+            </div>
+            {Object.entries(topicBreakdown).length > 0 ? (
+              <div className="cbt-results-topic-list">
+                {Object.entries(topicBreakdown).map(([topic, result]) => {
+                  const percentage = result.total > 0 ? Math.round((result.correct / result.total) * 100) : 0;
+                  const performance = percentage < 50 ? "weak" : percentage >= 70 ? "strong" : "average";
                   return (
-                    <div key={topic}>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        {icon}
-                        <span className="text-sm font-semibold flex-1">{topic}</span>
-                        <span className="text-xs text-muted-foreground font-medium">{data.correct}/{data.total}</span>
+                    <div className="cbt-results-topic-row" key={topic}>
+                      <div className="cbt-results-topic-title">
+                        <span title={topic}>{topic}</span>
+                        <strong>{result.correct}/{result.total}</strong>
                       </div>
-                      <p className={`text-[11px] ${statusColor} font-medium ml-6 mb-1`}>{status}</p>
-                      <div className="ml-6 h-2 rounded-full bg-secondary overflow-hidden">
-                        <motion.div
-                          className={`h-full rounded-full ${barColor}`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.8, ease: "easeOut" }}
-                        />
+                      <div
+                        className="cbt-results-progress"
+                        role="progressbar"
+                        aria-label={`${topic} accuracy`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={percentage}
+                      >
+                        <span className={`is-${performance}`} style={{ width: `${percentage}%` }} />
                       </div>
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+              </div>
+            ) : (
+              <p className="cbt-results-empty">Topic analysis is not available for this result.</p>
+            )}
+          </section>
+        </div>
 
-        {/* Answer Review */}
-        {history.length > 0 && (
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
-            <Card className="rounded-2xl shadow-lg border-0 mt-4">
-              <CardHeader className="pb-2 px-5 pt-5">
-                <CardTitle className="text-base font-bold">Your Answers {score < 50 ? "😣" : "🎉"}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-5 pb-5 space-y-3">
-                {history.map((h: any, idx: number) => {
-                  const q = h.questions;
-                  const userAnswer = h.selected_answer;
-                  const correctAnswer = q?.correct_answer;
-                  const userOptionText = q ? q[`option_${userAnswer?.toLowerCase()}`] : null;
-                  const correctOptionText = q ? q[`option_${correctAnswer?.toLowerCase()}`] : null;
+        <section className="cbt-results-review-panel" aria-labelledby="cbt-review-title">
+          <div className="cbt-results-review-heading">
+            <h2 id="cbt-review-title">Question &amp; Answer Review</h2>
+            <span>{history.length} questions</span>
+          </div>
+          <div className="cbt-results-filter-list" role="group" aria-label="Filter answers">
+            {([
+              ["all", `All (${history.length})`],
+              ["wrong", `Wrong (${wrongCount})`],
+              ["correct", `Correct (${correctCount})`],
+            ] as const).map(([filter, label]) => (
+              <button
+                type="button"
+                aria-pressed={answerFilter === filter}
+                className={cn("cbt-results-filter", answerFilter === filter && "is-active")}
+                key={filter}
+                onClick={() => setAnswerFilter(filter)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-                  return (
-                    <div key={h.id} className="rounded-xl border border-border/50 p-3.5">
-                      <div className="flex items-start gap-2 mb-2">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${h.is_correct ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {idx + 1}
-                        </span>
-                        <p className="text-sm font-semibold leading-snug">{q?.question_text || "Question"}</p>
+          {filteredHistory.length > 0 ? (
+            <div className="cbt-results-answer-grid">
+              {filteredHistory.map(({ answer, index }) => {
+                const question = answer.questions;
+                const selectedAnswer = answer.selected_answer?.toUpperCase() || "";
+                const correctAnswer = question?.correct_answer?.toUpperCase() || "";
+                const selectedText = question && selectedAnswer
+                  ? question[`option_${selectedAnswer.toLowerCase()}`]
+                  : null;
+                const correctText = question && correctAnswer
+                  ? question[`option_${correctAnswer.toLowerCase()}`]
+                  : null;
+
+                return (
+                  <article className="cbt-results-answer-card" key={answer.id}>
+                    <h3>Question {index + 1}</h3>
+                    <p className="cbt-results-question-text">{question?.question_text || "Question text unavailable."}</p>
+                    {question?.diagram_url && (
+                      <img
+                        className="cbt-results-question-diagram"
+                        src={question.diagram_url}
+                        alt={`Diagram for question ${index + 1}`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
+                    {!answer.is_correct && (
+                      <div className="cbt-results-answer-choice is-wrong">
+                        <XCircle aria-hidden="true" />
+                        <span>{selectedAnswer ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
                       </div>
-
-                      {q?.diagram_url && (
-                        <img
-                          src={q.diagram_url}
-                          alt="Question diagram"
-                          className="ml-8 mb-2 max-h-64 max-w-[calc(100%-2rem)] rounded-lg border border-border/50 object-contain"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      )}
-
-                      {/* User's wrong answer */}
-                      {!h.is_correct && userOptionText && (
-                        <div className="ml-8 mb-1.5 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/20 px-3 py-2">
-                          <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                          <span className="text-xs text-red-700 dark:text-red-400">{userOptionText}</span>
-                        </div>
-                      )}
-
-                      {/* Correct answer */}
-                      <div className="ml-8 flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-950/20 px-3 py-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                        <span className="text-xs text-green-700 dark:text-green-400">{correctOptionText || correctAnswer}</span>
-                        {!h.is_correct && <span className="ml-auto text-[10px] font-semibold text-green-600 bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded-full">Correct Answer</span>}
-                      </div>
-
-                      {/* Explanation */}
-                      {q?.explanation && (
-                        <p className="ml-8 mt-2 text-[11px] text-muted-foreground leading-relaxed italic">💡 {q.explanation}</p>
-                      )}
+                    )}
+                    <div className="cbt-results-answer-choice is-correct">
+                      <CheckCircle2 aria-hidden="true" />
+                      <span>{correctAnswer ? `${correctAnswer}) ${correctText || correctAnswer}` : "Correct answer unavailable."}</span>
+                      {!answer.is_correct && <strong>Correct Answer</strong>}
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        <div className="h-4 sm:h-8" />
+                    <div className="cbt-results-explanation">
+                      <h4>Explanation</h4>
+                      <p>{question?.explanation || "No explanation was provided for this question."}</p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="cbt-results-empty">No questions match this filter.</p>
+          )}
+        </section>
       </div>
 
-      <ShareResultHighlight onShare={handleShare} />
-      <ResultShareModal
-        open={showShareModal}
-        onOpenChange={setShowShareModal}
-        profileName={profileName}
-        score={roundedScore}
-        grade={getGrade(roundedScore)}
-        correct={session.correct_answers}
-        total={session.total_questions}
-        onWhatsApp={handleWhatsAppShare}
-        onFacebook={handleFacebookShare}
-        onCopyLink={handleCopyLink}
-      />
-    </div>
+      <div className="cbt-results-mobile-share">
+        <div className="quiz-results-page--cbt">
+          <div className="quiz-results-mobile">
+            <QuizResultMobileShare
+              resultId={session.id}
+              isSolo
+              subject={getSessionShareSubject(session)}
+              userId={user?.id || ""}
+              profileName={profileName}
+              referralCode={referralCode}
+              correct={correctAnswers}
+              total={totalQuestions}
+              rank={null}
+              participantCount={null}
+              bestScoreThisWeek={null}
+              secondsUsed={Number(session.duration_seconds) || 0}
+              weakestTopic={weakestTopic}
+              rematchAvailable={false}
+              rematchLoading={false}
+              onRematch={() => undefined}
+              onCreateAnother={() => navigate("/select-subjects?mode=practice")}
+              onDashboard={() => navigate("/dashboard")}
+            />
+          </div>
+        </div>
+      </div>
+    </main>
   );
 };
-
-function getGrade(score: number) {
-  return score >= 70 ? "A" : score >= 60 ? "B" : score >= 50 ? "C" : score >= 40 ? "D" : "F";
-}
-
-function getScoreColor(score: number) {
-  if (score >= 70) return "#22c55e";
-  if (score >= 40) return "#f97316";
-  return "#ef4444";
-}
-
-function getHeadline(score: number) {
-  if (score >= 70) return "Excellent! 🔥";
-  if (score >= 40) return "Keep Going! 👍";
-  return "Don't Give Up! 😤";
-}
-
-function getSubHeadline(score: number) {
-  if (score >= 70) return "Outstanding performance!";
-  if (score >= 40) return "You're getting there!";
-  return "You Can Do Better!";
-}
-
-function WeakTopicsMessage({ topicBreakdown, score }: { topicBreakdown: Record<string, { correct: number; total: number }>; score: number }) {
-  if (score >= 70) return null;
-  const weakTopics = Object.entries(topicBreakdown)
-    .filter(([, d]) => d.total > 0 && (d.correct / d.total) < 0.5)
-    .map(([t]) => t)
-    .slice(0, 3);
-  if (weakTopics.length === 0) return null;
-  return (
-    <p className="text-center text-sm text-muted-foreground mt-2">
-      You need more practice in{" "}
-      {weakTopics.map((t, i) => (
-        <span key={t}>
-          {i > 0 && (i === weakTopics.length - 1 ? " and " : ", ")}
-          <strong>{t}</strong>
-        </span>
-      ))}.
-    </p>
-  );
-}
 
 export default Results;

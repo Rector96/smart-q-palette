@@ -10,6 +10,7 @@ import ScientificCalculator from "@/components/ScientificCalculator";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import QuizResultMobileShare from "@/components/QuizResultMobileShare";
 import "./QuizRoom.css";
 
 interface Participant {
@@ -29,10 +30,90 @@ interface QuizQuestion {
   option_d: string;
   option_e?: string | null;
   diagram_url?: string | null;
-  correct_answer: string;
+  topic?: string | null;
+  correct_answer?: string;
   explanation?: string;
   exam_hint?: string;
 }
+
+interface QuizRoomState {
+  id: string;
+  host_id: string;
+  room_code: string;
+  subject: string;
+  quiz_type: "general" | "examination";
+  examination: string | null;
+  exam_year: number | null;
+  status: string;
+  current_question_index: number;
+  question_started_at: string | null;
+  time_per_question: number;
+  questions: QuizQuestion[];
+}
+
+interface PrivateAnswer {
+  selected_option?: string | null;
+  correct_answer?: string;
+  explanation?: string | null;
+  exam_hint?: string | null;
+}
+
+interface QuizResultStats {
+  correct: number;
+  total: number;
+  secondsUsed: number;
+  weakestTopic: { topic: string; accuracy: number } | null;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isQuizQuestion = (value: unknown): value is QuizQuestion => {
+  if (!isRecord(value)) return false;
+  return ["id", "question_text", "option_a", "option_b", "option_c", "option_d"]
+    .every((key) => typeof value[key] === "string") &&
+    (value.topic === undefined || value.topic === null || typeof value.topic === "string");
+};
+
+const parseQuizRoom = (value: unknown): QuizRoomState | null => {
+  if (!isRecord(value) || !Array.isArray(value.questions) || !value.questions.every(isQuizQuestion)) return null;
+  if (
+    typeof value.id !== "string" ||
+    typeof value.host_id !== "string" ||
+    typeof value.room_code !== "string" ||
+    typeof value.subject !== "string" ||
+    typeof value.status !== "string" ||
+    typeof value.current_question_index !== "number" ||
+    typeof value.time_per_question !== "number"
+  ) return null;
+  return {
+    id: value.id,
+    host_id: value.host_id,
+    room_code: value.room_code,
+    subject: value.subject,
+    quiz_type: value.quiz_type === "examination" ? "examination" : "general",
+    examination: typeof value.examination === "string" ? value.examination : null,
+    exam_year: typeof value.exam_year === "number" ? value.exam_year : null,
+    status: value.status,
+    current_question_index: value.current_question_index,
+    question_started_at: typeof value.question_started_at === "string" ? value.question_started_at : null,
+    time_per_question: value.time_per_question,
+    questions: value.questions,
+  };
+};
+
+const parsePrivateAnswer = (value: unknown): PrivateAnswer | null => {
+  if (!isRecord(value)) return null;
+  return {
+    selected_option: typeof value.selected_option === "string" ? value.selected_option : null,
+    correct_answer: typeof value.correct_answer === "string" ? value.correct_answer : undefined,
+    explanation: typeof value.explanation === "string" ? value.explanation : null,
+    exam_hint: typeof value.exam_hint === "string" ? value.exam_hint : null,
+  };
+};
+
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 const MOTIVATIONAL = [
   "🔥 You're on fire!",
@@ -48,7 +129,7 @@ const QuizRoom = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [room, setRoom] = useState<any>(null);
+  const [room, setRoom] = useState<QuizRoomState | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
@@ -64,11 +145,17 @@ const QuizRoom = () => {
   const [answered, setAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [showResult, setShowResult] = useState(false);
-  const [privateAnswer, setPrivateAnswer] = useState<any>(null);
+  const [privateAnswer, setPrivateAnswer] = useState<PrivateAnswer | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [quizEnded, setQuizEnded] = useState(false);
   const [tabWarning, setTabWarning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [quizResultStats, setQuizResultStats] = useState<QuizResultStats | null>(null);
+  const [resultStatsLoading, setResultStatsLoading] = useState(true);
+  const [resultStatsError, setResultStatsError] = useState("");
+  const [resultProfileName, setResultProfileName] = useState("");
+  const [resultReferralCode, setResultReferralCode] = useState("");
+  const loadedResultsRoom = useRef<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const answerTimeRef = useRef(0);
 
   useEffect(() => {
@@ -94,53 +181,73 @@ const QuizRoom = () => {
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    const nextRoom = data?.room;
+    const nextRoom = parseQuizRoom(data?.room);
     if (!nextRoom) throw new Error("Quiz room not found.");
     setRoom(nextRoom);
     setIsHost(nextRoom.host_id === user.id);
     setCurrentQ(nextRoom.current_question_index || 0);
     setParticipants(data.participants || []);
-    setPrivateAnswer(data.my_answer || null);
+    const answer = parsePrivateAnswer(data.my_answer);
+    setPrivateAnswer(answer);
     if (nextRoom.status === "ended") setQuizEnded(true);
     else setQuizEnded(false);
     if (nextRoom.status === "live") {
       const startedAt = nextRoom.question_started_at ? new Date(nextRoom.question_started_at).getTime() : Date.now();
       const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
       setTimeLeft(Math.max(0, nextRoom.time_per_question - elapsed));
-      setSelectedOption(data.my_answer?.selected_option || null);
-      setAnswered(Boolean(data.my_answer));
-      setShowResult(Boolean(data.my_answer));
+      setSelectedOption(answer?.selected_option || null);
+      setAnswered(Boolean(answer));
+      setShowResult(Boolean(answer));
     }
     setLoading(false);
   }, [roomCode, user]);
 
   useEffect(() => {
     if (!roomCode || !user) return;
-    refreshRoom().catch((err: any) => {
-      toast({ title: "Unable to load quiz", description: err.message || "Please try again.", variant: "destructive" });
+    refreshRoom().catch((err: unknown) => {
+      toast({ title: "Unable to load quiz", description: errorMessage(err, "Please try again."), variant: "destructive" });
       navigate("/live-quiz");
     });
   }, [roomCode, user, refreshRoom]);
   // Load participants
   useEffect(() => {
     if (!room) return;
-    const loadParticipants = async () => {
-      const { data } = await supabase.from("quiz_participants").select("*").eq("room_id", room.id);
-      if (data) setParticipants(data);
-    };
+   const loadParticipants = async () => {
+  const { data, error } = await supabase
+    .from("quiz_participants")
+    .select("*")
+    .eq("room_id", room.id);
+
+  if (error) {
+    console.error("[Live Quiz] Participant refresh failed:", error);
+    return;
+  }
+
+  if (data) setParticipants(data);
+};
     loadParticipants();
 
     // Real-time participants
     const channel = supabase.channel(`room-${room.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_participants", filter: `room_id=eq.${room.id}` }, () => loadParticipants())
+      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_participants", filter: `room_id=eq.${room.id}` }, (payload) => {
+  console.info("[Live Quiz] Participant change received:", payload.eventType);
+  void loadParticipants();
+})
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "quiz_rooms", filter: `id=eq.${room.id}` }, () => {
-        refreshRoom().catch(() => {});
+        refreshRoom().catch((error: unknown) => {
+          console.error("Could not refresh live quiz room:", error);
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "quiz_answers", filter: `room_id=eq.${room.id}` }, () => {
         // Reload scores
         loadScores();
       })
-      .subscribe();
+      .subscribe((status, error) => {
+        console.info("[Live Quiz] Realtime channel status:", status, error ?? null);
+        if (status === "SUBSCRIBED") {
+          void loadParticipants();
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [room?.id, refreshRoom]);
@@ -155,6 +262,115 @@ const QuizRoom = () => {
       setParticipants(prev => prev.map(p => ({ ...p, score: data.find(d => d.user_id === p.user_id)?.score || p.score })));
     }
   };
+
+  useEffect(() => {
+    if (!quizEnded || !room || !user || loadedResultsRoom.current === room.id) return;
+    let active = true;
+    setResultStatsLoading(true);
+    setResultStatsError("");
+
+  const loadResultDetails = async () => {
+  const [resultsResponse, profileResult, referralResult] = await Promise.all([
+    supabase.functions.invoke("live-quiz", {
+      body: {
+        action: "results",
+        room_id: room.id,
+      },
+    }),
+    supabase.from("profiles")
+      .select("full_name")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase.from("referral_profiles")
+      .select("referral_code")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+
+  if (!active) return;
+
+  if (resultsResponse.error) {
+    setResultStatsError(resultsResponse.error.message);
+    setResultStatsLoading(false);
+    toast({
+      title: "Could not load your quiz details",
+      description: resultsResponse.error.message,
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const answers = resultsResponse.data?.answers ?? [];
+
+  const topicTotals = new Map<string, { correct: number; total: number }>();
+
+  for (const answer of answers) {
+    const topic = room.questions[answer.question_index]?.topic?.trim();
+    if (!topic) continue;
+
+    const current = topicTotals.get(topic) || { correct: 0, total: 0 };
+    current.total += 1;
+    if (answer.is_correct) current.correct += 1;
+    topicTotals.set(topic, current);
+  }
+
+  const weakest = [...topicTotals.entries()]
+    .map(([topic, result]) => ({
+      topic,
+      accuracy: result.total > 0
+        ? Math.round((result.correct / result.total) * 100)
+        : 0,
+    }))
+    .sort((a, b) => a.accuracy - b.accuracy)[0] || null;
+
+  setQuizResultStats({
+    correct: answers.filter((answer) => answer.is_correct).length,
+    total: room.questions.length,
+    secondsUsed: answers.reduce(
+      (total, answer) => total + answer.time_taken,
+      0,
+    ),
+    weakestTopic: weakest,
+  });
+
+  if (profileResult.error) {
+    toast({
+      title: "Could not load your profile name",
+      description: profileResult.error.message,
+      variant: "destructive",
+    });
+  }
+
+  if (referralResult.error) {
+    toast({
+      title: "Could not load your referral code",
+      description: referralResult.error.message,
+      variant: "destructive",
+    });
+  }
+
+  setResultProfileName(profileResult.data?.full_name || "");
+  setResultReferralCode(referralResult.data?.referral_code || "");
+  loadedResultsRoom.current = room.id;
+  setResultStatsLoading(false);
+};
+
+    loadResultDetails().catch((error: unknown) => {
+      if (active) {
+        setResultStatsError(errorMessage(error, "Please refresh and try again."));
+        setResultStatsLoading(false);
+        toast({
+          title: "Could not load your quiz details",
+          description: errorMessage(error, "Please refresh and try again."),
+          variant: "destructive",
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [quizEnded, room, user, toast]);
 
   // Timer
   useEffect(() => {
@@ -208,15 +424,15 @@ const QuizRoom = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setPrivateAnswer({
-        ...(data?.result || {}),
+        ...(parsePrivateAnswer(data?.result) || {}),
         selected_option: option,
       });
       setShowResult(true);
       if (isHost) setRevealUntil(Date.now() + 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAnswered(false);
       setSelectedOption(null);
-      toast({ title: "Answer not submitted", description: err.message || "Please try again.", variant: "destructive" });
+      toast({ title: "Answer not submitted", description: errorMessage(err, "Please try again."), variant: "destructive" });
     }
   };
 
@@ -248,15 +464,15 @@ const QuizRoom = () => {
       try {
         await refreshRoom();
         setAdvanceCommitted(false);
-      } catch (refreshError: any) {
+      } catch (refreshError: unknown) {
         toast({
           title: "Question advanced; refresh needed",
-          description: refreshError?.message || "The next question is ready. Tap Refresh question to reload it.",
+          description: errorMessage(refreshError, "The next question is ready. Tap Refresh question to reload it."),
           variant: "destructive",
         });
       }
-    } catch (err: any) {
-      toast({ title: "Unable to advance", description: err.message || "Please try again.", variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Unable to advance", description: errorMessage(err, "Please try again."), variant: "destructive" });
     } finally {
       setIsAdvancing(false);
     }
@@ -290,11 +506,17 @@ const QuizRoom = () => {
       const inviteUrl = `${window.location.origin}/q/${nextCode}`;
       toast({ title: "Rematch room created", description: "Share the new room code with everyone from the last game." });
       if (navigator.share) {
-        try { await navigator.share({ title: "Rematch challenge!", text: `Join our rematch with code ${nextCode}`, url: inviteUrl }); } catch {}
+        try {
+          await navigator.share({ title: "Rematch challenge!", text: `Join our rematch with code ${nextCode}`, url: inviteUrl });
+        } catch (error) {
+          if (!(error instanceof Error && error.name === "AbortError")) {
+            toast({ title: "Could not share rematch", description: errorMessage(error, "Please share the room code manually."), variant: "destructive" });
+          }
+        }
       }
       navigate(`/quiz-room/${nextCode}`);
-    } catch (error: any) {
-      toast({ title: "Could not start rematch", description: error.message || "Please try again.", variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Could not start rematch", description: errorMessage(error, "Please try again."), variant: "destructive" });
     } finally {
       setRematchLoading(false);
     }
@@ -314,7 +536,13 @@ const QuizRoom = () => {
   const shareLink = async () => {
     const url = `${window.location.origin}/q/${roomCode}`;
     if (navigator.share) {
-      try { await navigator.share({ title: "Join my quiz!", url }); } catch {}
+      try {
+        await navigator.share({ title: "Join my quiz!", url });
+      } catch (error) {
+        if (!(error instanceof Error && error.name === "AbortError")) {
+          toast({ title: "Could not share quiz", description: errorMessage(error, "Please copy the room link manually."), variant: "destructive" });
+        }
+      }
     } else {
       try {
         await navigator.clipboard.writeText(url);
@@ -336,8 +564,12 @@ const QuizRoom = () => {
     const myRank = sorted.findIndex((p) => p.user_id === user?.id) + 1;
     const myScore = sorted.find((p) => p.user_id === user?.id)?.score ?? 0;
     const isChampion = Boolean(winner && winner.user_id === user?.id);
+    const resultSubject = room.quiz_type === "examination" && room.examination
+      ? `${room.examination}${room.exam_year ? ` ${room.exam_year}` : ""} · ${room.subject}`
+      : `General quiz · ${room.subject}`;
     return (
       <div className="quiz-results-page min-h-screen bg-[#f4f7fb] px-4 py-5 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-7">
+        <div className="quiz-results-desktop">
         <main className="quiz-results-layout mx-auto max-w-6xl">
           <section className={cn("quiz-results-hero", isChampion && "quiz-results-hero-champion")}>
             <div className="quiz-results-glow quiz-results-glow-one" />
@@ -349,6 +581,7 @@ const QuizRoom = () => {
               <p className="quiz-results-eyebrow">{isChampion ? "Victory secured" : "Battle finished"}</p>
               <h1>{isChampion ? "You’re the champion!" : "Quiz complete!"}</h1>
               <p className="quiz-results-subtitle">{isChampion ? "Excellent work — you came out on top." : "Great effort. Here’s how everyone performed."}</p>
+              <p className="mt-2 text-sm font-semibold text-primary-foreground/90">{resultSubject}</p>
             </div>
 
             {winner && (
@@ -403,6 +636,40 @@ const QuizRoom = () => {
             <Button variant="outline" className="h-12 w-full rounded-xl text-base font-bold" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
           </div>
         </main>
+        </div>
+        <div className="quiz-results-mobile">
+          {quizResultStats && (
+            <QuizResultMobileShare
+              resultId={room.id}
+              roomCode={room.room_code}
+              isSolo={false}
+              subject={resultSubject}
+              userId={user?.id || ""}
+              profileName={resultProfileName || participants.find((p) => p.user_id === user?.id)?.display_name || ""}
+              referralCode={resultReferralCode}
+              correct={quizResultStats.correct}
+              total={quizResultStats.total}
+              rank={myRank || 1}
+              participantCount={participants.length}
+              bestScoreThisWeek={null}
+              secondsUsed={quizResultStats.secondsUsed}
+              weakestTopic={quizResultStats.weakestTopic}
+              rematchAvailable={isHost && participants.length > 0}
+              rematchLoading={rematchLoading}
+              onRematch={() => void handleRematch()}
+              onCreateAnother={() => navigate("/live-quiz")}
+              onDashboard={() => navigate("/dashboard")}
+            />
+          )}
+          {!quizResultStats && (
+            <div className="quiz-results-mobile-load-state" role={resultStatsError ? "alert" : "status"}>
+              <p>{resultStatsError ? "Your quiz results could not be loaded." : "Loading your quiz results…"}</p>
+              {resultStatsError && <p className="quiz-results-mobile-load-error">{resultStatsError}</p>}
+              {resultStatsLoading && <div className="animate-spin h-7 w-7 rounded-full border-4 border-primary border-t-transparent" aria-label="Loading" />}
+              {resultStatsError && <Button variant="outline" onClick={() => window.location.reload()}>Try again</Button>}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

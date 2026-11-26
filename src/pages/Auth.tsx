@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { clearSavedReferralAttribution, getSavedReferralAttribution, normalizeReferralCode } from "@/lib/referral";
 import "./Auth.css";
 
 const Auth = () => {
@@ -24,10 +25,14 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [referralCode] = useState(() => {
+  const [initialReferral] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return (params.get("ref") || params.get("referral") || "").trim().toUpperCase();
+    const queryCode = normalizeReferralCode(params.get("ref") || params.get("referral"));
+    return queryCode
+      ? { code: queryCode, source: "link" as const }
+      : getSavedReferralAttribution();
   });
+  const [referralCode, setReferralCode] = useState(initialReferral?.code || "");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
@@ -60,10 +65,20 @@ const Auth = () => {
           navigate("/dashboard");
         }
       } else {
-        const { error } = await signUp(email, password, fullName, referralCode || undefined);
+        const referralSource = referralCode && referralCode === initialReferral?.code
+          ? initialReferral.source
+          : "typed";
+        const { error } = await signUp(
+          email,
+          password,
+          fullName,
+          referralCode.trim() || undefined,
+          referralCode.trim() ? referralSource : undefined,
+        );
         if (error) {
           toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
         } else {
+          clearSavedReferralAttribution();
           toast({ title: "Account created! 🎉", description: "You can now sign in and start practicing." });
           setMode("login");
         }
@@ -163,6 +178,25 @@ const Auth = () => {
                       <UserRound aria-hidden="true" className="auth-field-icon absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2" />
                       <Input id="name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" required className="auth-input pl-12 pr-4" />
                     </div>
+                  </div>
+                )}
+
+                {mode === "signup" && (
+                  <div className="space-y-1">
+                    <Label htmlFor="referral-code" className="auth-label">Referral code (optional)</Label>
+                    <Input
+                      id="referral-code"
+                      autoComplete="off"
+                      value={referralCode}
+                      onChange={(event) => setReferralCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))}
+                      placeholder="Enter a referral code"
+                      maxLength={20}
+                      aria-describedby="referral-code-hint"
+                      className="auth-input"
+                    />
+                    <p id="referral-code-hint" className="text-[11px] leading-4 text-[#8794a7]">
+                      Friends who join with your code can earn you ₦500 after their ₦2,500 subscription.
+                    </p>
                   </div>
                 )}
 

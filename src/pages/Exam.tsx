@@ -114,7 +114,11 @@ const Exam = () => {
     });
     let responseData = data;
     if (error && !responseData && error.context instanceof Response) {
-      try { responseData = await error.context.clone().json(); } catch {}
+      try {
+        responseData = await error.context.clone().json();
+      } catch {
+        // Use the SDK error message when the response body is not valid JSON.
+      }
     }
     if (error || !responseData?.session?.id || !Array.isArray(responseData.questions)) {
       const message = responseData?.error || error?.message || "We could not prepare your exam. Please try again.";
@@ -252,7 +256,7 @@ const Exam = () => {
         return;
       }
 
-      const answerIndex = "abcd".indexOf(event.key.toLowerCase());
+      const answerIndex = "abcde".indexOf(event.key.toLowerCase());
       const option = answerIndex >= 0 ? currentQuestion.options[answerIndex] : undefined;
       if (option) {
         event.preventDefault();
@@ -330,7 +334,9 @@ const Exam = () => {
         await supabase.functions.invoke("send-email", {
           body: { type: "first_cbt", email: user.email, name: prof?.full_name || "Student" },
         });
-      } catch {}
+      } catch (error) {
+        console.error("Could not send first-exam email:", error);
+      }
     }
     
     await new Promise(r => setTimeout(r, 2000));

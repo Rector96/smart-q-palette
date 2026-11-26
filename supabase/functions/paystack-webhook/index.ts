@@ -1,53 +1,113 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  isRefundEventRecorded,
+  isTransferSettlementRecorded,
+} from "../_shared/financial-reconciliation.ts";
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { "Content-Type": "application/json" },
-});
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 
 const constantTimeEqual = (left: string, right: string) => {
   if (left.length !== right.length) return false;
+
   let diff = 0;
-  for (let i = 0; i < left.length; i++) diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  for (let i = 0; i < left.length; i++) {
+    diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  }
+
   return diff === 0;
 };
 
 const hmacHex = async (secret: string, message: string) => {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return Array.from(new Uint8Array(signature)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-512" },
+    false,
+    ["sign"],
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(message),
+  );
+
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 };
 
 const verifySignature = async (rawBody: string, req: Request) => {
   const modernHeader = req.headers.get("paystack-signature");
+
   if (modernHeader) {
     const webhookSecret = Deno.env.get("PAYSTACK_WEBHOOK_SECRET");
     if (!webhookSecret) return false;
-    const fields = modernHeader.split(",").map((part) => part.trim().split("=", 2));
+
+    const fields = modernHeader.split(",").map((part) =>
+      part.trim().split("=", 2)
+    );
+
     const timestampValue = fields.find(([key]) => key === "t")?.[1];
     const timestamp = Number(timestampValue);
-    if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
-    const signatures = fields.filter(([key]) => key === "v1").map(([, value]) => value || "");
-    const expected = await hmacHex(webhookSecret, `${timestamp}.${rawBody}`);
+
+    if (
+      !Number.isFinite(timestamp) ||
+      Math.abs(Date.now() / 1000 - timestamp) > 300
+    ) {
+      return false;
+    }
+
+    const signatures = fields
+      .filter(([key]) => key === "v1")
+      .map(([, value]) => value || "");
+
+    const expected = await hmacHex(
+      webhookSecret,
+      `${timestamp}.${rawBody}`,
+    );
+
     return signatures.some((entry) => {
       const separator = entry.indexOf(":");
       const hex = separator >= 0 ? entry.slice(separator + 1) : entry;
-      return /^[0-9a-f]{128}$/.test(hex) && constantTimeEqual(expected, hex);
+
+      return /^[0-9a-f]{128}$/.test(hex) &&
+        constantTimeEqual(expected, hex);
     });
   }
 
   const legacyHeader = req.headers.get("x-paystack-signature");
   const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!legacyHeader || !paystackSecret || !/^[0-9a-f]{128}$/.test(legacyHeader)) return false;
+
+  if (
+    !legacyHeader ||
+    !paystackSecret ||
+    !/^[0-9a-f]{128}$/.test(legacyHeader)
+  ) {
+    return false;
+  }
+
   const expected = await hmacHex(paystackSecret, rawBody);
   return constantTimeEqual(expected, legacyHeader);
 };
 
 serve(async (req) => {
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
+
   try {
     const rawBody = await req.text();
-    if (!(await verifySignature(rawBody, req))) return json({ error: "Invalid or missing Paystack signature." }, 401);
+
+    if (!(await verifySignature(rawBody, req))) {
+      return json({ error: "Invalid or missing Paystack signature." }, 401);
+    }
 
     const event = JSON.parse(rawBody);
 
@@ -57,120 +117,449 @@ serve(async (req) => {
       "transfer.failed": "failed",
       "transfer.reversed": "reversed",
     };
+
     const transferOutcome = transferEvents[event?.event];
+
     if (transferOutcome) {
       const transfer = event?.data || {};
-      const transferReference = typeof transfer.reference === "string" ? transfer.reference : "";
-      if (!transferReference) return json({ error: "Transfer reference is missing." }, 400);
 
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
-      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: settlement, error: settlementError } = await serviceClient.rpc("settle_referral_withdrawal", {
-        p_reference: transferReference,
-        p_outcome: transferOutcome,
-        p_transfer_code: typeof transfer.transfer_code === "string" ? transfer.transfer_code : null,
-        p_failure_reason: typeof transfer.reason === "string" ? transfer.reason : null,
-      });
-      if (settlementError) {
-        console.error("Referral transfer settlement failed:", settlementError.message);
-        return json({ error: "Transfer outcome could not be recorded." }, 500);
+      const transferReference =
+        typeof transfer.reference === "string"
+          ? transfer.reference
+          : "";
+
+      if (!transferReference) {
+        return json({ error: "Transfer reference is missing." }, 400);
       }
-      console.info("Referral transfer webhook processed:", transferReference, settlement);
+
+      const transferSupabaseUrl = Deno.env.get("SUPABASE_URL");
+      const transferServiceKey = Deno.env.get(
+        "SUPABASE_SERVICE_ROLE_KEY",
+      );
+
+      if (!transferSupabaseUrl || !transferServiceKey) {
+        return json({ error: "Webhook is temporarily unavailable." }, 503);
+      }
+
+      const transferServiceClient = createClient(
+        transferSupabaseUrl,
+        transferServiceKey,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        },
+      );
+
+      // Find the withdrawal using the signed Paystack event reference.
+      const { data: withdrawal, error: withdrawalError } =
+        await transferServiceClient
+          .from("referral_withdrawals")
+          .select("id, user_id, bank_account_id, amount, currency, reference")
+          .eq("reference", transferReference)
+          .maybeSingle();
+
+      if (withdrawalError) {
+        console.error(
+          "Transfer withdrawal lookup failed:",
+          withdrawalError.message,
+        );
+        return json({ error: "Withdrawal verification failed." }, 500);
+      }
+
+      if (!withdrawal) {
+        console.error(
+          "Transfer event has no matching withdrawal:",
+          transferReference,
+        );
+        return json({ error: "Unknown withdrawal reference." }, 404);
+      }
+
+      // Verify the amount and currency against the saved withdrawal.
+      const expectedAmount = Math.round(Number(withdrawal.amount) * 100);
+      const eventAmount = Number(transfer.amount);
+
+      if (
+        !Number.isSafeInteger(expectedAmount) ||
+        expectedAmount <= 0 ||
+        !Number.isSafeInteger(eventAmount) ||
+        eventAmount !== expectedAmount ||
+        withdrawal.currency !== "NGN" ||
+        transfer.currency !== "NGN"
+      ) {
+        console.error(
+          "Transfer amount or currency mismatch:",
+          transferReference,
+        );
+        return json({
+          error: "Transfer details did not match the withdrawal.",
+        }, 400);
+      }
+
+      // Confirm that the event recipient belongs to the saved bank account.
+      const { data: bankAccount, error: bankError } =
+        await transferServiceClient
+          .from("referral_bank_accounts")
+          .select("paystack_recipient_code")
+          .eq("id", withdrawal.bank_account_id)
+          .eq("user_id", withdrawal.user_id)
+          .eq("is_verified", true)
+          .maybeSingle();
+
+      if (bankError) {
+        console.error(
+          "Transfer bank account lookup failed:",
+          bankError.message,
+        );
+        return json({ error: "Bank account verification failed." }, 500);
+      }
+
+      if (!bankAccount?.paystack_recipient_code) {
+        console.error(
+          "Verified withdrawal bank account not found:",
+          transferReference,
+        );
+        return json({
+          error: "Withdrawal bank account could not be verified.",
+        }, 400);
+      }
+
+      const eventRecipient = transfer.recipient;
+
+      const eventRecipientCode =
+        typeof eventRecipient === "string"
+          ? eventRecipient
+          : typeof eventRecipient?.recipient_code === "string"
+          ? eventRecipient.recipient_code
+          : "";
+
+      const storedRecipientCode =
+        bankAccount.paystack_recipient_code.replace(/^TEST:/, "");
+
+      if (
+        !eventRecipientCode ||
+        eventRecipientCode !== storedRecipientCode
+      ) {
+        console.error(
+          "Transfer recipient mismatch:",
+          transferReference,
+        );
+        return json({
+          error: "Transfer recipient did not match the saved bank account.",
+        }, 400);
+      }
+
+      const { data: settlement, error: settlementError } =
+        await transferServiceClient.rpc(
+          "settle_referral_withdrawal",
+          {
+            p_reference: transferReference,
+            p_outcome: transferOutcome,
+            p_transfer_code:
+              typeof transfer.transfer_code === "string"
+                ? transfer.transfer_code
+                : null,
+            p_failure_reason:
+              typeof transfer.reason === "string"
+                ? transfer.reason
+                : null,
+          },
+        );
+
+      if (settlementError) {
+        console.error(
+          "Referral transfer settlement failed:",
+          settlementError.message,
+        );
+        return json({
+          error: "Transfer outcome could not be recorded.",
+        }, 500);
+      }
+
+      const settlementRecorded = isTransferSettlementRecorded(
+        settlement,
+        transferOutcome,
+      );
+
+      if (!settlementRecorded) {
+        console.error(
+          "Referral transfer outcome was not recorded:",
+          {
+            reference: transferReference,
+            outcome: transferOutcome,
+            reason: settlement?.reason || "unrecognized_result",
+          },
+        );
+
+        return json({
+          error: "Transfer outcome could not be reconciled.",
+        }, 500);
+      }
+
+      console.info(
+        "Referral transfer webhook processed:",
+        transferReference,
+        settlement,
+      );
+
       return json({ received: true });
     }
 
-
+    // Process Paystack refunds.
     if (event?.event === "refund.processed") {
       const refund = event?.data || {};
-      const paymentReference = typeof refund.transaction_reference === "string" ? refund.transaction_reference : "";
+
+      const paymentReference =
+        typeof refund.transaction_reference === "string"
+          ? refund.transaction_reference.trim()
+          : typeof refund.transaction?.reference === "string"
+          ? refund.transaction.reference.trim()
+          : "";
+
+      const refundId =
+        typeof refund.id === "string"
+          ? refund.id.trim()
+          : Number.isSafeInteger(refund.id) && refund.id > 0
+          ? String(refund.id)
+          : "";
+
       const refundAmount = Number(refund.amount);
-      if (!paymentReference || !Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refund.currency !== "NGN") {
-        return json({ error: "Refund details are incomplete or invalid." }, 400);
+
+      if (
+        !paymentReference ||
+        paymentReference.length > 100 ||
+        !refundId ||
+        refundId.length > 100 ||
+        !Number.isSafeInteger(refundAmount) ||
+        refundAmount <= 0 ||
+        refund.currency !== "NGN"
+      ) {
+        return json({
+          error: "Refund details are incomplete or invalid.",
+        }, 400);
       }
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseUrl || !serviceKey) return json({ error: "Webhook is temporarily unavailable." }, 503);
-      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: reversal, error: reversalError } = await serviceClient.rpc("reverse_referral_reward", {
-        p_payment_reference: paymentReference,
-        p_refund_amount_kobo: refundAmount,
-      });
+
+      // Refund section has its own Supabase URL and client.
+      const refundSupabaseUrl = Deno.env.get("SUPABASE_URL");
+      const refundServiceKey = Deno.env.get(
+        "SUPABASE_SERVICE_ROLE_KEY",
+      );
+
+      if (!refundSupabaseUrl || !refundServiceKey) {
+        return json({ error: "Webhook is temporarily unavailable." }, 503);
+      }
+
+      const refundServiceClient = createClient(
+        refundSupabaseUrl,
+        refundServiceKey,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        },
+      );
+
+      const { data: reversal, error: reversalError } =
+        await refundServiceClient.rpc(
+          "reverse_referral_reward",
+          {
+            p_payment_reference: paymentReference,
+            p_refund_id: refundId,
+            p_refund_amount_kobo: refundAmount,
+          },
+        );
+
       if (reversalError) {
-        console.error("Referral reward refund recovery failed:", reversalError.message);
-        return json({ error: "Refund was received but referral recovery could not be recorded." }, 500);
+        console.error(
+          "Referral reward refund recovery failed:",
+          reversalError.message,
+        );
+        return json({
+          error: "Refund was received but referral recovery could not be recorded.",
+        }, 500);
       }
-      console.info("Referral refund event processed:", paymentReference, reversal);
-      return json({ received: true, referral_reversal: reversal });
+
+      const refundRecorded = isRefundEventRecorded(reversal);
+
+      if (!refundRecorded) {
+        console.error(
+          "Paystack refund outcome was not recorded:",
+          {
+            reference: paymentReference,
+            reason: reversal?.reason || "unrecognized_result",
+          },
+        );
+
+        return json({
+          error: "Refund outcome could not be reconciled.",
+        }, 500);
+      }
+
+      console.info(
+        "Referral refund event processed:",
+        paymentReference,
+        reversal,
+      );
+
+      return json({
+        received: true,
+        referral_reversal: reversal,
+      });
     }
 
-    if (event?.event !== "charge.success") return json({ received: true });
+    // Ignore other Paystack events.
+    if (event?.event !== "charge.success") {
+      return json({ received: true });
+    }
 
+    // Process successful customer payments.
     const transaction = event?.data;
-    const reference = typeof transaction?.reference === "string" ? transaction.reference : "";
-    if (!reference || transaction?.status !== "success" || transaction?.currency !== "NGN") {
-      return json({ error: "Invalid successful-payment event." }, 400);
+
+    const reference =
+      typeof transaction?.reference === "string"
+        ? transaction.reference
+        : "";
+
+    if (
+      !reference ||
+      transaction?.status !== "success" ||
+      transaction?.currency !== "NGN"
+    ) {
+      return json({
+        error: "Invalid successful-payment event.",
+      }, 400);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
     if (!supabaseUrl || !serviceKey) {
-      console.error("Paystack webhook is missing Supabase service configuration.");
-      return json({ error: "Webhook is temporarily unavailable." }, 503);
+      console.error(
+        "Paystack webhook is missing Supabase service configuration.",
+      );
+      return json({
+        error: "Webhook is temporarily unavailable.",
+      }, 503);
     }
-    const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: payment, error: lookupError } = await serviceClient.from("payments")
-      .select("id, user_id, amount, currency, status")
-      .eq("reference", reference).maybeSingle();
+
+    const serviceClient = createClient(
+      supabaseUrl,
+      serviceKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      },
+    );
+
+    const { data: payment, error: lookupError } =
+      await serviceClient
+        .from("payments")
+        .select("id, user_id, amount, currency, status")
+        .eq("reference", reference)
+        .maybeSingle();
+
     if (lookupError) {
-      console.error("Webhook payment lookup failed:", lookupError.message);
+      console.error(
+        "Webhook payment lookup failed:",
+        lookupError.message,
+      );
       return json({ error: "Payment lookup failed." }, 500);
     }
+
     if (!payment) {
-      console.error("Webhook reference has no matching pending payment:", reference);
+      console.error(
+        "Webhook reference has no matching pending payment:",
+        reference,
+      );
       return json({ error: "Unknown payment reference." }, 404);
     }
 
     const expectedAmount = Math.round(Number(payment.amount) * 100);
-    if (payment.currency !== "NGN" || transaction.amount !== expectedAmount ||
-        (transaction.metadata?.user_id && transaction.metadata.user_id !== payment.user_id)) {
-      console.error("Webhook amount, currency or owner mismatch:", reference);
-      return json({ error: "Payment details did not match the order." }, 400);
+    const webhookPaidAmount = Number(transaction.amount);
+
+    if (
+      !Number.isSafeInteger(webhookPaidAmount) ||
+      webhookPaidAmount !== expectedAmount ||
+      payment.currency !== "NGN" ||
+      (
+        transaction.metadata?.user_id &&
+        transaction.metadata.user_id !== payment.user_id
+      )
+    ) {
+      console.error(
+        "Webhook amount, currency or owner mismatch:",
+        reference,
+      );
+      return json({
+        error: "Payment details did not match the order.",
+      }, 400);
     }
 
-    if (payment.status !== "success") {
-      const { error: paymentUpdateError } = await serviceClient.from("payments").update({
-        status: "success",
-        paystack_reference: reference,
-        verified_at: new Date().toISOString(),
-      }).eq("id", payment.id);
-      if (paymentUpdateError) {
-        console.error("Webhook could not update payment:", paymentUpdateError.message);
-        return json({ error: "Could not record payment." }, 500);
-      }
+    if (payment.status === "refunded") {
+      return json({
+        received: true,
+        ignored: "payment_already_refunded",
+      });
+    }
+
+    const { data: confirmation, error: confirmationError } =
+      await serviceClient.rpc(
+        "confirm_paystack_payment",
+        {
+          p_reference: reference,
+          p_amount_kobo: webhookPaidAmount,
+          p_currency: transaction.currency,
+        },
+      );
+
+    if (confirmationError) {
+      console.error(
+        "Webhook payment confirmation failed:",
+        confirmationError.message,
+      );
+      return json({ error: "Could not record payment." }, 500);
+    }
+
+    if (confirmation?.confirmed !== true) {
+      console.error(
+        "Database rejected the verified Paystack payment:",
+        reference,
+        confirmation?.reason,
+      );
+      return json({
+        error: "Payment details did not match the order.",
+      }, 400);
     }
 
     // Credit a referral commission only after the matching payment is verified.
     // The database RPC is idempotent, so repeated Paystack webhooks cannot double-credit.
-    const { data: referralResult, error: referralError } = await serviceClient.rpc(
-      "credit_referral_reward",
-      { p_payment_id: payment.id },
-    );
+    const { data: referralResult, error: referralError } =
+      await serviceClient.rpc(
+        "credit_referral_reward",
+        { p_payment_id: payment.id },
+      );
+
     if (referralError) {
-      console.error("Referral reward processing failed:", referralError.message);
-      return json({ error: "Payment recorded; referral reward processing will retry." }, 500);
-    }
-    if (referralResult?.credited) {
-      console.info("Referral reward credited:", referralResult.reward_id);
+      console.error(
+        "Referral reward processing failed:",
+        referralError.message,
+      );
+      return json({
+        error: "Payment recorded; referral reward processing will retry.",
+      }, 500);
     }
 
-    const { error: profileError } = await serviceClient.from("profiles")
-      .update({ is_subscribed: true }).eq("user_id", payment.user_id);
-    if (profileError) {
-      console.error("Webhook could not activate customer:", profileError.message);
-      return json({ error: "Could not activate customer access." }, 500);
+    if (referralResult?.credited) {
+      console.info(
+        "Referral reward credited:",
+        referralResult.reward_id,
+      );
     }
+
     return json({ received: true });
   } catch (error) {
     console.error("Paystack webhook processing failed:", error);

@@ -14,12 +14,18 @@ import logoImg from "@/assets/logo.png";
 import { shareTransactionReceipt } from "@/lib/transactionReceipt";
 import "./Referral.css";
 
-// The referral tables are introduced by the accompanying migration and are not
-// yet present in the generated client types on the default branch.
-const referralDb = supabase as any;
-
-type ReferralProfile = { referral_code: string };
-type WalletRow = { pending_balance: number; available_balance: number; lifetime_earned: number; lifetime_paid: number };
+type ReferralProfile = {
+  referral_code: string;
+  withdrawals_blocked?: boolean | null;
+  withdrawals_block_reason?: string | null;
+};
+type WalletRow = {
+  pending_balance: number;
+  available_balance: number;
+  lifetime_earned: number;
+  lifetime_paid: number;
+  recovery_balance: number;
+};
 type RewardRow = { id: string; amount: number; status: string; created_at: string; available_at?: string; reversed_at?: string };
 type WithdrawalRow = { id: string; bank_account_id: string; amount: number; status: string; requested_at: string; completed_at?: string; reference?: string };
 type Bank = { name: string; code: string };
@@ -35,7 +41,13 @@ const Referral = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<ReferralProfile | null>(null);
-  const [wallet, setWallet] = useState<WalletRow>({ pending_balance: 0, available_balance: 0, lifetime_earned: 0, lifetime_paid: 0 });
+  const [wallet, setWallet] = useState<WalletRow>({
+    pending_balance: 0,
+    available_balance: 0,
+    lifetime_earned: 0,
+    lifetime_paid: 0,
+    recovery_balance: 0,
+  });
   const [rewards, setRewards] = useState<RewardRow[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -65,12 +77,18 @@ const Referral = () => {
     setLoading(true);
     setLoadError(false);
     const [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult] = await Promise.all([
-      referralDb.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
-      referralDb.from("referral_wallets").select("pending_balance,available_balance,lifetime_earned,lifetime_paid").eq("user_id", user.id).maybeSingle(),
-      referralDb.from("referral_rewards").select("id,amount,status,created_at,available_at,reversed_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
-      referralDb.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,completed_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
-      referralDb.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
-      referralDb.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
+      supabase.from("referral_profiles")
+        .select("referral_code,withdrawals_blocked,withdrawals_block_reason")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.from("referral_wallets")
+        .select("pending_balance,available_balance,lifetime_earned,lifetime_paid,recovery_balance")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.from("referral_rewards").select("id,amount,status,created_at,available_at,reversed_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(100),
+      supabase.from("referral_withdrawals").select("id,bank_account_id,amount,status,requested_at,completed_at,reference").eq("user_id", user.id).order("requested_at", { ascending: false }).limit(100),
+      supabase.from("referral_attributions").select("referred_user_id", { count: "exact", head: true }).eq("referrer_user_id", user.id),
+      supabase.from("referral_bank_accounts").select("id,bank_name,account_name,account_number_masked,paystack_recipient_code").eq("user_id", user.id).eq("is_verified", true).order("created_at", { ascending: false }),
     ]);
     const hasError = [profileResult, walletResult, rewardsResult, withdrawalsResult, countResult, banksResult].some((result) => result.error);
     if (hasError) {
@@ -122,7 +140,7 @@ const Referral = () => {
     if (!referralShareUrl) return;
     try {
       await navigator.clipboard.writeText(referralShareUrl);
-      toast({ title: "ROCKCBT invite link copied", description: "Share the branded ROCKCBT card. Practise for exams and still earn." });
+      toast({ title: "ROCKCBT invite link copied", description: "Share your ROCKCBT invite and spread the word." });
     } catch {
       toast({ title: "Could not copy link", description: "Please copy the link manually.", variant: "destructive" });
     }
@@ -130,7 +148,7 @@ const Referral = () => {
 
   const shareLink = async () => {
     if (!referralShareUrl) return;
-    const shareData = { title: "Practise for exams and still earn | ROCKCBT", text: "Join me on ROCKCBT. Practise for your exams and still earn. Open my invitation:", url: referralShareUrl };
+    const shareData = { title: "ROCKCBT — the hottest CBT platform", text: "Hey, I'm using ROCKCBT — the hottest CBT platform! Join me for smarter exam practice and referral rewards.", url: referralShareUrl };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (error) {
         if ((error as Error).name !== "AbortError") toast({ title: "Sharing unavailable", description: "You can copy your referral link instead." });
@@ -163,7 +181,7 @@ const Referral = () => {
       // instead of returning it as data. Read that body so the user sees the
       // actual safe validation message (e.g. Paystack or registered-name error).
       let serverMessage = data?.error as string | undefined;
-      const responseContext = (error as any)?.context;
+      const responseContext = error && "context" in error && error.context instanceof Response ? error.context : null;
       if (!serverMessage && responseContext && typeof responseContext.clone === "function") {
         try {
           const responseBody = await responseContext.clone().json();
@@ -227,6 +245,14 @@ const Referral = () => {
 
   const requestWithdrawal = async () => {
     const amount = Number(withdrawAmount);
+    if (withdrawalsBlocked) {
+      toast({
+        title: "Withdrawals temporarily restricted",
+        description: profile?.withdrawals_block_reason || "Please contact ROCKCBT support for assistance.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!withdrawBankId || !Number.isSafeInteger(amount) || amount < 1000) {
       toast({ title: "Check withdrawal details", description: "Select a saved bank account and enter at least ₦1,000.", variant: "destructive" });
       return;
@@ -259,6 +285,8 @@ const Referral = () => {
     await loadReferralData();
   };
 
+  const withdrawalsBlocked = profile?.withdrawals_blocked === true;
+  const recoveryBalance = Number(wallet.recovery_balance) || 0;
   const minimumProgress = Math.min(100, (Number(wallet.available_balance) / 1000) * 100);
   const enteredWithdrawalAmount = Number(withdrawAmount);
   const withdrawalAmountError = withdrawAmount.trim() === "" ? "Enter the amount you want to withdraw." : !Number.isSafeInteger(enteredWithdrawalAmount) || enteredWithdrawalAmount <= 0 ? "Enter a valid whole-naira amount." : enteredWithdrawalAmount < 1000 ? "Minimum withdrawal is ₦1,000." : enteredWithdrawalAmount > Number(wallet.available_balance) ? `You only have ${money(wallet.available_balance)} available to withdraw.` : "";
@@ -424,6 +452,30 @@ const Referral = () => {
             <Card className="referral-withdraw rounded-2xl shadow-sm">
               <CardContent className="space-y-2.5 p-3 sm:p-4">
                 <div className="flex items-center gap-2"><ArrowDownToLine className="h-5 w-5 text-primary" /><div><h2 className="font-bold">Withdraw referral earnings</h2><p className="text-xs text-muted-foreground">Minimum withdrawal is ₦1,000.</p></div></div>
+                {recoveryBalance > 0 && (
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                      Referral balance recovery
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {money(recoveryBalance)} is currently being recovered from future referral
+                      rewards following a previous subscription refund. New rewards may be
+                      applied toward this balance before becoming withdrawable.
+                    </p>
+                  </div>
+                )}
+
+                {withdrawalsBlocked && (
+                  <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3">
+                    <p className="text-sm font-semibold text-destructive">
+                      Withdrawals temporarily restricted
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {profile?.withdrawals_block_reason ||
+                        "Your referral wallet is temporarily restricted. Please contact ROCKCBT support for assistance."}
+                    </p>
+                  </div>
+                )}
                 {bankAccounts.length > 0 ? <>
                   <div className="mb-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Withdrawal destination: <span className="font-semibold text-foreground">{bankAccounts.find((account) => account.id === withdrawBankId)?.account_name || "Select a verified bank account"}</span></div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -437,7 +489,23 @@ const Referral = () => {
                   </div>
                 </> : <p className="text-sm text-muted-foreground">Add a bank account in your name to continue. We will verify it before any withdrawal.</p>}
                 {bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") && <p className="text-xs text-amber-700 dark:text-amber-400">This is a test recipient. Test-mode withdrawals can be simulated; no real money will be sent.</p>}
-                <Button className="w-full" disabled={withdrawBusy || Boolean(withdrawalAmountError) || (bankAccounts.length > 0 && !withdrawBankId)} onClick={() => { if (!bankAccounts.length) { setShowBankSetup(true); return; } void requestWithdrawal(); }}>
+                <Button
+                  className="w-full"
+                  disabled={
+                    withdrawalsBlocked ||
+                    withdrawBusy ||
+                    Boolean(withdrawalAmountError) ||
+                    (bankAccounts.length > 0 && !withdrawBankId)
+                  }
+                  onClick={() => {
+                    if (withdrawalsBlocked) return;
+                    if (!bankAccounts.length) {
+                      setShowBankSetup(true);
+                      return;
+                    }
+                    void requestWithdrawal();
+                  }}
+                >
                   {withdrawBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{bankAccounts.find((account) => account.id === withdrawBankId)?.paystack_recipient_code.startsWith("TEST:") ? "Request test withdrawal" : bankAccounts.length ? "Request withdrawal" : "Add bank account to withdraw"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">Your available balance is reserved when you submit. It is restored automatically if Paystack reports a failed transfer.</p>

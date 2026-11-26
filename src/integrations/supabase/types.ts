@@ -6,6 +6,13 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+type ReferralTable<Row, Insert, Update = Partial<Row>> = {
+  Row: Row;
+  Insert: Insert;
+  Update: Update;
+  Relationships: [];
+};
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -14,6 +21,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      result_share_cards: {
+        Row: {
+          created_at: string
+          first_name: string
+          best_score_this_week: number | null
+          participant_count: number
+          rank_position: number | null
+          score: number
+          subject: string
+          token: string
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_name: string
+          best_score_this_week?: number | null
+          participant_count: number | null
+          rank_position: number | null
+          score: number
+          subject: string
+          token?: string
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string
+          best_score_this_week?: number | null
+          participant_count?: number | null
+          rank_position?: number | null
+          score?: number
+          subject?: string
+          token?: string
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      share_analytics_events: {
+        Row: {
+          app: string | null
+          created_at: string
+          event_name: string
+          id: string
+          referral_code: string | null
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          referral_code?: string | null
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          referral_code?: string | null
+          source?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       custom_exam_results: {
         Row: {
           answers: Json | null
@@ -145,6 +221,8 @@ export type Database = {
           completed_at: string | null
           correct_answers: number
           duration_seconds: number | null
+          exam_year: number | null
+          examination: string | null
           id: string
           mode: string
           score_percentage: number | null
@@ -158,6 +236,8 @@ export type Database = {
           completed_at?: string | null
           correct_answers?: number
           duration_seconds?: number | null
+          exam_year?: number | null
+          examination?: string | null
           id?: string
           mode: string
           score_percentage?: number | null
@@ -171,6 +251,8 @@ export type Database = {
           completed_at?: string | null
           correct_answers?: number
           duration_seconds?: number | null
+          exam_year?: number | null
+          examination?: string | null
           id?: string
           mode?: string
           score_percentage?: number | null
@@ -211,6 +293,158 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_profiles: ReferralTable<
+        {
+          created_at: string;
+          referral_code: string;
+          signup_full_name: string | null;
+          user_id: string;
+          withdrawals_block_reason: string | null;
+          withdrawals_block_source: string | null;
+          withdrawals_blocked: boolean;
+          withdrawals_blocked_at: string | null;
+          withdrawals_blocked_by: string | null;
+        },
+        {
+          referral_code: string;
+          user_id: string;
+          created_at?: string;
+          signup_full_name?: string | null;
+          withdrawals_block_reason?: string | null;
+          withdrawals_block_source?: string | null;
+          withdrawals_blocked?: boolean;
+          withdrawals_blocked_at?: string | null;
+          withdrawals_blocked_by?: string | null;
+        }
+      >
+      referral_wallets: ReferralTable<
+        {
+          available_balance: number;
+          lifetime_earned: number;
+          lifetime_paid: number;
+          pending_balance: number;
+          recovery_balance: number;
+          updated_at: string;
+          user_id: string;
+        },
+        {
+          user_id: string;
+          available_balance?: number;
+          lifetime_earned?: number;
+          lifetime_paid?: number;
+          pending_balance?: number;
+          recovery_balance?: number;
+          updated_at?: string;
+        }
+      >
+      referral_attributions: ReferralTable<
+        { created_at: string; referral_code: string; referred_user_id: string; referrer_user_id: string },
+        { referral_code: string; referred_user_id: string; referrer_user_id: string; created_at?: string }
+      >
+      referral_rewards: ReferralTable<
+        {
+          amount: number;
+          available_at: string | null;
+          created_at: string;
+          id: string;
+          payment_id: string;
+          referred_user_id: string;
+          referrer_user_id: string;
+          reversed_at: string | null;
+          status: string;
+        },
+        {
+          payment_id: string;
+          referred_user_id: string;
+          referrer_user_id: string;
+          amount?: number;
+          available_at?: string | null;
+          created_at?: string;
+          id?: string;
+          reversed_at?: string | null;
+          status?: string;
+        }
+      >
+      referral_wallet_transactions: ReferralTable<
+        {
+          amount: number;
+          created_at: string;
+          description: string | null;
+          id: string;
+          idempotency_key: string;
+          reference_id: string;
+          reference_type: string;
+          status: string;
+          transaction_type: string;
+          user_id: string;
+        },
+        {
+          amount: number;
+          idempotency_key: string;
+          reference_id: string;
+          reference_type: string;
+          status: string;
+          transaction_type: string;
+          user_id: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+        }
+      >
+      referral_bank_accounts: ReferralTable<
+        {
+          account_name: string;
+          account_number_masked: string;
+          bank_code: string;
+          bank_name: string;
+          created_at: string;
+          id: string;
+          is_verified: boolean;
+          paystack_recipient_code: string;
+          updated_at: string;
+          user_id: string;
+        },
+        {
+          account_name: string;
+          account_number_masked: string;
+          bank_code: string;
+          bank_name: string;
+          paystack_recipient_code: string;
+          user_id: string;
+          created_at?: string;
+          id?: string;
+          is_verified?: boolean;
+          updated_at?: string;
+        }
+      >
+      referral_withdrawals: ReferralTable<
+        {
+          amount: number;
+          bank_account_id: string;
+          completed_at: string | null;
+          currency: string;
+          failure_reason: string | null;
+          id: string;
+          paystack_transfer_code: string | null;
+          reference: string;
+          requested_at: string;
+          status: string;
+          user_id: string;
+        },
+        {
+          amount: number;
+          bank_account_id: string;
+          reference: string;
+          user_id: string;
+          completed_at?: string | null;
+          currency?: string;
+          failure_reason?: string | null;
+          id?: string;
+          paystack_transfer_code?: string | null;
+          requested_at?: string;
+          status?: string;
+        }
+      >
       payments: {
         Row: {
           amount: number
@@ -221,6 +455,7 @@ export type Database = {
           plan_id: string | null
           paystack_reference: string | null
           reference: string | null
+          refunded_amount_kobo: number
           status: string
           updated_at: string
           user_id: string
@@ -235,6 +470,7 @@ export type Database = {
           plan_id?: string | null
           paystack_reference?: string | null
           reference?: string | null
+          refunded_amount_kobo?: number
           status?: string
           updated_at?: string
           user_id: string
@@ -249,6 +485,7 @@ export type Database = {
           plan_id?: string | null
           paystack_reference?: string | null
           reference?: string | null
+          refunded_amount_kobo?: number
           status?: string
           updated_at?: string
           user_id?: string
@@ -267,6 +504,7 @@ export type Database = {
           id: string
           is_subscribed: boolean
           preferred_subjects: string[] | null
+          subscription_admin_override: boolean | null
           trial_count: number
           updated_at: string
           user_id: string
@@ -281,6 +519,7 @@ export type Database = {
           id?: string
           is_subscribed?: boolean
           preferred_subjects?: string[] | null
+          subscription_admin_override?: boolean | null
           trial_count?: number
           updated_at?: string
           user_id: string
@@ -295,6 +534,7 @@ export type Database = {
           id?: string
           is_subscribed?: boolean
           preferred_subjects?: string[] | null
+          subscription_admin_override?: boolean | null
           trial_count?: number
           updated_at?: string
           user_id?: string
@@ -310,10 +550,13 @@ export type Database = {
           exam_hint: string | null
           explanation: string | null
           id: string
+          is_published: boolean
           option_a: string
           option_b: string
           option_c: string
           option_d: string
+          option_e: string | null
+          diagram_url: string | null
           passage: string | null
           question_text: string
           question_type: string | null
@@ -329,10 +572,13 @@ export type Database = {
           exam_hint?: string | null
           explanation?: string | null
           id?: string
+          is_published?: boolean
           option_a: string
           option_b: string
           option_c: string
           option_d: string
+          option_e?: string | null
+          diagram_url?: string | null
           passage?: string | null
           question_text: string
           question_type?: string | null
@@ -348,10 +594,13 @@ export type Database = {
           exam_hint?: string | null
           explanation?: string | null
           id?: string
+          is_published?: boolean
           option_a?: string
           option_b?: string
           option_c?: string
           option_d?: string
+          option_e?: string | null
+          diagram_url?: string | null
           passage?: string | null
           question_text?: string
           question_type?: string | null
@@ -486,6 +735,8 @@ export type Database = {
         Row: {
           created_at: string
           creator_id: string
+          exam_year: number | null
+          examination: string | null
           id: string
           mode: string
           session_id: string | null
@@ -496,6 +747,8 @@ export type Database = {
         Insert: {
           created_at?: string
           creator_id: string
+          exam_year?: number | null
+          examination?: string | null
           id?: string
           mode: string
           session_id?: string | null
@@ -506,6 +759,8 @@ export type Database = {
         Update: {
           created_at?: string
           creator_id?: string
+          exam_year?: number | null
+          examination?: string | null
           id?: string
           mode?: string
           session_id?: string | null
@@ -702,6 +957,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_result_share_card: {
+        Args: {
+          p_first_name: string
+          p_best_score_this_week: number | null
+          p_participant_count: number | null
+          p_rank_position: number | null
+          p_score: number
+          p_subject: string
+          p_total_questions: number
+        }
+        Returns: string
+      }
+      get_result_share_card: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      create_cbt_exam_session: {
+        Args: {
+          p_exam_year: number | null
+          p_examination: string
+          p_mode: string
+          p_question_map: Json
+          p_subjects: string[]
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      get_seen_cbt_question_ids: {
+        Args: { p_question_ids: string[]; p_user_id: string }
+        Returns: string[]
+      }
       admin_record_manual_payment: {
         Args: { _amount: number; _note: string; _plan_id?: string | null; _reference: string; _target_user_id: string }
         Returns: string

@@ -12,23 +12,55 @@ const jsonError = (message: string, status: number) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+type JsonRecord = Record<string, unknown>;
+type TutorCardRecord = JsonRecord & { heading: string; explanation: string; formula?: string | null };
+type TutorCalloutRecord = JsonRecord & { text: string };
+type TutorPracticeRecord = JsonRecord & { question: string; hint: string };
+
+const isJsonRecord = (value: unknown): value is JsonRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isTutorCard = (value: unknown): value is TutorCardRecord =>
+  isJsonRecord(value) &&
+  typeof value.heading === "string" &&
+  typeof value.explanation === "string" &&
+  (value.formula === undefined || value.formula === null || typeof value.formula === "string");
+
+const isTutorCallout = (value: unknown): value is TutorCalloutRecord =>
+  isJsonRecord(value) && typeof value.text === "string";
+
+const isTutorPractice = (value: unknown): value is TutorPracticeRecord =>
+  isJsonRecord(value) && typeof value.question === "string" && typeof value.hint === "string";
+
 function validateTutorJson(raw: string): string | null {
   try {
-    const value = JSON.parse(raw.trim().replace(/^\uFEFF/, ""));
-    if (value?.type === "chat" && typeof value.message === "string" && value.message.trim()) return JSON.stringify(value);
-    if (value?.type !== "lesson" || typeof value.title !== "string" || typeof value.summary !== "string") return null;
-    if (!Array.isArray(value.cards) || value.cards.length < 2 || value.cards.length > 5) return null;
-    if (!value.cards.every((card: any) =>
-      card && typeof card.heading === "string" && typeof card.explanation === "string" &&
-      (card.formula === undefined || card.formula === null || typeof card.formula === "string")
-    )) return null;
-    if (!value.callout || typeof value.callout.text !== "string") return null;
-    if (!value.practice || typeof value.practice.question !== "string" || typeof value.practice.hint !== "string") return null;
+    const value: unknown = JSON.parse(raw.trim().replace(/^\uFEFF/, ""));
+    if (!isJsonRecord(value)) return null;
+    if (value.type === "chat" && typeof value.message === "string" && value.message.trim()) {
+      return JSON.stringify(value);
+    }
+    const title = value.title;
+    const summary = value.summary;
+    const cards = value.cards;
+    const callout = value.callout;
+    const practice = value.practice;
+    const validCards = Array.isArray(cards) ? cards.filter(isTutorCard) : [];
+    if (
+      value.type !== "lesson" ||
+      typeof title !== "string" ||
+      typeof summary !== "string" ||
+      !Array.isArray(cards) ||
+      cards.length < 2 ||
+      cards.length > 5 ||
+      validCards.length !== cards.length ||
+      !isTutorCallout(callout) ||
+      !isTutorPractice(practice)
+    ) return null;
     const normalized = {
       type: "lesson",
-      title: value.title,
-      summary: value.summary,
-      cards: value.cards.map((card: any, index: number) => ({
+      title,
+      summary,
+      cards: validCards.map((card, index) => ({
         badge: typeof card.badge === "string" ? card.badge : `Step ${index + 1}`,
         heading: card.heading,
         explanation: card.explanation,
@@ -36,10 +68,10 @@ function validateTutorJson(raw: string): string | null {
         is_final_answer: card.is_final_answer === true,
       })),
       callout: {
-        label: typeof value.callout.label === "string" ? value.callout.label : "Exam tip",
-        text: value.callout.text,
+        label: typeof callout.label === "string" ? callout.label : "Exam tip",
+        text: callout.text,
       },
-      practice: { question: value.practice.question, hint: value.practice.hint },
+      practice: { question: practice.question, hint: practice.hint },
     };
     return JSON.stringify(normalized);
   } catch {

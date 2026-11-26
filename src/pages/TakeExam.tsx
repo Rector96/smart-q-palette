@@ -29,6 +29,13 @@ interface ExamData {
   expires_at: string | null;
 }
 
+const isExamQuestion = (value: unknown): value is ExamQuestion => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const question = value as Record<string, unknown>;
+  return ["question_text", "option_a", "option_b", "option_c", "option_d", "correct_answer"]
+    .every((key) => typeof question[key] === "string");
+};
+
 const TakeExam = () => {
   const { code } = useParams();
   const navigate = useNavigate();
@@ -54,6 +61,11 @@ const TakeExam = () => {
       if (!code) return;
       const { data } = await supabase.from("custom_exams").select("*").eq("share_code", code).single();
       if (!data) { setLoading(false); return; }
+      if (!Array.isArray(data.questions) || !data.questions.every(isExamQuestion)) {
+        toast({ title: "Unable to load exam", description: "This exam contains invalid question data.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
       
       // Check expiry
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
@@ -67,14 +79,14 @@ const TakeExam = () => {
         title: data.title,
         instructions: data.instructions,
         duration_minutes: data.duration_minutes,
-        questions: (data.questions as any) || [],
+        questions: data.questions,
         expires_at: data.expires_at,
       });
       setTimeLeft((data.duration_minutes || 60) * 60);
       setLoading(false);
     };
     load();
-  }, [code]);
+  }, [code, toast]);
 
   // Use an absolute deadline so background-tab throttling cannot extend the exam.
   useEffect(() => {
@@ -120,7 +132,7 @@ const TakeExam = () => {
       student_name: studentName || "Anonymous",
       score: correct,
       total_questions: exam.questions.length,
-      answers: finalAnswers as any,
+      answers: finalAnswers,
     });
   };
   submitRef.current = handleSubmit;

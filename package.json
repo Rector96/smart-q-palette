@@ -60,14 +60,13 @@
     "react-markdown": "^10.1.0",
     "react-pdf": "^9.2.1",
     "react-resizable-panels": "^2.1.9",
-    "react-router-dom": "^6.30.1",
+    "react-router-dom": "^7.18.6",
     "recharts": "^2.15.4",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "vite-plugin-pwa": "^1.2.0",
-    "zod": "^3.25.76"
+    "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -85,10 +84,19 @@
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "postcss": "^8.5.6",
+    "supabase": "^3.4.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19",
-    "vitest": "^3.2.4"
+    "vite": "^6.4.5",
+    "vitest": "^5.1.1"
+  },
+  "overrides": {
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "6.1.6"
+    },
+    "workbox-build": {
+      "glob": "14.0.2"
+    }
   }
 }

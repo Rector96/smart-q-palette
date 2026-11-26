@@ -3,11 +3,12 @@ import {
   TrendingUp, Landmark, BookOpenCheck, Cross, Moon,
   Globe, ShoppingCart, Receipt, Tractor
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export interface Subject {
   id: string;
   name: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
 }
 

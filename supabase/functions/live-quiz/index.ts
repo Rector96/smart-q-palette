@@ -52,7 +52,11 @@ Deno.serve(async (req: Request) => {
     if (authError || !authData.user) return respond({ error: "Your session is invalid. Please sign in again." }, 401);
     const user = authData.user;
 
-    const body = await req.json();
+    const requestBody: unknown = await req.json();
+    if (!requestBody || typeof requestBody !== "object" || Array.isArray(requestBody)) {
+      return respond({ error: "Invalid request body." }, 400);
+    }
+    const body = requestBody as Record<string, unknown>;
     const action = typeof body.action === "string" ? body.action : "";
     const { data: profile, error: profileError } = await admin.from("profiles")
       .select("full_name").eq("user_id", user.id).maybeSingle();
@@ -60,12 +64,38 @@ Deno.serve(async (req: Request) => {
     const displayName = String(profile?.full_name ?? "").trim().split(/\s+/)[0] || "Player";
 
     if (action === "subjects") {
-      const { data, error } = await admin.from("questions")
+      const quizType = body.quiz_type === "examination" ? "examination" : "general";
+      const examination = typeof body.examination === "string"
+        ? body.examination.trim().toUpperCase()
+        : "";
+      const examYear = Number(body.exam_year);
+
+      let query = admin.from("questions")
         .select("subject")
         .eq("is_published", true);
+
+      if (quizType === "examination") {
+        if (!["JAMB", "WAEC", "NECO"].includes(examination) ||
+            !Number.isInteger(examYear) ||
+            examYear < 2000 ||
+            examYear > new Date().getFullYear()) {
+          return respond({ error: "Select a valid examination board and year." }, 400);
+        }
+
+        query = query
+          .eq("examination", examination)
+          .eq("year", examYear);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      const subjects = [...new Set((data ?? []).map((row: any) => String(row.subject ?? "").trim()).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b));
+
+      const subjects = [...new Set(
+        (data ?? [])
+          .map((row) => String(row.subject ?? "").trim())
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b));
+
       return respond({ subjects });
     }
 
@@ -73,9 +103,12 @@ Deno.serve(async (req: Request) => {
       const subject = typeof body.subject === "string" ? body.subject.trim() : "";
       const topic = typeof body.topic === "string" ? body.topic.trim().slice(0, 300) : "";
       const count = Number(body.num_questions);
-      const difficulty = ["easy", "medium", "hard", "mixed"].includes(body.difficulty) ? body.difficulty : "mixed";
+      const difficulty = typeof body.difficulty === "string" &&
+        ["easy", "medium", "hard", "mixed"].includes(body.difficulty)
+        ? body.difficulty
+        : "mixed";
       if (!subject || !topic || !Number.isInteger(count) || count < 5 || count > 50) {
-        return respond({ error: "Choose a subject, enter a topic and select 5–50 questions." }, 400);
+        return respond({ error: "Choose a subject, enter a topic and select 5Ã¢â‚¬â€œ50 questions." }, 400);
       }
       const groqKey = Deno.env.get("GROQ_API_KEY");
       const geminiKey = Deno.env.get("GEMINI_API_KEY");
@@ -83,12 +116,32 @@ Deno.serve(async (req: Request) => {
         console.error("Live Quiz AI is missing both GROQ_API_KEY and GEMINI_API_KEY Edge Function secrets.");
         return respond({ error: "AI question generation is not configured on this server yet. Add GROQ_API_KEY or GEMINI_API_KEY to the Supabase project's Edge Function secrets, then redeploy this function." }, 503);
       }
-      const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, and correct_answer (exactly A, B, C, or D). Options must be plausible, and exactly one answer must be correct. Do not include markdown or explanations outside JSON.`;
+      const quizType = body.quiz_type === "examination" ? "examination" : "general";
+const examination = typeof body.examination === "string" ? body.examination.trim().toUpperCase() : "";
+const examYear = Number(body.exam_year);
+
+const examContext = quizType === "examination"
+  ? `This is a ${examination} examination quiz for the year ${examYear}. Questions must reflect that examination board and year. Do not mix questions from other examination boards or years.`
+  : "This is a general knowledge quiz. Do not restrict questions to JAMB, WAEC, NECO or any examination year.";
+
+const prompt = `Create exactly ${count} original multiple-choice quiz questions for the subject "${subject}" on the topic "${topic}". ${examContext} Difficulty: ${difficulty}. Use clear Nigerian secondary-school level language. Return ONLY a JSON array. Every item must contain question_text, option_a, option_b, option_c, option_d, optional option_e, correct_answer (A, B, C, D or E), explanation, and exam_hint. Options must be plausible, and exactly one answer must be correct. If correct_answer is E, option_e must be provided. Do not include markdown or explanations outside JSON.`;
       const providers = [
         groqKey && { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions", key: groqKey, model: "openai/gpt-oss-120b" },
         geminiKey && { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: geminiKey, model: "gemini-3.8-flash" },
       ].filter(Boolean) as { name: string; url: string; key: string; model: string }[];
-      let questions: any[] | null = null;
+      type GeneratedQuizQuestion = {
+        question_text: string;
+        option_a: string;
+        option_b: string;
+        option_c: string;
+        option_d: string;
+        correct_answer: string;
+        explanation: string;
+        exam_hint: string;
+        topic: string;
+      };
+
+let questions: GeneratedQuizQuestion[] | null = null;
       let lastStatus = 503;
       const providerFailures: string[] = [];
 
@@ -134,9 +187,9 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          let parsed: any[];
+          let parsed: unknown;
           try {
-            parsed = JSON.parse(jsonText);
+            parsed = JSON.parse(jsonText) as unknown;
           } catch {
             providerFailures.push(`${provider.name} returned malformed JSON`);
             console.error(`Live Quiz ${provider.name} returned malformed JSON.`);
@@ -147,19 +200,28 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          const candidateQuestions = parsed.slice(0, count).map((q: any) => ({
+          const parsedItems: unknown[] = parsed;
+          const candidateQuestions = parsedItems
+          .filter((q: unknown): q is Record<string, unknown> =>
+            typeof q === "object" && q !== null && !Array.isArray(q)
+          )
+          .map((q) => ({
             question_text: String(q.question_text ?? "").trim(),
             option_a: String(q.option_a ?? "").trim(),
             option_b: String(q.option_b ?? "").trim(),
             option_c: String(q.option_c ?? "").trim(),
             option_d: String(q.option_d ?? "").trim(),
+            option_e: String(q.option_e ?? "").trim(),
             correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
             explanation: String(q.explanation ?? "").trim(),
             exam_hint: String(q.exam_hint ?? q.learning_tip ?? "").trim(),
-          })).filter((q: any) =>
+            topic: topic,
+          }))
+          .filter((q) =>
             q.question_text && q.option_a && q.option_b && q.option_c && q.option_d &&
             q.explanation && q.exam_hint &&
-            ["A", "B", "C", "D"].includes(q.correct_answer)
+            ["A", "B", "C", "D", "E"].includes(q.correct_answer) &&
+          (q.correct_answer !== "E" || Boolean(q.option_e))
           );
 
           if (candidateQuestions.length !== count) {
@@ -191,60 +253,138 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "create") {
-      const subject = typeof body.subject === "string" ? body.subject.trim() : "";
+            const subject = typeof body.subject === "string" ? body.subject.trim() : "";
       const gameMode = body.game_mode === "duel" ? "duel" : "group";
+      const quizType = body.quiz_type === "examination" ? "examination" : "general";
+      const examination = typeof body.examination === "string"
+        ? body.examination.trim().toUpperCase()
+        : "";
+      const examYear = Number(body.exam_year);
+      const requestedTopic = typeof body.topic === "string" ? body.topic.trim().slice(0, 300) : "";
       const timePerQuestion = Number(body.time_per_question);
       const requestedCount = Number(body.num_questions);
+
       if (!subject || !Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 100 ||
           !Number.isInteger(timePerQuestion) || timePerQuestion < 5 || timePerQuestion > 300) {
-        return respond({ error: "Choose a subject, 1–100 questions and a timer between 5 and 300 seconds." }, 400);
+        return respond({ error: "Choose a subject, 1Ã¢â‚¬â€œ100 questions and a timer between 5 and 300 seconds." }, 400);
       }
 
-      let selected: any[] = [];
+      if (quizType === "examination" &&
+          (!["JAMB", "WAEC", "NECO"].includes(examination) ||
+           !Number.isInteger(examYear) || examYear < 1980 || examYear > new Date().getFullYear())) {
+        return respond({ error: "Choose a valid examination board and exam year." }, 400);
+      }
+
+      type LiveQuizQuestion = {
+        id: string;
+        question_text: string;
+        option_a: string;
+        option_b: string;
+        option_c: string;
+        option_d: string;
+        option_e?: string | null;
+        diagram_url?: string | null;
+        topic?: string | null;
+        correct_answer: string;
+        explanation?: string | null;
+        exam_hint?: string | null;
+      };
+
+      let selected: LiveQuizQuestion[] = [];
+
       if (Array.isArray(body.questions)) {
-        if (body.questions.length < 1 || body.questions.length > 50) {
-          return respond({ error: "The AI question set is empty or too large. Generate the questions again." }, 400);
+        if (body.questions.length !== requestedCount || body.questions.length > 50) {
+          return respond({
+            error: `The AI must provide exactly ${requestedCount} questions. Generate the set again.`,
+          }, 400);
         }
-        selected = body.questions.map((q: any, index: number) => ({
-          id: `ai-${index + 1}`,
-          question_text: String(q.question_text ?? "").trim(),
-          option_a: String(q.option_a ?? "").trim(),
-          option_b: String(q.option_b ?? "").trim(),
-          option_c: String(q.option_c ?? "").trim(),
-          option_d: String(q.option_d ?? "").trim(),
-          correct_answer: String(q.correct_answer ?? "").trim().toUpperCase(),
-          explanation: String(q.explanation ?? "").trim() || null,
-          exam_hint: String(q.exam_hint ?? "").trim() || null,
-        }));
-        if (selected.some((q: any) => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d || !["A", "B", "C", "D"].includes(q.correct_answer))) {
-          return respond({ error: "Every question must have four options and one valid correct answer." }, 400);
+
+        const aiQuestions = body.questions
+          .filter((question: unknown): question is Record<string, unknown> =>
+            typeof question === "object" && question !== null && !Array.isArray(question)
+          )
+          .map((question, index): LiveQuizQuestion => ({
+            id: `ai-${index + 1}`,
+            question_text: String(question.question_text ?? "").trim(),
+            option_a: String(question.option_a ?? "").trim(),
+            option_b: String(question.option_b ?? "").trim(),
+            option_c: String(question.option_c ?? "").trim(),
+            option_d: String(question.option_d ?? "").trim(),
+            option_e: String(question.option_e ?? "").trim() || null,
+            topic: String(question.topic ?? requestedTopic).trim() || null,
+            correct_answer: String(question.correct_answer ?? "").trim().toUpperCase(),
+            explanation: String(question.explanation ?? "").trim() || null,
+            exam_hint: String(question.exam_hint ?? "").trim() || null,
+          }));
+
+        if (aiQuestions.length !== requestedCount) {
+          return respond({ error: "Every question must be a valid question object. Generate the questions again." }, 400);
+        }
+
+        selected = aiQuestions;
+
+        if (selected.some((question) =>
+          !question.question_text || !question.option_a || !question.option_b ||
+          !question.option_c || !question.option_d ||
+          !["A", "B", "C", "D", "E"].includes(question.correct_answer) ||
+          (question.correct_answer === "E" && !question.option_e)
+        )) {
+          return respond({
+            error: "Every question must have valid options and a correct answer. Option E must exist when it is the answer.",
+          }, 422);
         }
       } else {
-        const { data: bank, error: bankError } = await admin.from("questions")
-          .select("id,subject,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,exam_hint")
+        let bankQuery = admin.from("questions")
+          .select("id,subject,topic,question_text,option_a,option_b,option_c,option_d,option_e,diagram_url:diagram_file,correct_answer,explanation,exam_hint")
           .ilike("subject", subject)
-          .eq("is_published", true)
-          .limit(1000);
+          .eq("is_published", true);
+
+        if (quizType === "examination") {
+          bankQuery = bankQuery
+            .eq("examination", examination)
+            .eq("year", examYear);
+        }
+
+        const { data: bank, error: bankError } = await bankQuery.limit(1000);
         if (bankError) throw bankError;
+
         selected = shuffle(bank ?? []).slice(0, requestedCount);
-        if (!selected.length) return respond({ error: "No published questions are available for this subject yet. Choose AI generation or another subject." }, 404);
+
+        if (selected.length !== requestedCount) {
+          return respond({
+            error: `Only ${selected.length} published questions are available. You requested ${requestedCount}. Choose another year, subject or question source.`,
+          }, 422);
+        }
+
+        if (selected.some((question) =>
+          !["A", "B", "C", "D", "E"].includes(String(question.correct_answer).toUpperCase()) ||
+          (String(question.correct_answer).toUpperCase() === "E" && !question.option_e)
+        )) {
+          return respond({ error: "Some bank questions have invalid answer options. Please contact support." }, 422);
+        }
       }
 
-      const publicQuestions = selected.map((q: any) => ({
+      const publicQuestions = selected.map((q) => ({
         id: q.id,
         question_text: q.question_text,
         option_a: q.option_a,
         option_b: q.option_b,
         option_c: q.option_c,
         option_d: q.option_d,
+        option_e: q.option_e || null,
+        diagram_url: q.diagram_url || null,
+        topic: q.topic || null,
       }));
-      const answerKeys = selected.map((q: any, index: number) => ({
+      const answerKeys = selected.map((q, index) => ({
         question_index: index,
         correct_answer: String(q.correct_answer ?? "").toUpperCase(),
         explanation: q.explanation ?? null,
         exam_hint: q.exam_hint ?? null,
       }));
-      if (answerKeys.some((key: any) => !["A", "B", "C", "D"].includes(key.correct_answer))) {
+      if (answerKeys.some((key, index) =>
+        !["A", "B", "C", "D", "E"].includes(key.correct_answer) ||
+        (key.correct_answer === "E" && !selected[index].option_e)
+      )) {
         return respond({ error: "Some questions have invalid answer keys. Please contact support." }, 422);
       }
 
@@ -256,6 +396,10 @@ Deno.serve(async (req: Request) => {
         p_questions: publicQuestions,
         p_answer_keys: answerKeys,
         p_display_name: displayName,
+        p_quiz_type: quizType,
+        p_examination: quizType === "examination" ? examination : null,
+        p_exam_year: quizType === "examination" ? examYear : null,
+        p_host_participates: body.host_participates === true,
       });
       if (error) throw error;
       return respond({ room: data });
@@ -277,7 +421,7 @@ Deno.serve(async (req: Request) => {
       const roomCode = typeof body.room_code === "string" ? body.room_code.trim().toUpperCase() : "";
       if (!roomCode) return respond({ error: "Room code is required." }, 400);
       const { data: room, error: roomError } = await admin.from("quiz_rooms")
-        .select("id,host_id,subject,game_mode,num_questions,time_per_question,room_code,status,current_question_index,questions,question_started_at,reveal_until,expires_at,created_at")
+        .select("id,host_id,subject,game_mode,num_questions,time_per_question,room_code,status,current_question_index,questions,question_started_at,reveal_until,expires_at,created_at,quiz_type,examination,exam_year,title,session_mode,answer_reveal_mode,duration_seconds,assignment_deadline,max_participants,min_participants,allow_late_join,is_locked,host_participates,shuffle_questions,shuffle_options,calculator_allowed,paused_at,paused_remaining_seconds,paused_duration_remaining_seconds,paused_reveal_remaining_seconds,started_at,ended_at,class_id")
         .eq("room_code", roomCode).maybeSingle();
       if (roomError) throw roomError;
       if (!room) return respond({ error: "ROOM_NOT_FOUND" }, 404);
@@ -288,16 +432,31 @@ Deno.serve(async (req: Request) => {
         .select("id,user_id,display_name,score,is_connected,joined_at")
         .eq("room_id", room.id).order("joined_at", { ascending: true });
       if (participantsError) throw participantsError;
-      if (!(participants ?? []).some((p: any) => p.user_id === user.id)) {
+      const isHost = room.host_id === user.id;
+      const isParticipant = (participants ?? []).some((p) => p.user_id === user.id);
+
+      if (!isHost && !isParticipant) {
         return respond({ error: "You must join this room before viewing it." }, 403);
       }
-      const { data: myAnswer, error: answerError } = await admin.rpc("live_quiz_get_my_answer_internal", {
-        p_user_id: user.id,
-        p_room_id: room.id,
-        p_question_index: room.current_question_index,
+
+      let myAnswer = null;
+      if (isParticipant) {
+        const { data, error: answerError } = await admin.rpc("live_quiz_get_my_answer_internal", {
+          p_user_id: user.id,
+          p_room_id: room.id,
+          p_question_index: room.current_question_index,
+        });
+        if (answerError) throw answerError;
+        myAnswer = data ?? null;
+      }
+
+      return respond({
+        room,
+        participants: participants ?? [],
+        my_answer: myAnswer,
+        is_host: isHost,
+        is_participant: isParticipant,
       });
-      if (answerError) throw answerError;
-      return respond({ room, participants: participants ?? [], my_answer: myAnswer ?? null });
     }
 
     if (action === "rematch") {
@@ -312,12 +471,52 @@ Deno.serve(async (req: Request) => {
       return respond({ room: data });
     }
 
+        if (action === "results") {
+      const roomId = typeof body.room_id === "string" ? body.room_id : "";
+      if (!roomId) return respond({ error: "Room ID is required." }, 400);
+
+      const { data: room, error: roomError } = await admin
+        .from("quiz_rooms")
+        .select("id,status,host_id")
+        .eq("id", roomId)
+        .maybeSingle();
+
+      if (roomError) throw roomError;
+      if (!room) return respond({ error: "ROOM_NOT_FOUND" }, 404);
+
+      if (room.status !== "ended") {
+        return respond({ error: "Quiz results are not available yet." }, 403);
+      }
+
+      const { data: participant, error: participantError } = await admin
+        .from("quiz_participants")
+        .select("user_id")
+        .eq("room_id", roomId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (participantError) throw participantError;
+      if (!participant) {
+        return respond({ error: "You are not a participant in this quiz." }, 403);
+      }
+
+      const { data: answers, error: answersError } = await admin
+        .from("quiz_answers")
+        .select("question_index,is_correct,time_taken")
+        .eq("room_id", roomId)
+        .eq("user_id", user.id)
+        .order("question_index", { ascending: true });
+
+      if (answersError) throw answersError;
+
+      return respond({ answers: answers ?? [] });
+    }
     if (action === "submit") {
       const roomId = typeof body.room_id === "string" ? body.room_id : "";
       const questionIndex = Number(body.question_index);
       const selectedOption = body.selected_option == null ? null : String(body.selected_option).toUpperCase();
       if (!roomId || !Number.isInteger(questionIndex) ||
-          (selectedOption !== null && !["A", "B", "C", "D"].includes(selectedOption))) {
+          (selectedOption !== null && !["A", "B", "C", "D", "E"].includes(selectedOption))) {
         return respond({ error: "Invalid answer submission." }, 400);
       }
       const { data, error } = await admin.rpc("live_quiz_submit_answer_internal", {
@@ -326,6 +525,49 @@ Deno.serve(async (req: Request) => {
         p_question_index: questionIndex,
         p_selected_option: selectedOption,
       });
+      if (error) throw error;
+      return respond({ result: data });
+    }
+
+    if (action === "pause" || action === "resume" || action === "end") {
+      const roomId = typeof body.room_id === "string" ? body.room_id : "";
+      if (!roomId) return respond({ error: "Room ID is required." }, 400);
+
+      const rpcByAction: Record<string, string> = {
+        pause: "live_quiz_pause_room_internal",
+        resume: "live_quiz_resume_room_internal",
+        end: "live_quiz_end_room_internal",
+      };
+
+      const { data, error } = await admin.rpc(rpcByAction[action], {
+        p_user_id: user.id,
+        p_room_id: roomId,
+      });
+
+      if (error) throw error;
+      return respond({ result: data });
+    }
+
+    if (action === "lock" || action === "unlock" || action === "set_lock") {
+      const roomId = typeof body.room_id === "string" ? body.room_id : "";
+      if (!roomId) return respond({ error: "Room ID is required." }, 400);
+
+      const locked = action === "lock"
+        ? true
+        : action === "unlock"
+          ? false
+          : body.locked;
+
+      if (typeof locked !== "boolean") {
+        return respond({ error: "A boolean locked value is required." }, 400);
+      }
+
+      const { data, error } = await admin.rpc("live_quiz_set_room_lock_internal", {
+        p_user_id: user.id,
+        p_room_id: roomId,
+        p_locked: locked,
+      });
+
       if (error) throw error;
       return respond({ result: data });
     }

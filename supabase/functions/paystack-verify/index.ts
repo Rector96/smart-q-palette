@@ -48,23 +48,20 @@ serve(async (req) => {
     }
     if (!payment) return json({ status: "failed", message: "This payment reference does not belong to your account." }, 404);
 
-    const activateAccount = async () => {
-      const { error: profileError } = await serviceClient.from("profiles")
-        .update({ is_subscribed: true }).eq("user_id", userId);
-      if (profileError) {
-        console.error("Payment verified but profile activation failed:", profileError.message);
-        return false;
-      }
-      return true;
-    };
-
     if (payment.status === "success") {
+      const { data: accessResult, error: accessError } = await serviceClient.rpc(
+        "reconcile_paystack_subscription",
+        { p_payment_id: payment.id },
+      );
+      if (accessError || accessResult?.reconciled !== true) {
+        console.error("Could not reconcile confirmed payment access:", accessError?.message || accessResult);
+        return json({ error: "Payment is confirmed, but account access is still being reconciled. Please refresh shortly." }, 500);
+      }
       const { error: referralError } = await serviceClient.rpc("credit_referral_reward", { p_payment_id: payment.id });
       if (referralError) {
         console.error("Referral reward processing failed:", referralError.message);
         return json({ error: "Payment confirmed; referral reward processing is still pending. Please refresh shortly." }, 500);
       }
-      if (!(await activateAccount())) return json({ error: "Payment is confirmed, but account activation is still processing. Refresh shortly." }, 500);
       return json({ status: "success", message: "Payment verified and Pro access activated." });
     }
 
@@ -82,7 +79,9 @@ serve(async (req) => {
     const transaction = verifyData.data;
     if (transaction?.status !== "success") return json({ status: "failed", message: "Paystack has not confirmed a successful payment." });
     const expectedAmount = Math.round(Number(payment.amount) * 100);
-    if (transaction.reference !== reference || transaction.amount !== expectedAmount || transaction.currency !== "NGN") {
+    const verifiedPaidAmount = Number(transaction.amount);
+    if (!Number.isSafeInteger(verifiedPaidAmount) || verifiedPaidAmount !== expectedAmount ||
+        transaction.reference !== reference || transaction.currency !== "NGN") {
       console.error("Payment verification mismatch for reference:", reference);
       return json({ status: "failed", message: "The payment details do not match this order. Please contact support." }, 400);
     }
@@ -91,17 +90,20 @@ serve(async (req) => {
       return json({ status: "failed", message: "The payer email does not match the signed-in account." }, 400);
     }
 
-    const { error: updateError } = await serviceClient.from("payments").update({
-      status: "success",
-      paystack_reference: reference,
-      verified_at: new Date().toISOString(),
-    }).eq("id", payment.id).eq("user_id", userId).eq("status", "pending");
-    if (updateError) {
-      console.error("Could not mark verified payment successful:", updateError.message);
+    const { data: confirmation, error: confirmationError } = await serviceClient.rpc("confirm_paystack_payment", {
+      p_reference: reference,
+      p_amount_kobo: verifiedPaidAmount,
+      p_currency: transaction.currency,
+    });
+    if (confirmationError) {
+      console.error("Could not confirm verified payment in the database:", confirmationError.message);
       return json({ error: "Your payment was verified but account activation is still processing. Please refresh shortly." }, 500);
     }
+    if (confirmation?.confirmed !== true) {
+      console.error("Database rejected verified payment:", reference, confirmation?.reason);
+      return json({ status: "failed", message: "The payment details do not match this order. Please contact support." }, 400);
+    }
 
-    if (!(await activateAccount())) return json({ error: "Payment is confirmed, but account activation is still processing. Refresh shortly." }, 500);
     const { error: referralError } = await serviceClient.rpc("credit_referral_reward", { p_payment_id: payment.id });
     if (referralError) {
       console.error("Referral reward processing failed:", referralError.message);
