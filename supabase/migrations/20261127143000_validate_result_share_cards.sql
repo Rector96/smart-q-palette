@@ -175,3 +175,31 @@ drop function if exists public.create_result_share_card(text, integer, integer, 
 
 revoke all on function public.create_result_share_card(text, integer, integer, text, integer, integer, integer, uuid, boolean) from public, anon;
 grant execute on function public.create_result_share_card(text, integer, integer, text, integer, integer, integer, uuid, boolean) to authenticated;
+
+-- Bind public share attribution to the owner of the result card.
+-- The referral code is already public; returning it here prevents URL tampering.
+create or replace function public.get_result_share_card(p_token uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'first_name', c.first_name,
+    'score', c.score,
+    'total_questions', c.total_questions,
+    'subject', c.subject,
+    'rank_position', c.rank_position,
+    'participant_count', c.participant_count,
+    'best_score_this_week', c.best_score_this_week,
+    'referral_code', rp.referral_code
+  )
+  from public.result_share_cards c
+  left join public.referral_profiles rp on rp.user_id = c.user_id
+  where c.token = p_token
+  limit 1;
+$$;
+
+revoke all on function public.get_result_share_card(uuid) from public;
+grant execute on function public.get_result_share_card(uuid) to anon, authenticated;
