@@ -56,12 +56,13 @@ Deno.serve(async (req: Request) => {
     const examination = requestedExamination || "JAMB";
     const examYear = requestBody.year === null || requestBody.year === undefined || requestBody.year === "" ? null : Number(requestBody.year);
     const rawCounts = requestBody.counts;
-    const subjectQuestionCounts = rawCounts && typeof rawCounts === "object" && !Array.isArray(rawCounts)
+    const legacyCount = Math.max(1, Math.min(Number(requestBody.count) || 60, 60));
+    const subjectQuestionCounts: Record<string, number> = rawCounts && typeof rawCounts === "object" && !Array.isArray(rawCounts)
       ? rawCounts as Record<string, number>
-      : null;
+      : Object.fromEntries(subjects.map((subject) => [subject, legacyCount]));
     const allowedDurationSeconds = Number(requestBody.duration_seconds);
     const adaptive = requestBody.adaptive === true && (mode === "practice" || mode === "revision");
-    if (!subjectQuestionCounts || Object.keys(subjectQuestionCounts).length !== subjects.length
+    if (Object.keys(subjectQuestionCounts).length !== subjects.length
       || subjects.some((subject) => !Number.isInteger(Number(subjectQuestionCounts[subject]))
         || Number(subjectQuestionCounts[subject]) < 1 || Number(subjectQuestionCounts[subject]) > 60)) {
       return respond({ error: "Choose between 1 and 60 questions for every selected subject." }, 400);
