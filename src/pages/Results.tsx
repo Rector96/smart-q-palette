@@ -517,23 +517,20 @@ const Results = () => {
                         decoding="async"
                       />
                     )}
-                    {!answer.is_correct && (
-                      <div className="cbt-results-answer-choice is-wrong">
-                        <XCircle aria-hidden="true" />
-                        <span>{selectedAnswer && selectedAnswer !== "X" ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
-                      </div>
-                    )}
+                    <div className="cbt-results-answer-choice is-selected">
+                      {answer.is_correct ? <CheckCircle2 aria-hidden="true" /> : <XCircle aria-hidden="true" /> }
+                      <span>{selectedAnswer && selectedAnswer !== "X" ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
+                      <strong>Your answer</strong>
+                    </div>
                     <div className="cbt-results-answer-choice is-correct">
                       <CheckCircle2 aria-hidden="true" />
                       <span>{correctAnswer ? `${correctAnswer}) ${correctText || correctAnswer}` : "Correct answer unavailable."}</span>
-                      {!answer.is_correct && <strong>Correct Answer</strong>}
+                      <strong>Correct answer</strong>
                     </div>
-                    {question?.explanation?.trim() && (
-                      <div className="cbt-results-explanation">
-                        <h4>Explanation</h4>
-                        <p>{cleanExplanation(question.explanation)}</p>
-                      </div>
-                    )}
+                    <div className="cbt-results-explanation">
+                      <h4>Explanation</h4>
+                      <p>{question?.explanation?.trim() ? cleanExplanation(question.explanation) : "An explanation is not available for this question yet."}</p>
+                    </div>
                   </article>
                 );
               })}
