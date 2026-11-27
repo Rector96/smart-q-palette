@@ -66,8 +66,8 @@ const getSessionShareSubject = (
 
 const cleanExplanation = (value: string) =>
   value
-    .replace(/^\\s*matches\\s+pdf\\s+answer\\s+key\\s*\\([^)]*\\)\\s*(?:and\\s+independently\\s+verified)?\\s*:\\s*/i, "")
-    .replace(/^\\s*independently\\s+verified\\s*:\\s*/i, "")
+    .replace(/^\s*matches\s+pdf\s+answer\s+key\s*\\([^)]*\\)\s*(?:and\s+independently\s+verified)?\s*:\s*/i, "")
+    .replace(/^\s*independently\s+verified\s*:\s*/i, "")
     .trim();
 const Results = () => {
   const { toast } = useToast();
@@ -321,7 +321,10 @@ const Results = () => {
 
   const totalQuestions = Number(session.total_questions) || 0;
   const correctAnswers = Number(session.correct_answers) || 0;
-  const wrongAnswers = Math.max(0, totalQuestions - correctAnswers);
+  const unansweredAnswers = history.filter((answer) => answer.selected_answer?.toUpperCase() === "X").length;
+  const wrongAnswers = history.length === totalQuestions
+    ? history.filter((answer) => !answer.is_correct && answer.selected_answer?.toUpperCase() !== "X").length
+    : Math.max(0, totalQuestions - correctAnswers);
   const durationMinutes = Math.floor((Number(session.duration_seconds) || 0) / 60);
   const roundedScore = Math.round(Number(session.score_percentage) || 0);
 
@@ -393,6 +396,10 @@ const Results = () => {
             <div className="cbt-results-stat cbt-results-stat-wrong">
               <XCircle aria-hidden="true" />
               <span>Wrong: {wrongAnswers}/{totalQuestions}</span>
+            </div>
+            <div className="cbt-results-stat cbt-results-stat-unanswered">
+              <Clock aria-hidden="true" />
+              <span>Unanswered: {unansweredAnswers}/{totalQuestions}</span>
             </div>
             <div className="cbt-results-stat cbt-results-stat-time">
               <Clock aria-hidden="true" />
@@ -492,7 +499,7 @@ const Results = () => {
                     {!answer.is_correct && (
                       <div className="cbt-results-answer-choice is-wrong">
                         <XCircle aria-hidden="true" />
-                        <span>{selectedAnswer ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
+                        <span>{selectedAnswer && selectedAnswer !== "X" ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
                       </div>
                     )}
                     <div className="cbt-results-answer-choice is-correct">
