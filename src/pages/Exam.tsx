@@ -67,6 +67,8 @@ const Exam = () => {
   const startTimeRef = useState<number>(Date.now());
   const questionStartRef = useState<number>(Date.now());
   const feedbackRef = useRef<HTMLParagraphElement | null>(null);
+  const questionCardRef = useRef<HTMLDivElement | null>(null);
+  const oneMinuteWarningShownRef = useRef(false);
   answersRef.current = answers;
 
   const isTimed = mode === "cbt" || mode === "mock";
@@ -136,6 +138,7 @@ const Exam = () => {
     setSessionId(data.session.id);
     const serverStartedAt = data.session.started_at ? new Date(data.session.started_at).getTime() : Date.now();
     deadlineRef.current = serverStartedAt + customDuration * 1000;
+    oneMinuteWarningShownRef.current = false;
     setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)));
     setLoading(false);
     startTimeRef[1](Date.now());
@@ -150,8 +153,9 @@ const Exam = () => {
       if (!deadline) return;
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setTimeLeft(remaining);
-      if (remaining === 300) {
-        toast({ title: "⏰ 5 minutes remaining!", variant: "destructive" });
+      if (remaining <= 60 && remaining > 0 && !oneMinuteWarningShownRef.current) {
+        oneMinuteWarningShownRef.current = true;
+        toast({ title: "⏰ 1 minute remaining!", description: "Your exam will be submitted automatically when the timer ends.", variant: "destructive" });
       }
       if (remaining <= 0) {
         if (timerRef.current) window.clearInterval(timerRef.current);
@@ -230,6 +234,7 @@ const Exam = () => {
     setCurrentIndex(index);
     setShowResult(false);
     setShowNav(false);
+    window.requestAnimationFrame(() => questionCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   useEffect(() => {
@@ -344,11 +349,7 @@ const Exam = () => {
   };
   submitRef.current = handleSubmit;
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
+  const formatTime = (seconds: number) => `${Math.ceil(Math.max(0, seconds) / 60)} min`;
 
   const getSubjectName = (id: string) => SUBJECTS.find(s => s.id === id)?.name || id;
 
@@ -460,7 +461,7 @@ const Exam = () => {
             </span>
             <div className="flex shrink-0 items-center gap-1.5">
               {isTimed && (
-                <span className={cn("flex h-8 items-center gap-1 rounded-full bg-secondary px-2.5 font-mono text-[10px] font-bold", timeLeft < 300 && "text-destructive")}>
+                <span role="timer" aria-live={timeLeft <= 60 ? "assertive" : "off"} className={cn("flex h-8 items-center gap-1 rounded-full bg-secondary px-2.5 font-mono text-[10px] font-bold", timeLeft <= 60 && "text-destructive")}>
                   <Clock className="h-3.5 w-3.5" />{formatTime(timeLeft)}
                 </span>
               )}
@@ -594,7 +595,7 @@ const Exam = () => {
         <main className="exam-question-main w-full px-3 py-4 sm:px-4 sm:py-6">
           {currentQuestion && (
             <AnimatePresence mode="wait">
-              <motion.div data-tour="exam-question" className="exam-question-card" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
+              <motion.div ref={questionCardRef} data-tour="exam-question" className="exam-question-card scroll-mt-24" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
               {currentQuestion.passage && (
                 <Card className="mb-3 border-border/50">
                   <CardContent className="p-4 max-h-[40vh] overflow-y-auto">
