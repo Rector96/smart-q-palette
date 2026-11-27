@@ -3,7 +3,7 @@
 -- restoring access after a refund has already been recorded.
 
 create or replace function public.confirm_paystack_payment(
-  p_payment_reference text,
+  p_reference text,
   p_amount_kobo bigint,
   p_currency text
 ) returns jsonb
@@ -16,8 +16,8 @@ declare
   v_expected_amount_kobo bigint;
   v_referral_result jsonb;
 begin
-  if p_payment_reference is null or length(trim(p_payment_reference)) = 0
-     or length(p_payment_reference) > 100
+  if p_reference is null or length(trim(p_reference)) = 0
+     or length(p_reference) > 100
      or p_amount_kobo is null or p_amount_kobo <= 0
      or p_currency is distinct from 'NGN' then
     raise exception 'Payment confirmation details are invalid.';
@@ -25,7 +25,7 @@ begin
 
   select * into v_payment
   from public.payments
-  where reference = p_payment_reference
+  where reference = p_reference
   for update;
 
   if not found then
@@ -47,7 +47,7 @@ begin
 
   update public.payments
   set status = 'success',
-      paystack_reference = p_payment_reference,
+      paystack_reference = p_reference,
       verified_at = coalesce(verified_at, now())
   where id = v_payment.id;
 
