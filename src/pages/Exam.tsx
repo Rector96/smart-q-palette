@@ -151,7 +151,8 @@ const Exam = () => {
     setQuestions(data.questions as QuestionWithShuffledOptions[]);
     setSessionId(data.session.id);
     const serverStartedAt = data.session.started_at ? new Date(data.session.started_at).getTime() : Date.now();
-    deadlineRef.current = serverStartedAt + customDuration * 1000;
+    const savedDurationSeconds = Number(data.session.allowed_duration_seconds) || customDuration;
+    deadlineRef.current = serverStartedAt + savedDurationSeconds * 1000;
     oneMinuteWarningShownRef.current = false;
     setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)));
     setLoading(false);
