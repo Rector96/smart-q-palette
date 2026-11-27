@@ -67,6 +67,7 @@ const Exam = () => {
   const startTimeRef = useState<number>(Date.now());
   const questionStartRef = useState<number>(Date.now());
   const feedbackRef = useRef<HTMLParagraphElement | null>(null);
+  const explanationRef = useRef<HTMLDivElement | null>(null);
   const questionCardRef = useRef<HTMLDivElement | null>(null);
   const oneMinuteWarningShownRef = useRef(false);
   answersRef.current = answers;
@@ -201,7 +202,7 @@ const Exam = () => {
   useEffect(() => {
     if (!isPractice || !showResult || !currentQuestion) return;
     const frame = window.requestAnimationFrame(() => {
-      feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      (explanationRef.current || feedbackRef.current)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isPractice, showResult, currentQuestion?.id]);
@@ -654,7 +655,7 @@ const Exam = () => {
                 })}
               </div>
               {isPractice && showResult && currentQuestion.explanation && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 bg-secondary/50 rounded-lg">
+                <motion.div ref={explanationRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 bg-secondary/50 rounded-lg scroll-mt-24">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Explanation</p>
                   <p className="text-xs leading-relaxed">{currentQuestion.explanation}</p>
                 </motion.div>
