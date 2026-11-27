@@ -345,6 +345,7 @@ const Results = () => {
                 ? "Strong work. Keep building on what you know."
                 : "Review the explanations below and try again."}
           </p>
+          <p className="cbt-results-scoreline">Score: <strong>{roundedScore}%</strong> <span>·</span> Unanswered: <strong>{unansweredAnswers}/{totalQuestions}</strong></p>
         </div>
         <div className="cbt-results-actions">
           <Button type="button" className="cbt-results-retry" onClick={() => navigate("/select-subjects?mode=practice")}>
@@ -385,10 +386,6 @@ const Results = () => {
       <div className="cbt-results-grid">
         <div className="cbt-results-left-column">
           <section className="cbt-results-stats" aria-label="CBT result summary">
-            <div className="cbt-results-stat cbt-results-stat-score">
-              <BookOpen aria-hidden="true" />
-              <span>Score: {roundedScore}%</span>
-            </div>
             <div className="cbt-results-stat cbt-results-stat-correct">
               <CheckCircle2 aria-hidden="true" />
               <span>Correct: {correctAnswers}/{totalQuestions}</span>
@@ -396,10 +393,6 @@ const Results = () => {
             <div className="cbt-results-stat cbt-results-stat-wrong">
               <XCircle aria-hidden="true" />
               <span>Wrong: {wrongAnswers}/{totalQuestions}</span>
-            </div>
-            <div className="cbt-results-stat cbt-results-stat-unanswered">
-              <Clock aria-hidden="true" />
-              <span>Unanswered: {unansweredAnswers}/{totalQuestions}</span>
             </div>
             <div className="cbt-results-stat cbt-results-stat-time">
               <Clock aria-hidden="true" />
