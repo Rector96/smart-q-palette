@@ -67,8 +67,7 @@ const getSessionShareSubject = (
 
 const cleanExplanation = (value: string) =>
   value
-    .replace(/^\s*matches\s+pdf\s+answer\s+key\s*\([^)]*\)\s*(?:and\s+independently\s+verified)?\s*:\s*/i, "")
-    .replace(/^\s*independently\s+verified\s*:\s*/i, "")
+    .replace(/^\s*(?:(?:matches\s+pdf\s+answer\s+key|independently\s+verified)[^:]*):\s*/i, "")
     .trim();
 const Results = () => {
   const { toast } = useToast();
