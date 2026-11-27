@@ -55,8 +55,24 @@ Deno.serve(async (req: Request) => {
     const requestedExamination = typeof requestBody.examination === "string" ? requestBody.examination.trim().toUpperCase() : "";
     const examination = requestedExamination || "JAMB";
     const examYear = requestBody.year === null || requestBody.year === undefined || requestBody.year === "" ? null : Number(requestBody.year);
-    const count = Math.max(1, Math.min(Number(requestBody.count) || 60, 60));
+    const rawCounts = requestBody.counts;
+    const subjectQuestionCounts = rawCounts && typeof rawCounts === "object" && !Array.isArray(rawCounts)
+      ? rawCounts as Record<string, unknown>
+      : null;
+    const allowedDurationSeconds = Number(requestBody.duration_seconds);
     const adaptive = requestBody.adaptive === true && (mode === "practice" || mode === "revision");
+    if (!subjectQuestionCounts || Object.keys(subjectQuestionCounts).length !== subjects.length
+      || subjects.some((subject) => !Number.isInteger(Number(subjectQuestionCounts[subject]))
+        || Number(subjectQuestionCounts[subject]) < 1 || Number(subjectQuestionCounts[subject]) > 60)) {
+      return respond({ error: "Choose between 1 and 60 questions for every selected subject." }, 400);
+    }
+    const totalRequestedCount = subjects.reduce((sum, subject) => sum + Number(subjectQuestionCounts[subject]), 0);
+    if (totalRequestedCount < 1 || totalRequestedCount > 720) {
+      return respond({ error: "The combined exam must contain between 1 and 720 questions." }, 400);
+    }
+    if (!Number.isInteger(allowedDurationSeconds) || allowedDurationSeconds < 60 || allowedDurationSeconds > 86400) {
+      return respond({ error: "Choose a total exam duration between 1 minute and 24 hours." }, 400);
+    }
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
     if (!["JAMB", "WAEC", "NECO"].includes(examination)) return respond({ error: "Choose JAMB, WAEC or NECO." }, 400);
     if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1900 || examYear > new Date().getFullYear())) return respond({ error: "Choose a valid examination year." }, 400);
@@ -129,7 +145,11 @@ Deno.serve(async (req: Request) => {
 
     const allQuestions: ExamQuestion[] = [];
     for (const subject of subjects) {
+      const count = Number(subjectQuestionCounts[subject]);
       const shuffled = shuffle(questionPools.get(subject) ?? []);
+      if (shuffled.length < count) {
+        return respond({ error: `${subject} has only ${shuffled.length} available questions for the selected examination and year.` }, 400);
+      }
       let unseen = shuffled.filter((q) => !seen.has(q.id));
       let previouslySeen = shuffled.filter((q) => seen.has(q.id));
       // Measure coverage within this subject only; seen also contains other subjects.
@@ -251,6 +271,8 @@ Deno.serve(async (req: Request) => {
         option_order: item.optionOrder,
         position: item.position,
       })),
+      p_subject_question_counts: subjectQuestionCounts,
+      p_allowed_duration_seconds: allowedDurationSeconds,
     });
     if (sessionError) {
       console.error("Could not create exam session:", sessionError.message);
@@ -273,7 +295,7 @@ Deno.serve(async (req: Request) => {
       passage: item.question.passage, diagram_url: item.question.diagram_url, question_type: item.question.question_type,
       exam_hint: item.question.exam_hint,
     }));
-    return respond({ session, questions });
+    return respond({ session: { ...session, allowed_duration_seconds: allowedDurationSeconds, subject_question_counts: subjectQuestionCounts }, questions });
   } catch (error) {
     console.error("cbt-start failed", error);
     return respond({ error: "Unable to start the exam right now." }, 500);
