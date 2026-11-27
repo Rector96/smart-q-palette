@@ -40,8 +40,21 @@ const Exam = () => {
   const cbtTour = useOnboardingTour(CBT_TOUR_STORAGE_KEY);
 
   const questionCountParam = searchParams.get("count");
+  const countsParam = searchParams.get("counts");
   const customDuration = timerParam ? Number(timerParam) * 60 : 60 * 60;
   const requestedCount = questionCountParam ? Number(questionCountParam) : 60;
+  let subjectQuestionCounts: Record<string, number> = {};
+  try {
+    const parsedCounts: unknown = countsParam ? JSON.parse(countsParam) : null;
+    if (parsedCounts && typeof parsedCounts === "object" && !Array.isArray(parsedCounts)) {
+      subjectQuestionCounts = Object.fromEntries(Object.entries(parsedCounts).map(([subject, count]) => [subject, Number(count)]));
+    }
+  } catch {
+    subjectQuestionCounts = {};
+  }
+  if (!Object.keys(subjectQuestionCounts).length && subjects.length === 1) {
+    subjectQuestionCounts[subjects[0]] = requestedCount;
+  }
 
   const [questions, setQuestions] = useState<QuestionWithShuffledOptions[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -113,7 +126,7 @@ const Exam = () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("cbt-start", {
-      body: { subjects, mode, count: requestedCount, examination, year: selectedYear, adaptive: adaptivePractice },
+      body: { subjects, mode, count: requestedCount, counts: subjectQuestionCounts, duration_seconds: customDuration, examination, year: selectedYear, adaptive: adaptivePractice },
     });
     let responseData = data;
     if (error && !responseData && error.context instanceof Response) {
