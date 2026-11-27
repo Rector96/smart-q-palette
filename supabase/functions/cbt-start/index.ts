@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
     const examYear = requestBody.year === null || requestBody.year === undefined || requestBody.year === "" ? null : Number(requestBody.year);
     const rawCounts = requestBody.counts;
     const subjectQuestionCounts = rawCounts && typeof rawCounts === "object" && !Array.isArray(rawCounts)
-      ? rawCounts as Record<string, unknown>
+      ? rawCounts as Record<string, number>
       : null;
     const allowedDurationSeconds = Number(requestBody.duration_seconds);
     const adaptive = requestBody.adaptive === true && (mode === "practice" || mode === "revision");
