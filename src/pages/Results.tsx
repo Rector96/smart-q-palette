@@ -35,6 +35,7 @@ type QuestionRow = Database["public"]["Tables"]["questions"]["Row"];
 type ResultQuestion = Pick<
   QuestionRow,
   | "id"
+  | "subject"
   | "topic"
   | "question_text"
   | "option_a"
@@ -110,7 +111,7 @@ const Results = () => {
           { data: profile, error: profileError },
           { data: referralProfile, error: referralError },
         ] = await Promise.all([
-          supabase.from("exam_sessions").select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,completed,started_at,completed_at,examination,exam_year").eq("id", sessionId).eq("user_id", user.id).single(),
+          supabase.from("exam_sessions").select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,allowed_duration_seconds,subject_question_counts,completed,started_at,completed_at,examination,exam_year").eq("id", sessionId).eq("user_id", user.id).single(),
           supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
           supabase.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
         ]);
@@ -146,7 +147,7 @@ const Results = () => {
         let questionsById = new Map<string, ResultQuestion>();
         if (questionIds.length > 0) {
           const { data: questionRows, error: questionsError } = await supabase.from("questions")
-            .select("id,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url")
+            .select("id,subject,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url")
             .in("id", questionIds);
           if (!active) return;
           if (questionsError) {
@@ -326,6 +327,14 @@ const Results = () => {
     ? history.filter((answer) => !answer.is_correct && answer.selected_answer?.toUpperCase() !== "X").length
     : Math.max(0, totalQuestions - correctAnswers);
   const durationMinutes = Math.floor((Number(session.duration_seconds) || 0) / 60);
+  const allowedDurationMinutes = Math.ceil((Number(session.allowed_duration_seconds) || 3600) / 60);
+  const subjectBreakdown = history.reduce<Record<string, { correct: number; total: number }>>((result, answer) => {
+    const subject = answer.questions?.subject || "Unknown subject";
+    if (!result[subject]) result[subject] = { correct: 0, total: 0 };
+    result[subject].total += 1;
+    if (answer.is_correct) result[subject].correct += 1;
+    return result;
+  }, {});
   const roundedScore = Math.round(Number(session.score_percentage) || 0);
 
   return (
@@ -396,9 +405,29 @@ const Results = () => {
             </div>
             <div className="cbt-results-stat cbt-results-stat-time">
               <Clock aria-hidden="true" />
-              <span>Time: {durationMinutes} min</span>
+              <span>Time used: {durationMinutes} min</span>
+            </div>
+            <div className="cbt-results-stat cbt-results-stat-time">
+              <Clock aria-hidden="true" />
+              <span>Time allowed: {allowedDurationMinutes} min</span>
             </div>
           </section>
+
+          {Object.keys(subjectBreakdown).length > 1 && (
+            <section className="cbt-results-topic-panel" aria-labelledby="cbt-subject-title">
+              <div className="cbt-results-panel-heading">
+                <h2 id="cbt-subject-title">Subject Breakdown</h2>
+              </div>
+              <div className="cbt-results-topic-list">
+                {Object.entries(subjectBreakdown).map(([subject, stats]) => (
+                  <div key={subject} className="cbt-results-topic-row">
+                    <span>{subject}</span>
+                    <strong>{stats.correct}/{stats.total} correct · {Math.round((stats.correct / Math.max(stats.total, 1)) * 100)}%</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="cbt-results-topic-panel" aria-labelledby="cbt-topic-title">
             <div className="cbt-results-panel-heading">
