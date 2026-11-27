@@ -111,11 +111,15 @@ begin
       raise exception 'You did not participate in this quiz.';
     end if;
 
-    select count(*) filter (where is_correct), count(*)
-      into v_correct, v_total
+    select count(*) filter (where is_correct)
+      into v_correct
       from public.quiz_answers
      where room_id = p_result_id
        and user_id = auth.uid();
+
+    -- The quiz's configured question count is authoritative, including questions
+    -- the participant timed out on or did not answer.
+    v_total := v_room.num_questions;
 
     select count(*),
            1 + count(*) filter (
