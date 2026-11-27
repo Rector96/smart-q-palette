@@ -74,6 +74,7 @@ const Results = () => {
   const [referralCode, setReferralCode] = useState("");
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyLoadError, setHistoryLoadError] = useState("");
   const [answerFilter, setAnswerFilter] = useState<AnswerFilter>("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -82,6 +83,7 @@ const Results = () => {
   useEffect(() => {
     setSession(null);
     setHistory([]);
+    setHistoryLoadError("");
     setTopicBreakdown({});
     setProfileName("");
     setReferralCode("");
@@ -102,24 +104,10 @@ const Results = () => {
           { data: sessionData, error: sessionError },
           { data: profile, error: profileError },
           { data: referralProfile, error: referralError },
-          { data: answers, error: historyError },
         ] = await Promise.all([
-          supabase.from("exam_sessions")
-            .select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,completed,started_at,completed_at,examination,exam_year")
-            .eq("id", sessionId)
-            .single(),
-          supabase.from("profiles")
-            .select("full_name")
-            .eq("user_id", user.id)
-            .single(),
-          supabase.from("referral_profiles")
-            .select("referral_code")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase.from("user_history")
-            .select("id,question_id,selected_answer,is_correct,session_id,questions(id,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url)")
-            .eq("session_id", sessionId)
-            .order("answered_at", { ascending: true }),
+          supabase.from("exam_sessions").select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,completed,started_at,completed_at,examination,exam_year").eq("id", sessionId).eq("user_id", user.id).single(),
+          supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+          supabase.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
         ]);
 
         if (!active) return;
@@ -130,24 +118,46 @@ const Results = () => {
         }
 
         setSession(sessionData);
-        if (profileError) {
-          toast({ title: "Could not load your profile", description: profileError.message, variant: "destructive" });
-        }
+        if (profileError) console.error("Could not load profile name for result:", profileError.message);
         if (profile?.full_name) setProfileName(profile.full_name);
-        if (referralError) {
-          toast({ title: "Could not load your referral code", description: referralError.message, variant: "destructive" });
-        }
+        if (referralError) console.error("Could not load referral code for result:", referralError.message);
         if (referralProfile?.referral_code) setReferralCode(referralProfile.referral_code);
 
-        if (historyError) {
-          toast({ title: "Could not load your answers", description: historyError.message, variant: "destructive" });
-          setHistory([]);
-          setTopicBreakdown({});
+        // Fetch answer rows separately so question embedding cannot hide a saved result.
+        const { data: answerRows, error: answersError } = await supabase.from("user_history")
+          .select("id,question_id,selected_answer,is_correct,session_id,answered_at")
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id)
+          .order("answered_at", { ascending: true });
+
+        if (!active) return;
+        if (answersError) {
+          setHistoryLoadError("Your score is saved, but the answer review could not be loaded. Please refresh or contact support.");
+          console.error("Could not load CBT answer rows:", answersError.message);
           return;
         }
 
-        const resultHistory = answers || [];
+        const questionIds = [...new Set((answerRows || []).map((answer) => answer.question_id))];
+        let questionsById = new Map<string, ResultQuestion>();
+        if (questionIds.length > 0) {
+          const { data: questionRows, error: questionsError } = await supabase.from("questions")
+            .select("id,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url")
+            .in("id", questionIds);
+          if (!active) return;
+          if (questionsError) {
+            setHistoryLoadError("Your score is available, but some question details could not be loaded. Please refresh or contact support.");
+            console.error("Could not load CBT question details:", questionsError.message);
+          } else {
+            questionsById = new Map((questionRows || []).map((question) => [question.id, question]));
+          }
+        }
+
+        const resultHistory: HistoryRow[] = (answerRows || []).map((answer) => ({
+          ...answer,
+          questions: questionsById.get(answer.question_id) || null,
+        }));
         setHistory(resultHistory);
+
         const breakdown: Record<string, { correct: number; total: number }> = {};
         resultHistory.forEach((answer) => {
           const topic = answer.questions?.topic || "Unknown";
@@ -156,6 +166,9 @@ const Results = () => {
           if (answer.is_correct) breakdown[topic].correct += 1;
         });
         setTopicBreakdown(breakdown);
+        if (resultHistory.length !== Number(sessionData.total_questions)) {
+          setHistoryLoadError((current) => current || "Your score is saved, but the answer review is incomplete. Please refresh or contact support.");
+        }
       } catch (error) {
         if (!active) return;
         const message = error instanceof Error ? error.message : "Please try again.";
