@@ -64,6 +64,11 @@ const getSessionShareSubject = (
   return [exam, subjects].filter(Boolean).join(" — ") || "Practice";
 };
 
+const cleanExplanation = (value: string) =>
+  value
+    .replace(/^\\s*matches\\s+pdf\\s+answer\\s+key\\s*\\([^)]*\\)\\s*(?:and\\s+independently\\s+verified)?\\s*:\\s*/i, "")
+    .replace(/^\\s*independently\\s+verified\\s*:\\s*/i, "")
+    .trim();
 const Results = () => {
   const { toast } = useToast();
   const { sessionId } = useParams();
@@ -376,7 +381,11 @@ const Results = () => {
 
       <div className="cbt-results-grid">
         <div className="cbt-results-left-column">
-          <section className="cbt-results-stats" aria-label="Quiz summary">
+          <section className="cbt-results-stats" aria-label="CBT result summary">
+            <div className="cbt-results-stat cbt-results-stat-score">
+              <BookOpen aria-hidden="true" />
+              <span>Score: {roundedScore}%</span>
+            </div>
             <div className="cbt-results-stat cbt-results-stat-correct">
               <CheckCircle2 aria-hidden="true" />
               <span>Correct: {correctAnswers}/{totalQuestions}</span>
@@ -453,6 +462,7 @@ const Results = () => {
             ))}
           </div>
 
+          {historyLoadError && <p className="cbt-results-review-warning" role="status">{historyLoadError}</p>}
           {filteredHistory.length > 0 ? (
             <div className="cbt-results-answer-grid">
               {filteredHistory.map(({ answer, index }) => {
@@ -490,10 +500,12 @@ const Results = () => {
                       <span>{correctAnswer ? `${correctAnswer}) ${correctText || correctAnswer}` : "Correct answer unavailable."}</span>
                       {!answer.is_correct && <strong>Correct Answer</strong>}
                     </div>
-                    <div className="cbt-results-explanation">
-                      <h4>Explanation</h4>
-                      <p>{question?.explanation || "No explanation was provided for this question."}</p>
-                    </div>
+                    {question?.explanation?.trim() && (
+                      <div className="cbt-results-explanation">
+                        <h4>Explanation</h4>
+                        <p>{cleanExplanation(question.explanation)}</p>
+                      </div>
+                    )}
                   </article>
                 );
               })}
