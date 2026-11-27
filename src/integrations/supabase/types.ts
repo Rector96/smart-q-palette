@@ -966,6 +966,8 @@ export type Database = {
           p_score: number
           p_subject: string
           p_total_questions: number
+          p_result_id: string
+          p_is_solo: boolean
         }
         Returns: string
       }
