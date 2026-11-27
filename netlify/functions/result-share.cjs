@@ -19,13 +19,11 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => (
 exports.handler = async (event) => {
   const params = event.queryStringParameters || {};
   const token = String(params.token || "");
-  const referralCode = String(params.ref || "").trim().toUpperCase();
   const app = ["whatsapp", "instagram", "tiktok", "share"].includes(params.utm_source)
     ? params.utm_source
     : "share";
 
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token) ||
-      !/^[A-Z0-9]{4,20}$/.test(referralCode)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
     return htmlResponse(400, "<!doctype html><title>ROCKCBT</title><p>This result link is invalid.</p>");
   }
 
@@ -60,6 +58,11 @@ exports.handler = async (event) => {
 
   if (!card || typeof card !== "object" || typeof card.first_name !== "string") {
     return htmlResponse(404, "<!doctype html><title>ROCKCBT</title><p>This result link could not be found.</p>");
+  }
+
+  const referralCode = String(card.referral_code || "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,20}$/.test(referralCode)) {
+    return htmlResponse(404, "<!doctype html><title>ROCKCBT</title><p>This result link is unavailable.</p>");
   }
 
   const forwardedHost = event.headers["x-forwarded-host"] || event.headers.host || "www.weblines.org";

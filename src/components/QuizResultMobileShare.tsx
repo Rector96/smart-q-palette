@@ -157,6 +157,8 @@ const QuizResultMobileShare = ({
       p_rank_position: rank,
       p_participant_count: participantCount,
       p_best_score_this_week: bestScoreThisWeek,
+      p_result_id: resultId,
+      p_is_solo: isSolo,
     });
     if (error || !token) {
       toast({
