@@ -28,6 +28,12 @@ Deno.test("refund handling accepts only recorded partial or completed outcomes",
   if (!isRefundEventRecorded({ reason: "no_referral_reward", payment_refunded: true })) {
     throw new Error("A payment refund without a referral reward should be accepted.");
   }
+  if (!isRefundEventRecorded({ reason: "already_processed" })) {
+    throw new Error("A duplicate Paystack refund event should be accepted idempotently.");
+  }
+  if (!isRefundEventRecorded({ reason: "already_reversed", payment_refunded: true })) {
+    throw new Error("An already-reversed fully refunded payment should be accepted.");
+  }
   if (isRefundEventRecorded({ reason: "payment_not_found" })) {
     throw new Error("An unknown payment must remain unresolved.");
   }
