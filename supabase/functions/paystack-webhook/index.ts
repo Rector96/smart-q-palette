@@ -344,7 +344,7 @@ serve(async (req) => {
         !transactionResponse.ok ||
         transactionPayload?.status !== true ||
         transaction?.reference !== paymentReference ||
-        !["success", "reversed"].includes(transaction?.status) ||
+        transaction?.status !== "success" ||
         String(transaction?.currency || "").toUpperCase() !== "NGN" ||
         !Number.isSafeInteger(Number(transaction?.id)) ||
         Number(transaction?.id) <= 0 ||
