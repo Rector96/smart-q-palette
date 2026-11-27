@@ -441,6 +441,12 @@
   font-size: 9px;
 }
 
+.cbt-results-answer-choice.is-selected {
+  border-color: #9bbbe8;
+  background: #edf4ff;
+  color: #214f8d;
+}
+
 .cbt-results-answer-choice.is-wrong {
   border-color: #e7aaaa;
   background: #fce6e5;
