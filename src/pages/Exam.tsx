@@ -248,7 +248,6 @@ const Exam = () => {
     setCurrentIndex(index);
     setShowResult(false);
     setShowNav(false);
-    window.requestAnimationFrame(() => questionCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   useEffect(() => {
@@ -609,7 +608,7 @@ const Exam = () => {
         <main className="exam-question-main w-full px-3 py-4 sm:px-4 sm:py-6">
           {currentQuestion && (
             <AnimatePresence mode="wait">
-              <motion.div ref={questionCardRef} data-tour="exam-question" className="exam-question-card scroll-mt-24" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
+              <motion.div ref={questionCardRef} data-tour="exam-question" className="exam-question-card scroll-mt-24" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} onAnimationComplete={() => questionCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
               {currentQuestion.passage && (
                 <Card className="mb-3 border-border/50">
                   <CardContent className="p-4 max-h-[40vh] overflow-y-auto">
