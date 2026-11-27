@@ -473,13 +473,97 @@
   display: none;
 }
 
-@media (max-width: 820px) {
+@media (min-width: 960px) {
+  .cbt-results-page {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    max-width: 1600px;
+    margin-inline: auto;
+    padding: clamp(16px, 2.5vw, 32px);
+  }
+
+  .cbt-results-mobile-share {
+    display: block;
+    order: 1;
+    width: 100%;
+  }
+
+  .cbt-results-grid {
+    order: 2;
+    min-height: auto;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+
+  .cbt-results-left-column {
+    grid-template-rows: auto;
+    align-content: start;
+  }
+
+  .cbt-results-stats {
+    display: none;
+  }
+
+  .cbt-results-topic-panel,
+  .cbt-results-review-panel,
+  .cbt-results-topic-list,
+  .cbt-results-answer-grid {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .cbt-results-topic-list {
+    max-height: none;
+  }
+
+  .cbt-results-mobile-share .quiz-results-page--cbt {
+    display: block;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    background: transparent;
+    padding: 0;
+  }
+
+  .cbt-results-mobile-share .quiz-results-page--cbt .quiz-results-mobile {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .cbt-results-mobile-share .quiz-results-page--cbt .quiz-results-mobile-shell {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "score share"
+      "stats share"
+      "weakspot share"
+      "actions actions";
+    gap: 14px 28px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 24px;
+    background: hsl(var(--card));
+    padding: clamp(20px, 3vw, 36px);
+    box-shadow: 0 12px 32px hsl(var(--foreground) / 0.08);
+  }
+
+  .cbt-results-mobile-share .quiz-results-page--cbt .quiz-results-mobile-header {
+    display: none;
+  }
+}
+
+@media (max-width: 959px) {
   .cbt-results-page {
     display: flex;
     height: auto;
     min-height: 100dvh;
     overflow: visible;
-    padding: 12px 12px calc(100px + env(safe-area-inset-bottom));
+    background: #ffffff;
+    padding: 0 0 calc(96px + env(safe-area-inset-bottom));
   }
 
   .cbt-results-header {
@@ -491,12 +575,31 @@
   }
 
   .cbt-results-left-column {
+    display: contents;
+  }
+
+  .cbt-results-stats {
     display: none;
   }
 
-  .cbt-results-review-panel {
+  .cbt-results-topic-panel {
     order: 2;
-    width: 100%;
+    min-height: auto;
+    margin-inline: clamp(16px, 5.5vw, 24px);
+    overflow: visible;
+  }
+
+  .cbt-results-topic-list {
+    min-height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .cbt-results-review-panel {
+    order: 3;
+    width: auto;
+    min-height: auto;
+    margin-inline: clamp(16px, 5.5vw, 24px);
     overflow: visible;
   }
 
@@ -518,6 +621,7 @@
 
   .cbt-results-review-panel,
   .cbt-results-answer-grid {
+    min-height: auto;
     overflow: visible;
   }
 }
@@ -525,7 +629,7 @@
 @media (max-width: 520px) {
   .cbt-results-page {
     gap: 10px;
-    padding: 9px 9px calc(100px + env(safe-area-inset-bottom));
+    padding: 0 0 calc(96px + env(safe-area-inset-bottom));
   }
 
   .cbt-results-review-panel {

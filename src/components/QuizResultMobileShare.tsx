@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, Clock, Copy, Image as ImageIcon, LayoutDashboard, RotateCcw, Share2, Star, Target, Zap } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Clock, Copy, Image as ImageIcon, LayoutDashboard, MessageCircle, RotateCcw, Share2, Star, Target, XCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -116,7 +116,7 @@ const QuizResultMobileShare = ({
         bestScoreThisWeek,
         referralCode,
         siteHost: window.location.host,
-        layout: isSolo ? "landscape" : "portrait",
+        layout: "landscape",
       });
     } catch (error) {
       toast({
@@ -125,7 +125,7 @@ const QuizResultMobileShare = ({
         variant: "destructive",
       });
     }
-  }, [bestScoreThisWeek, correct, firstName, isSolo, participantCount, rank, referralCode, subject, toast, total]);
+  }, [bestScoreThisWeek, correct, firstName, participantCount, rank, referralCode, subject, toast, total]);
 
   const validateName = () => {
     const safeName = getFirstName(firstName);
@@ -182,7 +182,7 @@ const QuizResultMobileShare = ({
       bestScoreThisWeek,
       referralCode,
       siteHost: window.location.host,
-      layout: isSolo ? "landscape" : "portrait",
+      layout: "landscape",
     });
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((result) => {
@@ -202,39 +202,31 @@ const QuizResultMobileShare = ({
     window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
   };
 
-  const handleShare = async () => {
+  const handleWhatsAppShare = async () => {
     const name = validateName();
     if (!name || shareBusy) return;
     setShareBusy(true);
-    void recordEvent("share_clicked");
+    const shareWindow = window.open("about:blank", "_blank");
+    if (shareWindow) shareWindow.opener = null;
+    void recordEvent("share_clicked", "whatsapp");
     try {
-      const link = await makeShareLink(name, "share");
-      if (!link) return;
-      const placement = rankText ? ` and ranked ${rankText}` : "";
-      const shareData: ShareData = {
-        title: "Can you beat my RockCBT score?",
-        text: `${name} scored ${correct}/${total} in ${subject}${placement}. Can you beat my score?`,
-        url: link,
-      };
-      if (navigator.share) {
-        const file = await makeCardFile(name);
-        if (navigator.canShare?.({ files: [file] })) shareData.files = [file];
-        await navigator.share(shareData);
+      const link = await makeShareLink(name, "whatsapp");
+      if (!link) {
+        shareWindow?.close();
         return;
       }
-
-      try {
-        await navigator.clipboard.writeText(link);
-        void recordEvent("link_copied");
-        toast({ title: "Challenge link copied", description: "Share it with any app you like." });
-      } catch {
-        toast({
-          title: "Copy your challenge link",
-          description: link,
-          variant: "destructive",
-        });
+      const placement = rankText ? ` and ranked ${rankText}` : "";
+      const message = `${name} scored ${correct}/${total} in ${subject}${placement}. Can you beat my score?`;
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${message}\n${link}`)}`;
+      if (shareWindow) {
+        shareWindow.location.href = whatsappUrl;
+      } else if (navigator.share) {
+        await navigator.share({ title: "Can you beat my RockCBT score?", text: message, url: link });
+      } else {
+        window.location.assign(whatsappUrl);
       }
     } catch (error) {
+      shareWindow?.close();
       if (error instanceof Error && error.name === "AbortError") return;
       toast({
         title: "Could not share your result",
@@ -299,7 +291,7 @@ const QuizResultMobileShare = ({
         <div className="quiz-results-mobile-title">
           {!isSolo && <p>LIVE QUIZ RESULTS</p>}
           <h1 title={roomCode ? `${subject} · Room ${roomCode}` : subject}>
-            {isSolo ? subject : `${subject} · Quiz room`}
+            {subject}
           </h1>
         </div>
         {!isSolo && <div className="quiz-results-mobile-quick-actions">
@@ -340,7 +332,7 @@ const QuizResultMobileShare = ({
             />
           </svg>
           <div>
-            <span>You scored</span>
+            <span>{isSolo ? `${accuracy}% accuracy` : "You scored"}</span>
             <strong>{correct}<small>/{total}</small></strong>
           </div>
         </div>
@@ -354,12 +346,21 @@ const QuizResultMobileShare = ({
       </section>
 
       <section className="quiz-results-mobile-stats" aria-label="Your quiz statistics">
-        <div>
-          {rankText
-            ? <><Star aria-hidden="true" /><span>Rank</span><strong>{rankText}</strong></>
-            : <><Star aria-hidden="true" /><span>Rank</span><strong>—</strong></>}
-        </div>
-        <div><Target aria-hidden="true" /><span>Accuracy</span><strong>{accuracy}%</strong></div>
+        {isSolo ? (
+          <>
+            <div><CheckCircle2 aria-hidden="true" /><span>Correct</span><strong>{correct}/{total}</strong></div>
+            <div><XCircle aria-hidden="true" /><span>Wrong</span><strong>{Math.max(0, total - correct)}</strong></div>
+          </>
+        ) : (
+          <>
+            <div>
+              {rankText
+                ? <><Star aria-hidden="true" /><span>Rank</span><strong>{rankText}</strong></>
+                : <><Star aria-hidden="true" /><span>Rank</span><strong>—</strong></>}
+            </div>
+            <div><Target aria-hidden="true" /><span>Accuracy</span><strong>{accuracy}%</strong></div>
+          </>
+        )}
         <div><Clock aria-hidden="true" /><span>Time used</span><strong>{formattedTime}</strong></div>
       </section>
 
@@ -375,7 +376,7 @@ const QuizResultMobileShare = ({
             <small>Weak spot</small>
             <strong>{weakestTopic.topic}, {weakestTopic.accuracy}%</strong>
           </span>
-          <span className="quiz-results-mobile-practice">Practice topic</span>
+          <span className="quiz-results-mobile-practice">Practice Topic</span>
           <ArrowUpRight aria-hidden="true" className="quiz-results-mobile-practice-icon" />
         </button>
       )}
@@ -415,8 +416,9 @@ const QuizResultMobileShare = ({
       </section>
 
       <nav className="quiz-results-mobile-share-actions" aria-label="Share your score">
-        <Button type="button" className="quiz-share-button" disabled={shareDisabled} onClick={() => void handleShare()}>
-          <Share2 aria-hidden="true" /> {shareBusy ? "Preparing..." : "Share"}
+        <Button type="button" className="quiz-share-button" disabled={shareDisabled} onClick={() => void handleWhatsAppShare()}>
+          <MessageCircle aria-hidden="true" />
+          {shareBusy ? "Preparing..." : <><span className="quiz-share-label-full">Share to WhatsApp</span><span className="quiz-share-label-short">WhatsApp</span></>}
         </Button>
         <Button type="button" variant="outline" className="quiz-share-copy" disabled={shareDisabled} onClick={() => void handleCopyLink()}>
           <Copy aria-hidden="true" /> Copy link
