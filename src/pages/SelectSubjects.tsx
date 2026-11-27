@@ -176,7 +176,7 @@ const SelectSubjects = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <Logo size="sm" showText={false} />
-          <span className="font-bold text-sm">Select {isMock ? "4 Subjects" : "Subject"}</span>
+          <span className="font-bold text-sm">Select {isMock ? "4 Subjects" : "Subjects"}</span>
         </div>
       </header>
 
@@ -186,7 +186,7 @@ const SelectSubjects = () => {
             ? "Choose a subject to review. Questions you have practised and are due to repeat will appear first."
             : isMock
               ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)`
-              : "Choose your examination, year and subject to begin practice."}
+              : "Choose your examination, year and one or more subjects to begin."}
         </p>
 
         {catalogLoading ? (
@@ -263,7 +263,7 @@ const SelectSubjects = () => {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="text-sm font-bold">Select {isMock ? "4 Subjects" : "Subject"}</h2>
+                    <h2 className="text-sm font-bold">Select {isMock ? "4 Subjects" : "Subjects"}</h2>
                     <p className="text-[11px] text-muted-foreground">{examination} · {selectedYear} · {selected.length}/{maxSubjects} selected</p>
                   </div>
                 </div>
