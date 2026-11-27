@@ -41,12 +41,13 @@ const SelectSubjects = () => {
   const [selectedYear, setSelectedYear] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [customMinutes, setCustomMinutes] = useState("60");
-  const [questionCount, setQuestionCount] = useState("60");
+  const [questionCounts, setQuestionCounts] = useState<Record<string, string>>({});
   const [adaptivePractice, setAdaptivePractice] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isMock = mode === "mock";
-  const maxSubjects = isMock ? 4 : 1;
+  const maxSubjects = isMock ? 4 : 12;
+  const totalQuestionCount = selected.reduce((total, subject) => total + (Number(questionCounts[subject]) || 0), 0);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +102,7 @@ const SelectSubjects = () => {
       setSelected(selected.filter((item) => item !== name));
     } else if (selected.length < maxSubjects) {
       setSelected([...selected, name]);
+      setQuestionCounts((current) => ({ ...current, [name]: current[name] || "10" }));
     }
   };
 
@@ -128,14 +130,19 @@ const SelectSubjects = () => {
 
   const handleStart = () => {
     if (!examination || !selectedYear || selected.length === 0) return;
-    const parsedQuestionCount = Number(questionCount);
     const parsedCustomMinutes = Number(customMinutes);
-    if (!Number.isInteger(parsedQuestionCount) || parsedQuestionCount < 1 || parsedQuestionCount > 60) {
-      toast({ title: "Choose a valid question count", description: "Enter a number between 1 and 60.", variant: "destructive" });
+    const counts = Object.fromEntries(selected.map((subject) => [subject, Number(questionCounts[subject])]));
+    const invalidSubject = selected.find((subject) => !Number.isInteger(counts[subject]) || counts[subject] < 1 || counts[subject] > 60);
+    if (invalidSubject) {
+      toast({ title: "Check the question count", description: `Enter between 1 and 60 questions for ${invalidSubject}.`, variant: "destructive" });
       return;
     }
-    if (!Number.isInteger(parsedCustomMinutes) || parsedCustomMinutes < 1) {
-      toast({ title: "Choose a valid duration", description: "Enter at least one minute.", variant: "destructive" });
+    if (totalQuestionCount < 1 || totalQuestionCount > 720) {
+      toast({ title: "Invalid total question count", description: "The combined exam must contain no more than 720 questions.", variant: "destructive" });
+      return;
+    }
+    if (!Number.isInteger(parsedCustomMinutes) || parsedCustomMinutes < 1 || parsedCustomMinutes > 1440) {
+      toast({ title: "Choose a valid duration", description: "Enter a duration between 1 and 1,440 minutes.", variant: "destructive" });
       return;
     }
     const params = new URLSearchParams({
@@ -143,7 +150,8 @@ const SelectSubjects = () => {
       examination,
       year: selectedYear,
       subjects: selected.join(","),
-      count: String(parsedQuestionCount),
+      counts: JSON.stringify(counts),
+      count: String(totalQuestionCount),
       timer: String(parsedCustomMinutes),
       adaptive: String(adaptivePractice && (mode === "practice" || mode === "revision")),
     });
@@ -307,15 +315,23 @@ const SelectSubjects = () => {
             )}
 
             <Card className="border-border/50 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3"><Hash className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Number of Questions</Label></div>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {QUESTION_PRESETS.map((preset) => <Button key={preset} variant={Number(questionCount) === preset ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => setQuestionCount(String(preset))}>{preset}</Button>)}
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Questions per Subject</Label></div>
+                  <span className="text-xs font-semibold text-primary">{totalQuestionCount} total</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Input type="text" inputMode="numeric" value={questionCount} onChange={(e) => setQuestionCount(e.target.value.replace(/\D/g, "").slice(0, 2))} className="h-9 w-24 text-sm" placeholder="60" />
-                  <span className="text-xs text-muted-foreground">maximum 60 per selected subject</span>
-                </div>
+                {selected.map((subject) => (
+                  <div key={subject} className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3 last:border-0 last:pb-0">
+                    <Label htmlFor={`question-count-${subject}`} className="text-sm font-medium">{subject}</Label>
+                    <div className="flex items-center gap-2">
+                      {[10, 20, 40, 60].map((preset) => (
+                        <Button key={preset} type="button" size="sm" variant={Number(questionCounts[subject]) === preset ? "default" : "outline"} className="h-8 px-2 text-xs" onClick={() => setQuestionCounts((current) => ({ ...current, [subject]: String(preset) }))}>{preset}</Button>
+                      ))}
+                      <Input id={`question-count-${subject}`} type="text" inputMode="numeric" value={questionCounts[subject] ?? ""} onChange={(event) => setQuestionCounts((current) => ({ ...current, [subject]: event.target.value.replace(/\D/g, "").slice(0, 2) }))} className="h-9 w-16 text-sm" placeholder="10" />
+                    </div>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">Choose 1–60 questions for each subject. The total updates automatically.</p>
               </CardContent>
             </Card>
 
@@ -337,8 +353,8 @@ const SelectSubjects = () => {
             </Card>
 
             <div className="flex justify-center">
-              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || !Number.isInteger(Number(customMinutes)) || Number(customMinutes) < 1 || !Number.isInteger(Number(questionCount)) || Number(questionCount) < 1 || Number(questionCount) > 60} className="h-10 px-8 text-sm shadow-md">
-                Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"} — {questionCount} Questions
+              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || selected.some((subject) => !Number.isInteger(Number(questionCounts[subject])) || Number(questionCounts[subject]) < 1 || Number(questionCounts[subject]) > 60) || !Number.isInteger(Number(customMinutes)) || Number(customMinutes) < 1 || Number(customMinutes) > 1440} className="h-10 px-8 text-sm shadow-md">
+                Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"} — {totalQuestionCount} Questions
               </Button>
             </div>
           </motion.div>
