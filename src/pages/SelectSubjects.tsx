@@ -97,6 +97,14 @@ const SelectSubjects = () => {
       .sort((a, b) => a.localeCompare(b));
   }, [catalog, examination, selectedYear]);
 
+  useEffect(() => {
+    setQuestionCounts((current) => {
+      const next = { ...current };
+      selected.forEach((subject) => { if (!next[subject]) next[subject] = "10"; });
+      return next;
+    });
+  }, [selected]);
+
   const toggleSubject = (name: string) => {
     if (selected.includes(name)) {
       setSelected(selected.filter((item) => item !== name));
@@ -346,7 +354,7 @@ const SelectSubjects = () => {
                   ))}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Input type="text" inputMode="numeric" value={customMinutes} onChange={(e) => setCustomMinutes(e.target.value.replace(/\D/g, "").slice(0, 3))} className="h-9 w-28 text-sm" placeholder="60" />
+                  <Input type="text" inputMode="numeric" value={customMinutes} onChange={(e) => setCustomMinutes(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-9 w-28 text-sm" placeholder="60" />
                   <span className="text-xs text-muted-foreground">minutes — choose a preset or enter any duration</span>
                 </div>
               </CardContent>
