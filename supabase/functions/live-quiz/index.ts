@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+﻿import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -387,21 +387,57 @@ let questions: GeneratedQuizQuestion[] | null = null;
       )) {
         return respond({ error: "Some questions have invalid answer keys. Please contact support." }, 422);
       }
+      let data: unknown;
+      let error: { message: string } | null = null;
 
-      const { data, error } = await admin.rpc("live_quiz_create_room_internal", {
-        p_user_id: user.id,
-        p_subject: subject,
-        p_game_mode: gameMode,
-        p_time_per_question: timePerQuestion,
-        p_questions: publicQuestions,
-        p_answer_keys: answerKeys,
-        p_display_name: displayName,
-        p_quiz_type: quizType,
-        p_examination: quizType === "examination" ? examination : null,
-        p_exam_year: quizType === "examination" ? examYear : null,
-        p_host_participates: body.host_participates === true,
-      });
-      if (error) throw error;
+      if (quizType === "examination") {
+        const durationSeconds = Number(body.duration_seconds);
+
+        if (!Number.isInteger(durationSeconds) ||
+            durationSeconds < 60 ||
+            durationSeconds > 86400) {
+          return respond({
+            error: "Set the total examination duration between 1 minute and 24 hours.",
+          }, 400);
+        }
+
+        const result = await admin.rpc("live_quiz_create_exam_room_internal", {
+          p_user_id: user.id,
+          p_subject: subject,
+          p_time_per_question: timePerQuestion,
+          p_questions: publicQuestions,
+          p_answer_keys: answerKeys,
+          p_display_name: displayName,
+          p_examination: examination,
+          p_exam_year: examYear,
+          p_host_participates: body.host_participates === true,
+          p_duration_seconds: durationSeconds,
+        });
+
+        data = result.data;
+        error = result.error;
+      } else {
+        const result = await admin.rpc("live_quiz_create_room_internal", {
+          p_user_id: user.id,
+          p_subject: subject,
+          p_game_mode: gameMode,
+          p_time_per_question: timePerQuestion,
+          p_questions: publicQuestions,
+          p_answer_keys: answerKeys,
+          p_display_name: displayName,
+          p_quiz_type: quizType,
+          p_examination: null,
+          p_exam_year: null,
+          p_host_participates: body.host_participates === true,
+        });
+
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) throw new Error(error.message);
+
+
       return respond({ room: data });
     }
 
@@ -440,12 +476,29 @@ let questions: GeneratedQuizQuestion[] | null = null;
       }
 
       let myAnswer = null;
-      if (isParticipant) {
-        const { data, error: answerError } = await admin.rpc("live_quiz_get_my_answer_internal", {
-          p_user_id: user.id,
-          p_room_id: room.id,
-          p_question_index: room.current_question_index,
-        });
+      let myAttempt = null;
+
+      if (isParticipant && room.quiz_type === "examination") {
+        const { data, error: attemptError } = await admin.rpc(
+          "live_quiz_get_my_exam_attempt_internal",
+          {
+            p_user_id: user.id,
+            p_room_id: room.id,
+          }
+        );
+
+        if (attemptError) throw attemptError;
+        myAttempt = data ?? null;
+      } else if (isParticipant) {
+        const { data, error: answerError } = await admin.rpc(
+          "live_quiz_get_my_answer_internal",
+          {
+            p_user_id: user.id,
+            p_room_id: room.id,
+            p_question_index: room.current_question_index,
+          }
+        );
+
         if (answerError) throw answerError;
         myAnswer = data ?? null;
       }
@@ -454,6 +507,7 @@ let questions: GeneratedQuizQuestion[] | null = null;
         room,
         participants: participants ?? [],
         my_answer: myAnswer,
+        my_attempt: myAttempt,
         is_host: isHost,
         is_participant: isParticipant,
       });
@@ -471,22 +525,18 @@ let questions: GeneratedQuizQuestion[] | null = null;
       return respond({ room: data });
     }
 
-        if (action === "results") {
+    if (action === "results") {
       const roomId = typeof body.room_id === "string" ? body.room_id : "";
       if (!roomId) return respond({ error: "Room ID is required." }, 400);
 
       const { data: room, error: roomError } = await admin
         .from("quiz_rooms")
-        .select("id,status,host_id")
+        .select("id,status,host_id,quiz_type")
         .eq("id", roomId)
         .maybeSingle();
 
       if (roomError) throw roomError;
       if (!room) return respond({ error: "ROOM_NOT_FOUND" }, 404);
-
-      if (room.status !== "ended") {
-        return respond({ error: "Quiz results are not available yet." }, 403);
-      }
 
       const { data: participant, error: participantError } = await admin
         .from("quiz_participants")
@@ -500,6 +550,41 @@ let questions: GeneratedQuizQuestion[] | null = null;
         return respond({ error: "You are not a participant in this quiz." }, 403);
       }
 
+      if (room.quiz_type === "examination") {
+        const { data: attempt, error: attemptError } = await admin
+          .from("quiz_attempts")
+          .select("id,status,score,total_questions,started_at,deadline_at,submitted_at,current_question_index")
+          .eq("room_id", roomId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (attemptError) throw attemptError;
+        if (!attempt) {
+          return respond({ error: "Your examination attempt has not started." }, 404);
+        }
+
+        if (!["submitted", "expired"].includes(attempt.status)) {
+          return respond({ error: "Your examination is still in progress." }, 403);
+        }
+
+        const { data: answers, error: answersError } = await admin
+          .from("quiz_attempt_answers")
+          .select("question_index,selected_option,is_correct,points_awarded,time_taken")
+          .eq("attempt_id", attempt.id)
+          .order("question_index", { ascending: true });
+
+        if (answersError) throw answersError;
+
+        return respond({
+          attempt,
+          answers: answers ?? [],
+        });
+      }
+
+      if (room.status !== "ended") {
+        return respond({ error: "Quiz results are not available yet." }, 403);
+      }
+
       const { data: answers, error: answersError } = await admin
         .from("quiz_answers")
         .select("question_index,is_correct,time_taken")
@@ -511,20 +596,40 @@ let questions: GeneratedQuizQuestion[] | null = null;
 
       return respond({ answers: answers ?? [] });
     }
+
     if (action === "submit") {
       const roomId = typeof body.room_id === "string" ? body.room_id : "";
       const questionIndex = Number(body.question_index);
-      const selectedOption = body.selected_option == null ? null : String(body.selected_option).toUpperCase();
+      const selectedOption = body.selected_option == null
+        ? null
+        : String(body.selected_option).toUpperCase();
+
       if (!roomId || !Number.isInteger(questionIndex) ||
-          (selectedOption !== null && !["A", "B", "C", "D", "E"].includes(selectedOption))) {
+          (selectedOption !== null &&
+           !["A", "B", "C", "D", "E"].includes(selectedOption))) {
         return respond({ error: "Invalid answer submission." }, 400);
       }
-      const { data, error } = await admin.rpc("live_quiz_submit_answer_internal", {
+
+      const { data: room, error: roomError } = await admin
+        .from("quiz_rooms")
+        .select("quiz_type")
+        .eq("id", roomId)
+        .maybeSingle();
+
+      if (roomError) throw roomError;
+      if (!room) return respond({ error: "ROOM_NOT_FOUND" }, 404);
+
+      const rpc = room.quiz_type === "examination"
+        ? "live_quiz_submit_exam_answer_internal"
+        : "live_quiz_submit_answer_internal";
+
+      const { data, error } = await admin.rpc(rpc, {
         p_user_id: user.id,
         p_room_id: roomId,
         p_question_index: questionIndex,
         p_selected_option: selectedOption,
       });
+
       if (error) throw error;
       return respond({ result: data });
     }
@@ -575,8 +680,84 @@ let questions: GeneratedQuizQuestion[] | null = null;
     if (action === "start" || action === "advance") {
       const roomId = typeof body.room_id === "string" ? body.room_id : "";
       if (!roomId) return respond({ error: "Room ID is required." }, 400);
-      const rpc = action === "start" ? "live_quiz_start_room_internal" : "live_quiz_advance_room_internal";
-      const { data, error } = await admin.rpc(rpc, { p_user_id: user.id, p_room_id: roomId });
+
+      const { data: room, error: roomError } = await admin
+        .from("quiz_rooms")
+        .select("quiz_type")
+        .eq("id", roomId)
+        .maybeSingle();
+
+      if (roomError) throw roomError;
+      if (!room) return respond({ error: "ROOM_NOT_FOUND" }, 404);
+
+      if (room.quiz_type === "examination") {
+        if (action === "advance") {
+          return respond({
+            error: "Examination participants control their own question progress.",
+          }, 400);
+        }
+
+        const { data, error } = await admin.rpc(
+          "live_quiz_start_exam_internal",
+          {
+            p_user_id: user.id,
+            p_room_id: roomId,
+          }
+        );
+
+        if (error) throw error;
+        return respond({ result: data });
+      }
+
+      const rpc = action === "start"
+        ? "live_quiz_start_room_internal"
+        : "live_quiz_advance_room_internal";
+
+      const { data, error } = await admin.rpc(rpc, {
+        p_user_id: user.id,
+        p_room_id: roomId,
+      });
+
+      if (error) throw error;
+      return respond({ result: data });
+    }
+
+    if (action === "progress") {
+      const roomId = typeof body.room_id === "string" ? body.room_id : "";
+      const questionIndex = Number(body.question_index);
+
+      if (!roomId || !Number.isInteger(questionIndex) || questionIndex < 0) {
+        return respond({ error: "Invalid examination question position." }, 400);
+      }
+
+      const { data, error } = await admin.rpc(
+        "live_quiz_set_exam_progress_internal",
+        {
+          p_user_id: user.id,
+          p_room_id: roomId,
+          p_question_index: questionIndex,
+        }
+      );
+
+      if (error) throw error;
+      return respond({ result: data });
+    }
+
+    if (action === "finish") {
+      const roomId = typeof body.room_id === "string" ? body.room_id : "";
+
+      if (!roomId) {
+        return respond({ error: "Room ID is required." }, 400);
+      }
+
+      const { data, error } = await admin.rpc(
+        "live_quiz_finish_exam_attempt_internal",
+        {
+          p_user_id: user.id,
+          p_room_id: roomId,
+        }
+      );
+
       if (error) throw error;
       return respond({ result: data });
     }

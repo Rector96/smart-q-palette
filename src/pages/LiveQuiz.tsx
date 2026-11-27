@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,9 +69,10 @@ const LiveQuiz = () => {
       String(new Date().getFullYear() - i)
     )
   );
-  const [numQuestions, setNumQuestions] = useState(10);
-  const [timePerQuestion, setTimePerQuestion] = useState(30);
-  const gameMode = "group";
+ const [numQuestions, setNumQuestions] = useState(10);
+const [timePerQuestion, setTimePerQuestion] = useState(30);
+const [examDurationMinutes, setExamDurationMinutes] = useState(30);
+const gameMode = "group";
 
   // Join form
   const [roomCode, setRoomCode] = useState("");
@@ -117,10 +118,15 @@ const LiveQuiz = () => {
       toast({ title: "Choose between 5 and 50 questions.", variant: "destructive" });
       return;
     }
-    if (!Number.isInteger(timePerQuestion) || timePerQuestion < 10 || timePerQuestion > 120) {
-      toast({ title: "Time per question must be between 10 and 120 seconds.", variant: "destructive" });
-      return;
-    }
+ if (!Number.isInteger(timePerQuestion) || timePerQuestion < 10 || timePerQuestion > 120) {
+  toast({ title: "Time per question must be between 10 and 120 seconds.", variant: "destructive" });
+  return;
+}
+
+if (!Number.isInteger(examDurationMinutes) || examDurationMinutes < 1 || examDurationMinutes > 1440) {
+  toast({ title: "Total exam duration must be between 1 and 1,440 minutes.", variant: "destructive" });
+  return;
+}
 
     setLoading(true);
     try {
@@ -155,6 +161,7 @@ const LiveQuiz = () => {
           subject,
           num_questions: numQuestions,
           time_per_question: timePerQuestion,
+          duration_seconds: examDurationMinutes * 60,
           game_mode: "group",
           quiz_type: "examination",
           examination,
@@ -172,6 +179,7 @@ const LiveQuiz = () => {
       if (!code) throw new Error("No room code was returned.");
       navigate(`/quiz-room/${code}`);
     } catch (err: unknown) {
+console.error("LIVE QUIZ CREATE FAILURE:", err);
       toast({
         title: "Unable to create quiz",
         description: err instanceof Error ? err.message : "Please try again.",
@@ -330,15 +338,45 @@ const LiveQuiz = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Number of questions</Label>
-                  <Input type="number" min={5} max={50} value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="h-12 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Time per question (seconds)</Label>
-                  <Input type="number" min={10} max={120} value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))} className="h-12 rounded-xl" />
-                </div>
-              </div>
+  <div className="space-y-2">
+    <Label>Number of questions</Label>
+    <Input
+      type="number"
+      min={5}
+      max={50}
+      value={numQuestions}
+      onChange={e => setNumQuestions(Number(e.target.value))}
+      className="h-12 rounded-xl"
+    />
+  </div>
+
+  <div className="space-y-2">
+    <Label>Time per question (seconds)</Label>
+    <Input
+      type="number"
+      min={10}
+      max={120}
+      value={timePerQuestion}
+      onChange={e => setTimePerQuestion(Number(e.target.value))}
+      className="h-12 rounded-xl"
+    />
+  </div>
+
+  <div className="space-y-2 col-span-2">
+    <Label>Total exam duration (minutes)</Label>
+    <Input
+      type="number"
+      min={1}
+      max={1440}
+      value={examDurationMinutes}
+      onChange={e => setExamDurationMinutes(Number(e.target.value))}
+      className="h-12 rounded-xl"
+    />
+    <p className="text-xs text-muted-foreground">
+      This is the time allowed for the entire examination.
+    </p>
+  </div>
+</div>
 
               <Button className="h-12 w-full rounded-xl text-base font-semibold" onClick={handleCreate} disabled={
                 loading || !subject ||
@@ -386,7 +424,7 @@ const LiveQuiz = () => {
               ))}
             </div>
             <Button className="w-full h-11" onClick={() => { setShowPaywall(false); navigate("/dashboard?payment=subscribe"); }}>
-              <CreditCard className="h-4 w-4 mr-2" /> Subscribe Now â€” â‚¦2,500
+              <CreditCard className="h-4 w-4 mr-2" /> Subscribe Now — ₦2,500
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setShowPaywall(false)}>Maybe Later</Button>
             <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
