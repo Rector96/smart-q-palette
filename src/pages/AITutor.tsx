@@ -85,6 +85,7 @@ const AITutor = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSub, setShowSub] = useState(false);
+  const [showTutorWelcome, setShowTutorWelcome] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [isPro, setIsPro] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
