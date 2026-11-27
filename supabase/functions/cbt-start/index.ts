@@ -260,7 +260,7 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    const { data: sessionResult, error: sessionError } = await admin.rpc("create_cbt_exam_session", {
+    const { data: sessionResult, error: sessionError } = await admin.rpc("create_cbt_exam_session_with_settings", {
       p_user_id: user.id,
       p_mode: mode,
       p_subjects: subjects,
