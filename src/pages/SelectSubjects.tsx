@@ -313,7 +313,7 @@ const SelectSubjects = () => {
                   {QUESTION_PRESETS.map((preset) => <Button key={preset} variant={Number(questionCount) === preset ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => setQuestionCount(String(preset))}>{preset}</Button>)}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Input type="text" inputMode="numeric" value={questionCount} onChange={(value) => setQuestionCount(value.replace(/\D/g, "").slice(0, 2))} className="h-9 w-24 text-sm" placeholder="60" />
+                  <Input type="text" inputMode="numeric" value={questionCount} onChange={(e) => setQuestionCount(e.target.value.replace(/\D/g, "").slice(0, 2))} className="h-9 w-24 text-sm" placeholder="60" />
                   <span className="text-xs text-muted-foreground">maximum 60 per selected subject</span>
                 </div>
               </CardContent>
@@ -330,7 +330,7 @@ const SelectSubjects = () => {
                   ))}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Input type="text" inputMode="numeric" value={customMinutes} onChange={(value) => setCustomMinutes(value.replace(/\D/g, "").slice(0, 3))} className="h-9 w-28 text-sm" placeholder="60" />
+                  <Input type="text" inputMode="numeric" value={customMinutes} onChange={(e) => setCustomMinutes(e.target.value.replace(/\D/g, "").slice(0, 3))} className="h-9 w-28 text-sm" placeholder="60" />
                   <span className="text-xs text-muted-foreground">minutes — choose a preset or enter any duration</span>
                 </div>
               </CardContent>
