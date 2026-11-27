@@ -1,0 +1,33 @@
+name: Paystack refund validation
+
+on:
+  push:
+    branches:
+      - fix/reconcile-authoritative-paystack-refunds
+    paths:
+      - "supabase/functions/paystack-webhook/**"
+      - "supabase/functions/_shared/financial-reconciliation.ts"
+      - "supabase/functions/_shared/financial-reconciliation_test.ts"
+      - ".github/workflows/paystack-refund-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  webhook-validation:
+    name: Paystack webhook Deno validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check Paystack webhook
+        run: deno check supabase/functions/paystack-webhook/index.ts
+
+      - name: Test financial reconciliation guards
+        run: deno test supabase/functions/_shared/financial-reconciliation_test.ts
