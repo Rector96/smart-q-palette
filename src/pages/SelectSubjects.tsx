@@ -310,7 +310,7 @@ const SelectSubjects = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3"><Hash className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Number of Questions</Label></div>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {QUESTION_PRESETS.map((preset) => <Button key={preset} variant={questionCount === preset ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => setQuestionCount(preset)}>{preset}</Button>)}
+                  {QUESTION_PRESETS.map((preset) => <Button key={preset} variant={Number(questionCount) === preset ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => setQuestionCount(String(preset))}>{preset}</Button>)}
                 </div>
                 <div className="flex items-center gap-3">
                   <Input type="text" inputMode="numeric" value={questionCount} onChange={(value) => setQuestionCount(value.replace(/\D/g, "").slice(0, 2))} className="h-9 w-24 text-sm" placeholder="60" />
