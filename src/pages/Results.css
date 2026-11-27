@@ -132,8 +132,8 @@
 .cbt-results-stats {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .cbt-results-stat {
@@ -177,6 +177,11 @@
 .cbt-results-stat-wrong svg {
   background: #fde7e6;
   color: #d56464;
+}
+
+.cbt-results-stat-unanswered svg {
+  background: #f4eddf;
+  color: #9a7132;
 }
 
 .cbt-results-stat-time svg {
@@ -517,7 +522,7 @@
 
   .cbt-results-stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
   }
 
