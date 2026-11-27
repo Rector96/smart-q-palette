@@ -132,7 +132,7 @@
 .cbt-results-stats {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -162,6 +162,11 @@
   color: #1c2530;
   font-size: 12px;
   font-weight: 600;
+}
+
+.cbt-results-stat-score svg {
+  background: #e4edfb;
+  color: #376db5;
 }
 
 .cbt-results-stat-correct svg {
@@ -450,6 +455,17 @@
   white-space: pre-wrap;
 }
 
+.cbt-results-review-warning {
+  margin: 0 0 10px;
+  border: 1px solid #ead4a0;
+  border-radius: 8px;
+  background: #fff8e8;
+  padding: 9px 11px;
+  color: #75551c;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .cbt-results-empty,
 .cbt-results-state {
   color: #667382;
@@ -484,9 +500,7 @@
   }
 
   .cbt-results-mobile-share {
-    display: block;
-    order: 1;
-    width: 100%;
+    display: none;
   }
 
   .cbt-results-grid {
@@ -502,7 +516,21 @@
   }
 
   .cbt-results-stats {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .cbt-results-stat {
+    min-height: 76px;
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .cbt-results-stat svg {
+    width: 32px;
+    height: 32px;
+    padding: 8px;
   }
 
   .cbt-results-topic-panel,
