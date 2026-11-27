@@ -344,7 +344,7 @@ serve(async (req) => {
         !transactionResponse.ok ||
         transactionPayload?.status !== true ||
         transaction?.reference !== paymentReference ||
-        transaction?.status !== "success" ||
+        !["success", "reversed"].includes(transaction?.status) ||
         String(transaction?.currency || "").toUpperCase() !== "NGN" ||
         !Number.isSafeInteger(Number(transaction?.id)) ||
         Number(transaction?.id) <= 0 ||
@@ -412,9 +412,10 @@ serve(async (req) => {
           if (refundRecord?.status !== "processed" ||
               String(refundRecord?.currency || "").toUpperCase() !== "NGN") continue;
 
-          const refundId = refundRecord?.id === undefined || refundRecord?.id === null
-            ? ""
-            : String(refundRecord.id);
+          const refundIdNumber = Number(refundRecord?.id);
+          const refundId = Number.isSafeInteger(refundIdNumber) && refundIdNumber > 0
+            ? String(refundIdNumber)
+            : "";
           const refundAmount = Number(refundRecord.amount);
           if (!refundId || refundId.length > 100 ||
               !Number.isSafeInteger(refundAmount) || refundAmount <= 0) {
