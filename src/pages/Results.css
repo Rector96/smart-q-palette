@@ -57,6 +57,22 @@
   font-weight: 700;
 }
 
+.cbt-results-heading > .cbt-results-scoreline {
+  margin-top: 5px;
+  color: #687584;
+  font-size: 11px;
+}
+
+.cbt-results-scoreline strong {
+  color: #26313e;
+  font-weight: 750;
+}
+
+.cbt-results-scoreline span {
+  padding-inline: 5px;
+  color: #9aa5b1;
+}
+
 .cbt-results-actions {
   display: flex;
   flex: 0 0 auto;
@@ -132,7 +148,7 @@
 .cbt-results-stats {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
