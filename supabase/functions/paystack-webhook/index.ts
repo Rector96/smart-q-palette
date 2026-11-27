@@ -344,8 +344,12 @@ serve(async (req) => {
         !transactionResponse.ok ||
         transactionPayload?.status !== true ||
         transaction?.reference !== paymentReference ||
+        !["success", "reversed"].includes(transaction?.status) ||
         String(transaction?.currency || "").toUpperCase() !== "NGN" ||
-        !Number.isSafeInteger(Number(transaction?.id))
+        !Number.isSafeInteger(Number(transaction?.id)) ||
+        Number(transaction?.id) <= 0 ||
+        !Number.isSafeInteger(Number(transaction?.amount)) ||
+        Number(transaction?.amount) <= 0
       ) {
         console.error("Invalid original transaction for refund:", paymentReference);
         return json({ error: "Original transaction verification failed." }, 400);
