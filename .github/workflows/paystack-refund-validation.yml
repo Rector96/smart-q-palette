@@ -7,14 +7,15 @@ on:
     paths:
       - "supabase/functions/paystack-webhook/**"
       - "supabase/functions/_shared/financial-reconciliation.ts"
+      - "supabase/functions/_shared/financial-reconciliation_test.ts"
       - ".github/workflows/paystack-refund-validation.yml"
 
 permissions:
   contents: read
 
 jobs:
-  webhook-typecheck:
-    name: Paystack webhook Deno type-check
+  webhook-validation:
+    name: Paystack webhook Deno validation
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,3 +28,6 @@ jobs:
 
       - name: Type-check Paystack webhook
         run: deno check supabase/functions/paystack-webhook/index.ts
+
+      - name: Test financial reconciliation guards
+        run: deno test supabase/functions/_shared/financial-reconciliation_test.ts
