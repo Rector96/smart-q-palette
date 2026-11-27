@@ -52,7 +52,7 @@ serve(async (req) => {
       const { data: confirmation, error: confirmationError } = await serviceClient.rpc(
         "confirm_paystack_payment",
         {
-          p_payment_reference: reference,
+          p_reference: reference,
           p_amount_kobo: Math.round(Number(payment.amount) * 100),
           p_currency: payment.currency,
         },
@@ -101,7 +101,7 @@ serve(async (req) => {
     const { data: confirmation, error: confirmationError } = await serviceClient.rpc(
       "confirm_paystack_payment",
       {
-        p_payment_reference: reference,
+        p_reference: reference,
         p_amount_kobo: verifiedRequestedAmount,
         p_currency: "NGN",
       },
