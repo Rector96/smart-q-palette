@@ -412,6 +412,16 @@ serve(async (req) => {
           if (refundRecord?.status !== "processed" ||
               String(refundRecord?.currency || "").toUpperCase() !== "NGN") continue;
 
+          // Do not rely on the list filter alone: bind every refund to this transaction.
+          const refundTransactionId = Number(refundRecord?.transaction);
+          if (
+            !Number.isSafeInteger(refundTransactionId) ||
+            refundTransactionId !== Number(transaction.id)
+          ) {
+            console.error("Paystack refund belongs to a different transaction:", refundRecord?.id);
+            return json({ error: "A refund record did not match the verified transaction." }, 400);
+          }
+
           const refundIdNumber = Number(refundRecord?.id);
           const refundId = Number.isSafeInteger(refundIdNumber) && refundIdNumber > 0
             ? String(refundIdNumber)
