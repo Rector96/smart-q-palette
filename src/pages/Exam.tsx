@@ -25,7 +25,7 @@ import "./Exam.css";
 
 const cleanQuestionExplanation = (value?: string | null) =>
   (value || "")
-    .replace(/^\\s*(?:(?:matches\\s+pdf\\s+answer\\s+key|independently\\s+verified)[^:]*):\\s*/i, "")
+    .replace(/^\s*(?:(?:matches\s+pdf\s+answer\s+key|independently\s+verified)[^:]*):\s*/i, "")
     .trim();
 
 const Exam = () => {
