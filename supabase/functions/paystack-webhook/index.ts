@@ -400,7 +400,7 @@ serve(async (req) => {
     const { data: confirmation, error: confirmationError } = await serviceClient.rpc(
       "confirm_paystack_payment",
       {
-        p_payment_reference: reference,
+        p_reference: reference,
         p_amount_kobo: expectedAmount,
         p_currency: "NGN",
       },
