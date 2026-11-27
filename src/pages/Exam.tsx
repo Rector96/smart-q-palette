@@ -23,6 +23,11 @@ import ExamSubmitOverlay from "@/components/ExamSubmitOverlay";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import "./Exam.css";
 
+const cleanQuestionExplanation = (value?: string | null) =>
+  (value || "")
+    .replace(/^\\s*(?:(?:matches\\s+pdf\\s+answer\\s+key|independently\\s+verified)[^:]*):\\s*/i, "")
+    .trim();
+
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
@@ -667,10 +672,10 @@ const Exam = () => {
                   );
                 })}
               </div>
-              {isPractice && showResult && currentQuestion.explanation && (
+              {isPractice && showResult && (
                 <motion.div ref={explanationRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 bg-secondary/50 rounded-lg scroll-mt-24">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Explanation</p>
-                  <p className="text-xs leading-relaxed">{currentQuestion.explanation}</p>
+                  <p className="text-xs leading-relaxed">{cleanQuestionExplanation(currentQuestion.explanation) || "An explanation is not available for this question yet."}</p>
                 </motion.div>
               )}
               {isPractice && showResult && (
