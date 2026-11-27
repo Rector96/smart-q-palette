@@ -167,3 +167,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Compact desktop layout: keep the existing mobile/tablet experience unchanged. */
+@media (min-width: 1024px) {
+  html {
+    font-size: 14px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1680px;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}

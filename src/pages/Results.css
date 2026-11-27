@@ -57,6 +57,22 @@
   font-weight: 700;
 }
 
+.cbt-results-heading > .cbt-results-scoreline {
+  margin-top: 5px;
+  color: #687584;
+  font-size: 11px;
+}
+
+.cbt-results-scoreline strong {
+  color: #26313e;
+  font-weight: 750;
+}
+
+.cbt-results-scoreline span {
+  padding-inline: 5px;
+  color: #9aa5b1;
+}
+
 .cbt-results-actions {
   display: flex;
   flex: 0 0 auto;
@@ -133,7 +149,7 @@
   display: grid;
   min-width: 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .cbt-results-stat {
@@ -164,6 +180,11 @@
   font-weight: 600;
 }
 
+.cbt-results-stat-score svg {
+  background: #e4edfb;
+  color: #376db5;
+}
+
 .cbt-results-stat-correct svg {
   background: #dff5e9;
   color: #268d66;
@@ -172,6 +193,11 @@
 .cbt-results-stat-wrong svg {
   background: #fde7e6;
   color: #d56464;
+}
+
+.cbt-results-stat-unanswered svg {
+  background: #f4eddf;
+  color: #9a7132;
 }
 
 .cbt-results-stat-time svg {
@@ -450,6 +476,17 @@
   white-space: pre-wrap;
 }
 
+.cbt-results-review-warning {
+  margin: 0 0 10px;
+  border: 1px solid #ead4a0;
+  border-radius: 8px;
+  background: #fff8e8;
+  padding: 9px 11px;
+  color: #75551c;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .cbt-results-empty,
 .cbt-results-state {
   color: #667382;
@@ -484,9 +521,7 @@
   }
 
   .cbt-results-mobile-share {
-    display: block;
-    order: 1;
-    width: 100%;
+    display: none;
   }
 
   .cbt-results-grid {
@@ -502,7 +537,21 @@
   }
 
   .cbt-results-stats {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .cbt-results-stat {
+    min-height: 76px;
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .cbt-results-stat svg {
+    width: 32px;
+    height: 32px;
+    padding: 8px;
   }
 
   .cbt-results-topic-panel,
