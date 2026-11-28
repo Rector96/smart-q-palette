@@ -10,6 +10,19 @@ alter table public.sdashapi_exam_sessions
   add column if not exists allowed_duration_seconds integer not null default 0
     check (allowed_duration_seconds between 0 and 86400);
 
+-- Backfill existing single-subject sessions before enforcing the new
+-- subject-aware result contract.
+update public.sdashapi_exam_sessions
+set
+  subjects = case when cardinality(subjects) = 0 then array[subject] else subjects end,
+  subject_question_counts = case
+    when subject_question_counts = '{}'::jsonb
+      then jsonb_build_object(subject, total_questions)
+    else subject_question_counts
+  end,
+  exam_mode = case when duration_seconds = 0 then 'practice' else 'cbt' end,
+  allowed_duration_seconds = duration_seconds;
+
 alter table public.sdashapi_exam_sessions
   drop constraint if exists sdashapi_exam_sessions_total_questions_check;
 alter table public.sdashapi_exam_sessions
