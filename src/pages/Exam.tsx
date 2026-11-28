@@ -31,6 +31,7 @@ const cleanQuestionExplanation = (value?: string | null) =>
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
+  const useSdashApi = searchParams.get("provider") === "sdashapi";
   const adaptivePractice = searchParams.get("adaptive") === "true" && (mode === "practice" || mode === "revision");
   const examination = searchParams.get("examination") || "";
   const yearParam = searchParams.get("year") || "all";
@@ -132,9 +133,20 @@ const Exam = () => {
   const loadQuestions = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("cbt-start", {
-      body: { subjects, mode, count: requestedCount, counts: subjectQuestionCounts, duration_seconds: customDuration, examination, year: selectedYear, adaptive: adaptivePractice },
-    });
+    const { data, error } = useSdashApi
+      ? await supabase.functions.invoke("sdashapi-start", {
+          body: {
+            subjects,
+            mode: mode === "revision" ? "practice" : mode,
+            subjectQuestionCounts,
+            durationSeconds: isTimed ? customDuration : 0,
+            examination,
+            year: selectedYear,
+          },
+        })
+      : await supabase.functions.invoke("cbt-start", {
+          body: { subjects, mode, count: requestedCount, counts: subjectQuestionCounts, duration_seconds: customDuration, examination, year: selectedYear, adaptive: adaptivePractice },
+        });
     let responseData = data;
     if (error && !responseData && error.context instanceof Response) {
       try {
@@ -143,7 +155,8 @@ const Exam = () => {
         // Use the SDK error message when the response body is not valid JSON.
       }
     }
-    if (error || !responseData?.session?.id || !Array.isArray(responseData.questions)) {
+    const startedSessionId = useSdashApi ? responseData?.sessionId : responseData?.session?.id;
+    if (error || !startedSessionId || !Array.isArray(responseData.questions)) {
       const message = responseData?.error || error?.message || "We could not prepare your exam. Please try again.";
       if (message === "TRIAL_LIMIT_REACHED") {
         setTrialBlocked(true);
@@ -155,10 +168,26 @@ const Exam = () => {
       setLoading(false);
       return;
     }
-    setQuestions(data.questions as QuestionWithShuffledOptions[]);
-    setSessionId(data.session.id);
-    const serverStartedAt = data.session.started_at ? new Date(data.session.started_at).getTime() : Date.now();
-    const savedDurationSeconds = Number(data.session.allowed_duration_seconds) || customDuration;
+    const preparedQuestions: QuestionWithShuffledOptions[] = useSdashApi
+      ? data.questions.map((question: { position: number; subject: string; question: string; options: Record<string, string>; image?: string | null }) => ({
+          id: `sdashapi:${question.position}`,
+          subject: question.subject,
+          topic: "Past Questions",
+          year: selectedYear,
+          difficulty: "standard",
+          question_text: question.question,
+          options: Object.entries(question.options || {}).map(([label, text]) => ({ label, text, originalLabel: label })),
+          explanation: null,
+          passage: null,
+          diagram_url: question.image || null,
+          question_type: "objective",
+          exam_hint: null,
+        }))
+      : data.questions as QuestionWithShuffledOptions[];
+    setQuestions(preparedQuestions);
+    setSessionId(startedSessionId);
+    const serverStartedAt = !useSdashApi && data.session?.started_at ? new Date(data.session.started_at).getTime() : Date.now();
+    const savedDurationSeconds = useSdashApi ? Number(data.durationSeconds) : (Number(data.session?.allowed_duration_seconds) || customDuration);
     deadlineRef.current = serverStartedAt + savedDurationSeconds * 1000;
     oneMinuteWarningShownRef.current = false;
     setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)));
@@ -217,7 +246,24 @@ const Exam = () => {
     }
     // Allow changing answer freely
     setAnswers((prev) => ({ ...prev, [questionId]: label }));
-    if (isPractice) setShowResult(true);
+    if (isPractice && useSdashApi) {
+      const position = Number(questionId.replace("sdashapi:", ""));
+      void supabase.functions.invoke("sdashapi-practice-feedback", {
+        body: { sessionId, position },
+      }).then(({ data, error }) => {
+        if (error || !data?.feedback) {
+          toast({ title: "Answer saved", description: "Explanation could not be loaded. You can continue practising." });
+          setShowResult(true);
+          return;
+        }
+        setQuestions((current) => current.map((question) => question.id === questionId
+          ? { ...question, correct_answer: data.feedback.correct_answer, explanation: data.feedback.solution || null }
+          : question));
+        setShowResult(true);
+      });
+    } else if (isPractice) {
+      setShowResult(true);
+    }
   };
 
   useEffect(() => {
@@ -334,15 +380,21 @@ const Exam = () => {
     setSubmitting(true);
     if (timerRef.current) window.clearInterval(timerRef.current);
     timerRef.current = null;
-    const submission = questions.map((q) => ({
-      question_id: q.id,
-      selected_answer: answersRef.current[q.id] || "X",
-      time_spent_seconds: 0,
-    }));
-    const { data: submitData, error: submitError } = await supabase.functions.invoke("cbt-submit", {
-      body: { session_id: sessionId, answers: submission },
-    });
-    if (submitError || !submitData?.result) {
+    const submission = useSdashApi
+      ? questions.map((q) => ({
+          position: Number(q.id.replace("sdashapi:", "")),
+          selectedAnswer: answersRef.current[q.id] || "X",
+          timeSpentSeconds: 0,
+        }))
+      : questions.map((q) => ({
+          question_id: q.id,
+          selected_answer: answersRef.current[q.id] || "X",
+          time_spent_seconds: 0,
+        }));
+    const { data: submitData, error: submitError } = useSdashApi
+      ? await supabase.functions.invoke("sdashapi-submit", { body: { sessionId, answers: submission } })
+      : await supabase.functions.invoke("cbt-submit", { body: { session_id: sessionId, answers: submission } });
+    if (submitError || (useSdashApi ? !submitData?.ok : !submitData?.result)) {
       submittingRef.current = false;
       setSubmitting(false);
       toast({
