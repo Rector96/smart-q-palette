@@ -158,7 +158,7 @@ const Results = () => {
           if (referralProfile?.referral_code) setReferralCode(referralProfile.referral_code);
 
           const providerHistory: HistoryRow[] = providerResult.questions.map((question: {
-            position: number; subject: string; question: string; options: Record<string, string>;
+            position: number; subject: string; topic?: string | null; question: string; options: Record<string, string>;
             image?: string | null; selected_answer?: string | null; correct_answer: string;
             is_correct?: boolean | null; solution?: string | null;
           }) => {
@@ -167,7 +167,7 @@ const Results = () => {
             const resultQuestion = {
               id: `${sessionId}-${question.position}`,
               subject: question.subject,
-              topic: "Past Questions",
+              topic: question.topic?.trim() || "Unknown",
               question_text: question.question,
               option_a: options.A || null,
               option_b: options.B || null,
