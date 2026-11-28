@@ -236,7 +236,7 @@ const Exam = () => {
   const selectAnswer = (questionId: string, label: string) => {
     if (showResult && isPractice) return;
     // Allow deselection by clicking same option
-    if (answers[questionId] === label) {
+    if (answers[questionId] === label && !(isPractice && useSdashApi)) {
       setAnswers((prev) => {
         const next = { ...prev };
         delete next[questionId];
@@ -249,7 +249,7 @@ const Exam = () => {
     if (isPractice && useSdashApi) {
       const position = Number(questionId.replace("sdashapi:", ""));
       void supabase.functions.invoke("sdashapi-practice-feedback", {
-        body: { sessionId, position },
+        body: { sessionId, position, selectedAnswer: label },
       }).then(({ data, error }) => {
         if (error || !data?.feedback) {
           toast({ title: "Answer saved", description: "Explanation could not be loaded. You can continue practising." });
