@@ -136,7 +136,7 @@ begin
 
   v_total := jsonb_array_length(p_questions);
   if v_total < 1 or v_total > 200 then
-    raise exception 'Total questions must be between 1 and 240';
+    raise exception 'Total questions must be between 1 and 200';
   end if;
 
   foreach v_subject in array p_subjects loop
@@ -364,5 +364,43 @@ revoke all on function private.get_sdashapi_exam_result(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function private.get_sdashapi_exam_result(uuid, uuid)
   to service_role;
+
+
+-- Preserve actual elapsed time for the common results experience. The
+-- existing submit RPC marks the session submitted but previously left
+-- duration_seconds at zero.
+create or replace function private.set_sdashapi_elapsed_duration()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if old.status = 'in_progress'
+     and new.status = 'submitted'
+     and new.submitted_at is not null then
+    new.duration_seconds := greatest(
+      0,
+      least(
+        86400,
+        floor(extract(epoch from (new.submitted_at - new.started_at)))::integer
+      )
+    );
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists set_sdashapi_elapsed_duration
+  on public.sdashapi_exam_sessions;
+
+create trigger set_sdashapi_elapsed_duration
+before update of status, submitted_at
+on public.sdashapi_exam_sessions
+for each row
+execute function private.set_sdashapi_elapsed_duration();
+
+revoke all on function private.set_sdashapi_elapsed_duration()
+  from public, anon, authenticated;
 
 commit;
