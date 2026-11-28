@@ -65,7 +65,8 @@ const Exam = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [timeLeft, setTimeLeft] = useState(customDuration);
@@ -122,7 +123,7 @@ const Exam = () => {
         .eq("user_id", user.id)
         .single();
       if (profile?.full_name) setProfileName(profile.full_name);
-      loadQuestions();
+      // The exam session is created only after the student accepts the instructions.
     };
     checkTrial();
   }, [user]);
@@ -371,6 +372,41 @@ const Exam = () => {
   const formatTime = (seconds: number) => `${Math.ceil(Math.max(0, seconds) / 60)} min`;
 
   const getSubjectName = (id: string) => SUBJECTS.find(s => s.id === id)?.name || id;
+
+  if (!instructionsAccepted && !sessionId && !trialBlocked) {
+    return (
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center px-4 py-8">
+        <Card className="w-full max-w-xl overflow-hidden border-border/60 shadow-xl">
+          <CardContent className="p-6 sm:p-8 space-y-5">
+            <div className="text-center space-y-2">
+              <Logo size="lg" showText />
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Official Computer-Based Examination</p>
+              <h1 className="text-xl sm:text-2xl font-bold">Welcome to your ROCKCBT {mode === "practice" ? "Practice" : mode === "mock" ? "Mock Examination" : "CBT Examination"}</h1>
+              <p className="text-sm text-muted-foreground">You are about to begin. Take a moment to read these instructions.</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+              <h2 className="text-sm font-semibold">Before you proceed</h2>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+                <li>Read every question carefully and select the best answer.</li>
+                <li>Use the question navigator to move between questions.</li>
+                {hasMultipleSubjects && <li>Use the subject tabs to switch between your selected subjects.</li>}
+                {isTimed ? <li>Your examination time begins only after you press Proceed to Examination. The timer covers the entire exam.</li> : <li>Practice has no countdown. Work through the questions at your own pace.</li>}
+                <li>Review your answers before submitting your examination.</li>
+              </ol>
+            </div>
+            <div className="rounded-2xl bg-primary/5 border border-primary/15 p-4 text-center">
+              <p className="text-sm font-semibold text-primary">Your preparation starts here.</p>
+              <p className="mt-1 text-sm font-medium">If you can beat it here, you can beat it on examination day.</p>
+            </div>
+            <Button className="h-12 w-full text-sm font-semibold" onClick={() => { setInstructionsAccepted(true); void loadQuestions(); }}>
+              Proceed to Examination
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => navigate("/dashboard")}>Return to Dashboard</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
