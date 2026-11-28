@@ -34,7 +34,8 @@ const SelectSubjects = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [catalog, setCatalog] = useState<CatalogItem[]>([]);\n  const [catalogProvider, setCatalogProvider] = useState<"local" | "sdashapi">("local");
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [catalogProvider, setCatalogProvider] = useState<"local" | "sdashapi">("local");
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
   const [examination, setExamination] = useState<ExamType | "">("");
@@ -47,7 +48,10 @@ const SelectSubjects = () => {
 
   const isMock = mode === "mock";
   const maxSubjects = isMock ? 4 : 1;
-  const totalQuestionCount = selected.reduce((total, subject) => total + (Number(questionCounts[subject]) || 0), 0);\n  const maxQuestionsPerSubject = catalogProvider === "sdashapi" ? 50 : 60;\n  const maxTotalQuestions = catalogProvider === "sdashapi" ? 200 : 720;\n  const getSubjectLabel = (subject: string) => catalog.find((item) => item.subject === subject)?.name || subject;
+  const totalQuestionCount = selected.reduce((total, subject) => total + (Number(questionCounts[subject]) || 0), 0);
+  const maxQuestionsPerSubject = catalogProvider === "sdashapi" ? 50 : 60;
+  const maxTotalQuestions = catalogProvider === "sdashapi" ? 200 : 720;
+  const getSubjectLabel = (subject: string) => catalog.find((item) => item.subject === subject)?.name || subject;
 
   useEffect(() => {
     let active = true;
@@ -172,7 +176,8 @@ const SelectSubjects = () => {
       counts: JSON.stringify(counts),
       count: String(totalQuestionCount),
       ...(isTimedMode ? { timer: String(parsedCustomMinutes) } : {}),
-      adaptive: String(adaptivePractice && catalogProvider === "local" && (mode === "practice" || mode === "revision")),\n      provider: catalogProvider === "sdashapi" ? "sdashapi" : "local",
+      adaptive: String(adaptivePractice && catalogProvider === "local" && (mode === "practice" || mode === "revision")),
+      provider: catalogProvider === "sdashapi" ? "sdashapi" : "local",
     });
     navigate(`/exam?${params.toString()}`);
   };
