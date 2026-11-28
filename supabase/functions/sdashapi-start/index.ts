@@ -14,6 +14,8 @@ type ProviderQuestion = {
   answer?: unknown;
   solution?: unknown;
   image?: unknown;
+  metadata?: unknown;
+  topic?: unknown;
 };
 
 type NormalizedQuestion = {
@@ -24,6 +26,7 @@ type NormalizedQuestion = {
   answer: string;
   solution: string | null;
   image: string | null;
+  topic: string | null;
 };
 
 function respond(body: unknown, status = 200) {
@@ -71,6 +74,12 @@ function normalizeQuestions(source: unknown[], subject: string): NormalizedQuest
         answer: String(q.answer ?? "").trim().toUpperCase(),
         solution: typeof q.solution === "string" ? q.solution : null,
         image: typeof q.image === "string" ? q.image : null,
+        topic: typeof q.topic === "string"
+          ? q.topic.trim() || null
+          : q.metadata && typeof q.metadata === "object" &&
+              typeof (q.metadata as Record<string, unknown>).topic === "string"
+            ? String((q.metadata as Record<string, unknown>).topic).trim() || null
+            : null,
       };
     })
     .filter((q) => {
@@ -277,6 +286,7 @@ Deno.serve(async (req: Request) => {
         question: q.question,
         options: q.options,
         image: q.image,
+        topic: q.topic,
       })),
     });
   } catch (error) {
