@@ -205,13 +205,30 @@ const SelectSubjects = () => {
                       <CardContent className="p-4 text-center">
                         <GraduationCap className="h-6 w-6 mx-auto mb-2 text-primary" />
                         <p className="text-xs font-medium">{exam}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{hasContent ? "Available" : "Coming soon"}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{hasContent ? "ROCKCBT bank ready" : "No local bank yet"}</p>
                       </CardContent>
                     </Card>
                   </motion.div>
                 );
               })}
             </div>
+
+            {examination && (
+              <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+                <p className="text-xs text-slate-700">
+                  The year and subject list above shows questions currently stored in ROCKCBT. You can also practise the connected external past-question bank.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                  onClick={() => navigate(`/past-questions?examination=${examination}`)}
+                >
+                  Open {examination} Past Questions
+                </Button>
+              </div>
+            )}
 
             {examination && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
