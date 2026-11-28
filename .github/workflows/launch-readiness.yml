@@ -45,6 +45,9 @@ jobs:
         run: |
           deno check supabase/functions/cbt-start/index.ts
           deno check supabase/functions/cbt-submit/index.ts
+          deno check supabase/functions/sdashapi-start/index.ts
+          deno check supabase/functions/sdashapi-submit/index.ts
+          deno check supabase/functions/sdashapi-result/index.ts
           deno check supabase/functions/live-quiz/index.ts
           deno check supabase/functions/paystack-webhook/index.ts
           deno check supabase/functions/paystack-verify/index.ts
