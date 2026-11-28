@@ -51,15 +51,18 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const sessionId = String(body.sessionId ?? "");
     const position = Number(body.position);
+    const selectedAnswer = String(body.selectedAnswer ?? "").trim().toUpperCase();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId) ||
-        !Number.isInteger(position) || position < 1 || position > 200) {
-      return respond({ ok: false, message: "Invalid practice question." }, 400);
+        !Number.isInteger(position) || position < 1 || position > 200 ||
+        !["A", "B", "C", "D", "E"].includes(selectedAnswer)) {
+      return respond({ ok: false, message: "Select an answer before requesting practice feedback." }, 400);
     }
 
     const { data, error } = await admin.rpc("get_sdashapi_practice_feedback", {
       p_session_id: sessionId,
       p_user_id: authData.user.id,
       p_position: position,
+      p_selected_answer: selectedAnswer,
     });
     if (error) {
       const message = error.message.includes("not found")
