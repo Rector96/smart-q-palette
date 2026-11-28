@@ -191,7 +191,7 @@ Deno.serve(async (req: Request) => {
     const questions: NormalizedQuestion[] = [];
 
     for (const subject of subjects) {
-      const url = new URL("https://www.sdashapi.com/api/v2/q");
+      const url = new URL("https://sdashapi.com/api/v2/q");
       url.searchParams.set("subject", subject);
       url.searchParams.set("type", providerType);
       url.searchParams.set("year", String(year));
