@@ -1,4 +1,4 @@
-﻿export type SdashApiExamination = "WAEC" | "JAMB";
+﻿export type SdashApiExamination = "WAEC" | "JAMB" | "NECO";
 
 export interface SdashApiSubject {
   id: string;
