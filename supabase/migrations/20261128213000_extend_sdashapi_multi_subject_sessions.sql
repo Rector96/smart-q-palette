@@ -8,7 +8,9 @@ alter table public.sdashapi_exam_sessions
   add column if not exists subjects text[] not null default '{}',
   add column if not exists subject_question_counts jsonb not null default '{}'::jsonb,
   add column if not exists allowed_duration_seconds integer not null default 0
-    check (allowed_duration_seconds between 0 and 86400);
+    check (allowed_duration_seconds between 0 and 86400),
+  add column if not exists time_used_seconds integer not null default 0
+    check (time_used_seconds between 0 and 86400);
 
 -- Backfill existing single-subject sessions before enforcing the new
 -- subject-aware result contract.
@@ -353,6 +355,7 @@ begin
     'score', v_session.score,
     'duration_seconds', v_session.duration_seconds,
     'allowed_duration_seconds', v_session.allowed_duration_seconds,
+    'time_used_seconds', v_session.time_used_seconds,
     'started_at', v_session.started_at,
     'submitted_at', v_session.submitted_at,
     'questions', v_questions
@@ -366,9 +369,8 @@ grant execute on function private.get_sdashapi_exam_result(uuid, uuid)
   to service_role;
 
 
--- Preserve actual elapsed time for the common results experience. The
--- existing submit RPC marks the session submitted but previously left
--- duration_seconds at zero.
+-- Preserve the configured exam duration and record actual elapsed time separately.
+-- duration_seconds is the legacy configured duration; never overwrite it on submit.
 create or replace function private.set_sdashapi_elapsed_duration()
 returns trigger
 language plpgsql
@@ -379,7 +381,7 @@ begin
   if old.status = 'in_progress'
      and new.status = 'submitted'
      and new.submitted_at is not null then
-    new.duration_seconds := greatest(
+    new.time_used_seconds := greatest(
       0,
       least(
         86400,
