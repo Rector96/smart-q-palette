@@ -125,7 +125,11 @@ Deno.serve(async (req: Request) => {
     const subjects = Array.isArray(body.subjects)
       ? body.subjects.map((value: unknown) => String(value).trim().toLowerCase())
       : [String(body.subject ?? "").trim().toLowerCase()];
-    const countsInput = body.subjectQuestionCounts ?? body.questionCounts ?? {};
+    const suppliedCounts = body.subjectQuestionCounts ?? body.questionCounts ?? {};
+    const countsInput = subjects.length === 1 &&
+      Object.keys(suppliedCounts).length === 0 && body.limit != null
+      ? { [subjects[0]]: body.limit }
+      : suppliedCounts;
     const durationSeconds = Number(body.durationSeconds ?? 0);
 
     if (!["practice", "cbt", "mock"].includes(mode)) {
