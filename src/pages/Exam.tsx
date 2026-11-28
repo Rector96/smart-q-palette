@@ -157,7 +157,7 @@ const Exam = () => {
     }
     const startedSessionId = useSdashApi ? responseData?.sessionId : responseData?.session?.id;
     if (error || !startedSessionId || !Array.isArray(responseData.questions)) {
-      const message = responseData?.error || error?.message || "We could not prepare your exam. Please try again.";
+      const message = responseData?.error || responseData?.message || error?.message || "We could not prepare your exam. Please try again.";
       if (message === "TRIAL_LIMIT_REACHED") {
         setTrialBlocked(true);
         setShowSubscription(true);
@@ -399,7 +399,7 @@ const Exam = () => {
       setSubmitting(false);
       toast({
         title: "Submission not completed",
-        description: submitData?.error || submitError?.message || "Please try submitting again.",
+        description: submitData?.error || submitData?.message || submitError?.message || "Please try submitting again.",
         variant: "destructive",
       });
       return;
