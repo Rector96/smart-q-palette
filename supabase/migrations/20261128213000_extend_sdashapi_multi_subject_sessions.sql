@@ -23,7 +23,14 @@ set
     else subject_question_counts
   end,
   exam_mode = case when duration_seconds = 0 then 'practice' else 'cbt' end,
-  allowed_duration_seconds = duration_seconds;
+  allowed_duration_seconds = duration_seconds,
+  time_used_seconds = case
+    when status = 'submitted' and submitted_at is not null then greatest(
+      0,
+      least(86400, floor(extract(epoch from (submitted_at - started_at)))::integer)
+    )
+    else 0
+  end;
 
 alter table public.sdashapi_exam_sessions
   drop constraint if exists sdashapi_exam_sessions_total_questions_check;
