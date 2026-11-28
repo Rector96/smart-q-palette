@@ -43,7 +43,7 @@ alter table public.sdashapi_exam_sessions
     check (allowed_duration_seconds between 60 and 86400),
   add constraint sdashapi_exam_sessions_subjects_check
     check (
-      cardinality(subjects) between 1 and 12
+      (cardinality(subjects) = 0 or cardinality(subjects) between 1 and 12)
       and array_position(subjects, null) is null
     ),
   add constraint sdashapi_exam_sessions_subject_counts_object_check
