@@ -14,13 +14,13 @@ alter table public.sdashapi_exam_sessions
   drop constraint if exists sdashapi_exam_sessions_total_questions_check;
 alter table public.sdashapi_exam_sessions
   add constraint sdashapi_exam_sessions_total_questions_check
-  check (total_questions between 1 and 240);
+  check (total_questions between 1 and 200);
 
 alter table public.sdashapi_session_questions
   drop constraint if exists sdashapi_session_questions_position_check;
 alter table public.sdashapi_session_questions
   add constraint sdashapi_session_questions_position_check
-  check (position between 1 and 240);
+  check (position between 1 and 200);
 
 alter table public.sdashapi_session_questions
   add column if not exists subject text;
@@ -122,7 +122,7 @@ begin
   end if;
 
   v_total := jsonb_array_length(p_questions);
-  if v_total < 1 or v_total > 240 then
+  if v_total < 1 or v_total > 200 then
     raise exception 'Total questions must be between 1 and 240';
   end if;
 
@@ -132,8 +132,8 @@ begin
       raise exception 'Invalid question count for a selected subject';
     end if;
     v_count := (p_subject_question_counts ->> v_subject)::integer;
-    if v_count < 1 or v_count > 60 then
-      raise exception 'Each subject must contain between 1 and 60 questions';
+    if v_count < 1 or v_count > 50 then
+      raise exception 'Each subject must contain between 1 and 50 questions';
     end if;
     v_subject_counts := v_subject_counts || jsonb_build_object(v_subject, 0);
   end loop;
