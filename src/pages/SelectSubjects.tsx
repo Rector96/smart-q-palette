@@ -46,7 +46,7 @@ const SelectSubjects = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isMock = mode === "mock";
-  const maxSubjects = isMock ? 4 : 12;
+  const maxSubjects = isMock ? 4 : 1;
   const totalQuestionCount = selected.reduce((total, subject) => total + (Number(questionCounts[subject]) || 0), 0);
 
   useEffect(() => {
@@ -122,10 +122,6 @@ const SelectSubjects = () => {
   }, [selected]);
 
   const handleExamChange = (value: ExamType) => {
-    if (isMock && value !== "JAMB") {
-      toast({ title: "JAMB mock format", description: "The full four-subject mock exam currently follows the JAMB format. Choose JAMB or select another exam mode." });
-      return;
-    }
     setExamination(value);
     setSelectedYear("");
     setSelected([]);
@@ -138,6 +134,7 @@ const SelectSubjects = () => {
 
   const handleStart = () => {
     if (!examination || !selectedYear || selected.length === 0) return;
+    const isTimedMode = mode === "cbt" || mode === "mock";
     const parsedCustomMinutes = Number(customMinutes);
     const counts = Object.fromEntries(selected.map((subject) => [subject, Number(questionCounts[subject])]));
     const invalidSubject = selected.find((subject) => !Number.isInteger(counts[subject]) || counts[subject] < 1 || counts[subject] > 60);
@@ -149,7 +146,7 @@ const SelectSubjects = () => {
       toast({ title: "Invalid total question count", description: "The combined exam must contain no more than 720 questions.", variant: "destructive" });
       return;
     }
-    if (!Number.isInteger(parsedCustomMinutes) || parsedCustomMinutes < 1 || parsedCustomMinutes > 1440) {
+    if (isTimedMode && (!Number.isInteger(parsedCustomMinutes) || parsedCustomMinutes < 1 || parsedCustomMinutes > 1440)) {
       toast({ title: "Choose a valid duration", description: "Enter a duration between 1 and 1,440 minutes.", variant: "destructive" });
       return;
     }
@@ -160,13 +157,13 @@ const SelectSubjects = () => {
       subjects: selected.join(","),
       counts: JSON.stringify(counts),
       count: String(totalQuestionCount),
-      timer: String(parsedCustomMinutes),
+      ...(isTimedMode ? { timer: String(parsedCustomMinutes) } : {}),
       adaptive: String(adaptivePractice && (mode === "practice" || mode === "revision")),
     });
     navigate(`/exam?${params.toString()}`);
   };
 
-  const examOptions: ExamType[] = isMock ? ["JAMB"] : ["JAMB", "WAEC", "NECO"];
+  const examOptions: ExamType[] = ["JAMB", "WAEC", "NECO"];
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,7 +183,7 @@ const SelectSubjects = () => {
             ? "Choose a subject to review. Questions you have practised and are due to repeat will appear first."
             : isMock
               ? `Select exactly 4 subjects for your mock exam (${selected.length}/4 selected)`
-              : "Choose your examination, year and one or more subjects to begin."}
+              : "Choose your examination, year and one subject to begin."}
         </p>
 
         {catalogLoading ? (
@@ -325,7 +322,7 @@ const SelectSubjects = () => {
             <Card className="border-border/50 shadow-sm">
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Questions per Subject</Label></div>
+                  <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">{isMock ? "Questions per Subject" : "Number of Questions"}</Label></div>
                   <span className="text-xs font-semibold text-primary">{totalQuestionCount} total</span>
                 </div>
                 {selected.map((subject) => (
@@ -343,9 +340,10 @@ const SelectSubjects = () => {
               </CardContent>
             </Card>
 
+            {(mode === "cbt" || mode === "mock") && (
             <Card className="border-border/50 shadow-sm">
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3"><Clock className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Set Duration</Label></div>
+                <div className="flex items-center gap-2 mb-3"><Clock className="h-4 w-4 text-primary" /><Label className="text-sm font-semibold">Set Exam Duration</Label></div>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {[30, 45, 60, 90, 120].map((minutes) => (
                     <Button key={minutes} type="button" size="sm" variant={Number(customMinutes) === minutes ? "default" : "outline"} className="h-8 text-xs" onClick={() => setCustomMinutes(String(minutes))}>
@@ -359,9 +357,10 @@ const SelectSubjects = () => {
                 </div>
               </CardContent>
             </Card>
+            )}
 
             <div className="flex justify-center">
-              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || selected.some((subject) => !Number.isInteger(Number(questionCounts[subject])) || Number(questionCounts[subject]) < 1 || Number(questionCounts[subject]) > 60) || !Number.isInteger(Number(customMinutes)) || Number(customMinutes) < 1 || Number(customMinutes) > 1440} className="h-10 px-8 text-sm shadow-md">
+              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || selected.some((subject) => !Number.isInteger(Number(questionCounts[subject])) || Number(questionCounts[subject]) < 1 || Number(questionCounts[subject]) > 60) || ((mode === "cbt" || mode === "mock") && (!Number.isInteger(Number(customMinutes)) || Number(customMinutes) < 1 || Number(customMinutes) > 1440))} className="h-10 px-8 text-sm shadow-md">
                 Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"} — {totalQuestionCount} Questions
               </Button>
             </div>
