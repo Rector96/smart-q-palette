@@ -23,9 +23,15 @@ import ExamSubmitOverlay from "@/components/ExamSubmitOverlay";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import "./Exam.css";
 
+const cleanQuestionExplanation = (value?: string | null) =>
+  (value || "")
+    .replace(/^\s*(?:(?:matches\s+pdf\s+answer\s+key|independently\s+verified)[^:]*):\s*/i, "")
+    .trim();
+
 const Exam = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
+  const useSdashApi = searchParams.get("provider") === "sdashapi";
   const adaptivePractice = searchParams.get("adaptive") === "true" && (mode === "practice" || mode === "revision");
   const examination = searchParams.get("examination") || "";
   const yearParam = searchParams.get("year") || "all";
@@ -40,15 +46,30 @@ const Exam = () => {
   const cbtTour = useOnboardingTour(CBT_TOUR_STORAGE_KEY);
 
   const questionCountParam = searchParams.get("count");
+  const countsParam = searchParams.get("counts");
   const customDuration = timerParam ? Number(timerParam) * 60 : 60 * 60;
   const requestedCount = questionCountParam ? Number(questionCountParam) : 60;
+  let subjectQuestionCounts: Record<string, number> = {};
+  try {
+    const parsedCounts: unknown = countsParam ? JSON.parse(countsParam) : null;
+    if (parsedCounts && typeof parsedCounts === "object" && !Array.isArray(parsedCounts)) {
+      subjectQuestionCounts = Object.fromEntries(Object.entries(parsedCounts).map(([subject, count]) => [subject, Number(count)]));
+    }
+  } catch {
+    subjectQuestionCounts = {};
+  }
+  if (!Object.keys(subjectQuestionCounts).length && subjects.length === 1) {
+    subjectQuestionCounts[subjects[0]] = requestedCount;
+  }
 
   const [questions, setQuestions] = useState<QuestionWithShuffledOptions[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submissionComplete, setSubmissionComplete] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [timeLeft, setTimeLeft] = useState(customDuration);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -67,6 +88,9 @@ const Exam = () => {
   const startTimeRef = useState<number>(Date.now());
   const questionStartRef = useState<number>(Date.now());
   const feedbackRef = useRef<HTMLParagraphElement | null>(null);
+  const explanationRef = useRef<HTMLDivElement | null>(null);
+  const questionCardRef = useRef<HTMLDivElement | null>(null);
+  const oneMinuteWarningShownRef = useRef(false);
   answersRef.current = answers;
 
   const isTimed = mode === "cbt" || mode === "mock";
@@ -101,7 +125,7 @@ const Exam = () => {
         .eq("user_id", user.id)
         .single();
       if (profile?.full_name) setProfileName(profile.full_name);
-      loadQuestions();
+      // The exam session is created only after the student accepts the instructions.
     };
     checkTrial();
   }, [user]);
@@ -109,9 +133,20 @@ const Exam = () => {
   const loadQuestions = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("cbt-start", {
-      body: { subjects, mode, count: requestedCount, examination, year: selectedYear, adaptive: adaptivePractice },
-    });
+    const { data, error } = useSdashApi
+      ? await supabase.functions.invoke("sdashapi-start", {
+          body: {
+            subjects,
+            mode: mode === "revision" ? "practice" : mode,
+            subjectQuestionCounts,
+            durationSeconds: isTimed ? customDuration : 0,
+            examination,
+            year: selectedYear,
+          },
+        })
+      : await supabase.functions.invoke("cbt-start", {
+          body: { subjects, mode, count: requestedCount, counts: subjectQuestionCounts, duration_seconds: customDuration, examination, year: selectedYear, adaptive: adaptivePractice },
+        });
     let responseData = data;
     if (error && !responseData && error.context instanceof Response) {
       try {
@@ -120,8 +155,9 @@ const Exam = () => {
         // Use the SDK error message when the response body is not valid JSON.
       }
     }
-    if (error || !responseData?.session?.id || !Array.isArray(responseData.questions)) {
-      const message = responseData?.error || error?.message || "We could not prepare your exam. Please try again.";
+    const startedSessionId = useSdashApi ? responseData?.sessionId : responseData?.session?.id;
+    if (error || !startedSessionId || !Array.isArray(responseData.questions)) {
+      const message = responseData?.error || responseData?.message || error?.message || "We could not prepare your exam. Please try again.";
       if (message === "TRIAL_LIMIT_REACHED") {
         setTrialBlocked(true);
         setShowSubscription(true);
@@ -132,10 +168,28 @@ const Exam = () => {
       setLoading(false);
       return;
     }
-    setQuestions(data.questions as QuestionWithShuffledOptions[]);
-    setSessionId(data.session.id);
-    const serverStartedAt = data.session.started_at ? new Date(data.session.started_at).getTime() : Date.now();
-    deadlineRef.current = serverStartedAt + customDuration * 1000;
+    const preparedQuestions: QuestionWithShuffledOptions[] = useSdashApi
+      ? data.questions.map((question: { position: number; subject: string; question: string; options: Record<string, string>; image?: string | null }) => ({
+          id: `sdashapi:${question.position}`,
+          subject: question.subject,
+          topic: "Past Questions",
+          year: selectedYear,
+          difficulty: "standard",
+          question_text: question.question,
+          options: Object.entries(question.options || {}).map(([label, text]) => ({ label, text, originalLabel: label })),
+          explanation: null,
+          passage: null,
+          diagram_url: question.image || null,
+          question_type: "objective",
+          exam_hint: null,
+        }))
+      : data.questions as QuestionWithShuffledOptions[];
+    setQuestions(preparedQuestions);
+    setSessionId(startedSessionId);
+    const serverStartedAt = !useSdashApi && data.session?.started_at ? new Date(data.session.started_at).getTime() : Date.now();
+    const savedDurationSeconds = useSdashApi ? Number(data.durationSeconds) : (Number(data.session?.allowed_duration_seconds) || customDuration);
+    deadlineRef.current = serverStartedAt + savedDurationSeconds * 1000;
+    oneMinuteWarningShownRef.current = false;
     setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)));
     setLoading(false);
     startTimeRef[1](Date.now());
@@ -150,8 +204,9 @@ const Exam = () => {
       if (!deadline) return;
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setTimeLeft(remaining);
-      if (remaining === 300) {
-        toast({ title: "⏰ 5 minutes remaining!", variant: "destructive" });
+      if (remaining <= 60 && remaining > 0 && !oneMinuteWarningShownRef.current) {
+        oneMinuteWarningShownRef.current = true;
+        toast({ title: "⏰ 1 minute remaining!", description: "Your exam will be submitted automatically when the timer ends.", variant: "destructive" });
       }
       if (remaining <= 0) {
         if (timerRef.current) window.clearInterval(timerRef.current);
@@ -181,7 +236,7 @@ const Exam = () => {
   const selectAnswer = (questionId: string, label: string) => {
     if (showResult && isPractice) return;
     // Allow deselection by clicking same option
-    if (answers[questionId] === label) {
+    if (answers[questionId] === label && !(isPractice && useSdashApi)) {
       setAnswers((prev) => {
         const next = { ...prev };
         delete next[questionId];
@@ -191,13 +246,30 @@ const Exam = () => {
     }
     // Allow changing answer freely
     setAnswers((prev) => ({ ...prev, [questionId]: label }));
-    if (isPractice) setShowResult(true);
+    if (isPractice && useSdashApi) {
+      const position = Number(questionId.replace("sdashapi:", ""));
+      void supabase.functions.invoke("sdashapi-practice-feedback", {
+        body: { sessionId, position, selectedAnswer: label },
+      }).then(({ data, error }) => {
+        if (error || !data?.feedback) {
+          toast({ title: "Answer saved", description: "Explanation could not be loaded. You can continue practising." });
+          setShowResult(true);
+          return;
+        }
+        setQuestions((current) => current.map((question) => question.id === questionId
+          ? { ...question, correct_answer: data.feedback.correct_answer, explanation: data.feedback.solution || null }
+          : question));
+        setShowResult(true);
+      });
+    } else if (isPractice) {
+      setShowResult(true);
+    }
   };
 
   useEffect(() => {
     if (!isPractice || !showResult || !currentQuestion) return;
     const frame = window.requestAnimationFrame(() => {
-      feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      (explanationRef.current || feedbackRef.current)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isPractice, showResult, currentQuestion?.id]);
@@ -304,53 +376,112 @@ const Exam = () => {
     if (!user || !sessionId || submittingRef.current) return;
     submittingRef.current = true;
     setShowConfirmSubmit(false);
+    setSubmissionComplete(false);
     setSubmitting(true);
     if (timerRef.current) window.clearInterval(timerRef.current);
     timerRef.current = null;
-    const submission = questions.map((q) => ({
-      question_id: q.id,
-      selected_answer: answersRef.current[q.id] || "X",
-      time_spent_seconds: 0,
-    }));
-    const { data: submitData, error: submitError } = await supabase.functions.invoke("cbt-submit", {
-      body: { session_id: sessionId, answers: submission },
-    });
-    if (submitError || !submitData?.result) {
+    const submission = useSdashApi
+      ? questions.map((q) => ({
+          position: Number(q.id.replace("sdashapi:", "")),
+          selectedAnswer: answersRef.current[q.id] || null,
+          timeSpentSeconds: 0,
+        }))
+      : questions.map((q) => ({
+          question_id: q.id,
+          selected_answer: answersRef.current[q.id] || "X",
+          time_spent_seconds: 0,
+        }));
+    const { data: submitData, error: submitError } = useSdashApi
+      ? await supabase.functions.invoke("sdashapi-submit", { body: { sessionId, answers: submission } })
+      : await supabase.functions.invoke("cbt-submit", { body: { session_id: sessionId, answers: submission } });
+    if (submitError || (useSdashApi ? !submitData?.ok : !submitData?.result)) {
       submittingRef.current = false;
       setSubmitting(false);
       toast({
         title: "Submission not completed",
-        description: submitData?.error || submitError?.message || "Please try submitting again.",
+        description: submitData?.error || submitData?.message || submitError?.message || "Please try submitting again.",
         variant: "destructive",
       });
       return;
     }
+    setSubmissionComplete(true);
 
-    // Check if this is user's first completed CBT and send email
-    const { count } = await supabase.from("exam_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true);
-    if (count === 1) {
+    // Send the first-exam email in the background so it cannot block results.
+    void (async () => {
       try {
-        const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
+        const { count, error: countError } = await supabase
+          .from("exam_sessions")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("completed", true);
+
+        if (countError || count !== 1) return;
+
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", user.id)
+          .single();
+
         await supabase.functions.invoke("send-email", {
-          body: { type: "first_cbt", email: user.email, name: prof?.full_name || "Student" },
+          body: {
+            type: "first_cbt",
+            email: user.email,
+            name: prof?.full_name || "Student",
+          },
         });
       } catch (error) {
         console.error("Could not send first-exam email:", error);
       }
-    }
-    
+    })();
     await new Promise(r => setTimeout(r, 2000));
     navigate(`/results/${sessionId}`);
   };
   submitRef.current = handleSubmit;
 
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainingSeconds = safeSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   const getSubjectName = (id: string) => SUBJECTS.find(s => s.id === id)?.name || id;
+
+  if (!instructionsAccepted && !sessionId && !trialBlocked) {
+    return (
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center px-4 py-8">
+        <Card className="w-full max-w-xl overflow-hidden border-border/60 shadow-xl">
+          <CardContent className="p-6 sm:p-8 space-y-5">
+            <div className="text-center space-y-2">
+              <Logo size="lg" showText />
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Official Computer-Based Examination</p>
+              <h1 className="text-xl sm:text-2xl font-bold">Welcome to your ROCKCBT {mode === "practice" ? "Practice" : mode === "mock" ? "Mock Examination" : "CBT Examination"}</h1>
+              <p className="text-sm text-muted-foreground">You are about to begin. Take a moment to read these instructions.</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+              <h2 className="text-sm font-semibold">Before you proceed</h2>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+                <li>Read every question carefully and select the best answer.</li>
+                <li>Use the question navigator to move between questions.</li>
+                {hasMultipleSubjects && <li>Use the subject tabs to switch between your selected subjects.</li>}
+                {isTimed ? <li>Your examination time begins only after you press Proceed to Examination. The timer covers the entire exam.</li> : <li>Practice has no countdown. Work through the questions at your own pace.</li>}
+                <li>Review your answers before submitting your examination.</li>
+              </ol>
+            </div>
+            <div className="rounded-2xl bg-primary/5 border border-primary/15 p-4 text-center">
+              <p className="text-sm font-semibold text-primary">Your preparation starts here.</p>
+              <p className="mt-1 text-sm font-medium">If you can beat it here, you can beat it on examination day.</p>
+            </div>
+            <Button className="h-12 w-full text-sm font-semibold" onClick={() => { setInstructionsAccepted(true); void loadQuestions(); }}>
+              Proceed to Examination
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => navigate("/dashboard")}>Return to Dashboard</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -417,7 +548,7 @@ const Exam = () => {
 
   return (
     <>
-      {submitting && <ExamSubmitOverlay />}
+      {submitting && <ExamSubmitOverlay isComplete={submissionComplete} />}
     <div className="exam-page min-h-[100dvh] overflow-x-clip bg-background flex flex-col">
       {/* Header */}
       <header data-tour="exam-tools" className="exam-mobile-header border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20 lg:hidden">
@@ -460,7 +591,7 @@ const Exam = () => {
             </span>
             <div className="flex shrink-0 items-center gap-1.5">
               {isTimed && (
-                <span className={cn("flex h-8 items-center gap-1 rounded-full bg-secondary px-2.5 font-mono text-[10px] font-bold", timeLeft < 300 && "text-destructive")}>
+                <span role="timer" aria-live={timeLeft <= 60 ? "assertive" : "off"} className={cn("flex h-8 items-center gap-1 rounded-full bg-secondary px-2.5 font-mono text-[10px] font-bold", timeLeft <= 60 && "text-destructive")}>
                   <Clock className="h-3.5 w-3.5" />{formatTime(timeLeft)}
                 </span>
               )}
@@ -594,7 +725,7 @@ const Exam = () => {
         <main className="exam-question-main w-full px-3 py-4 sm:px-4 sm:py-6">
           {currentQuestion && (
             <AnimatePresence mode="wait">
-              <motion.div data-tour="exam-question" className="exam-question-card" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
+              <motion.div ref={questionCardRef} data-tour="exam-question" className="exam-question-card scroll-mt-24" key={`${activeSubject}-${currentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} onAnimationComplete={() => questionCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
               {currentQuestion.passage && (
                 <Card className="mb-3 border-border/50">
                   <CardContent className="p-4 max-h-[40vh] overflow-y-auto">
@@ -652,10 +783,10 @@ const Exam = () => {
                   );
                 })}
               </div>
-              {isPractice && showResult && currentQuestion.explanation && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 bg-secondary/50 rounded-lg">
+              {isPractice && showResult && (
+                <motion.div ref={explanationRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 bg-secondary/50 rounded-lg scroll-mt-24">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Explanation</p>
-                  <p className="text-xs leading-relaxed">{currentQuestion.explanation}</p>
+                  <p className="text-xs leading-relaxed">{cleanQuestionExplanation(currentQuestion.explanation) || "An explanation is not available for this question yet."}</p>
                 </motion.div>
               )}
               {isPractice && showResult && (

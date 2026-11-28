@@ -55,13 +55,37 @@ Deno.serve(async (req: Request) => {
     const requestedExamination = typeof requestBody.examination === "string" ? requestBody.examination.trim().toUpperCase() : "";
     const examination = requestedExamination || "JAMB";
     const examYear = requestBody.year === null || requestBody.year === undefined || requestBody.year === "" ? null : Number(requestBody.year);
-    const count = Math.max(1, Math.min(Number(requestBody.count) || 60, 60));
+    const rawCounts = requestBody.counts;
+    const legacyCount = Math.max(1, Math.min(Number(requestBody.count) || 60, 60));
+    const subjectQuestionCounts: Record<string, number> = rawCounts && typeof rawCounts === "object" && !Array.isArray(rawCounts)
+      ? rawCounts as Record<string, number>
+      : Object.fromEntries(subjects.map((subject) => [subject, legacyCount]));
+    // Untimed practice still persists a harmless default; the client does not start a countdown.
+    const rawDuration = requestBody.duration_seconds;
+    const allowedDurationSeconds = rawDuration === undefined || rawDuration === null || rawDuration === ""
+      ? 3600
+      : Number(rawDuration);
     const adaptive = requestBody.adaptive === true && (mode === "practice" || mode === "revision");
+
+    if (Object.keys(subjectQuestionCounts).length !== subjects.length
+      || subjects.some((subject) => !Number.isInteger(Number(subjectQuestionCounts[subject]))
+        || Number(subjectQuestionCounts[subject]) < 1 || Number(subjectQuestionCounts[subject]) > 60)) {
+      return respond({ error: "Choose between 1 and 60 questions for every selected subject." }, 400);
+    }
+    const totalRequestedCount = subjects.reduce((sum, subject) => sum + Number(subjectQuestionCounts[subject]), 0);
+    if (totalRequestedCount < 1 || totalRequestedCount > 720) {
+      return respond({ error: "The combined exam must contain between 1 and 720 questions." }, 400);
+    }
+    if (!Number.isInteger(allowedDurationSeconds) || allowedDurationSeconds < 60 || allowedDurationSeconds > 86400) {
+      return respond({ error: "Choose a total exam duration between 1 minute and 24 hours." }, 400);
+    }
     if (!subjects.length || subjects.length > 12) return respond({ error: "Select between 1 and 12 subjects." }, 400);
+    if (mode === "practice" && subjects.length !== 1) return respond({ error: "Practice mode allows one subject at a time." }, 400);
+    if (mode === "cbt" && subjects.length !== 1) return respond({ error: "CBT Exam mode allows one subject at a time." }, 400);
+    if (mode === "mock" && subjects.length !== 4) return respond({ error: "Mock mode requires exactly four subjects." }, 400);
     if (!["JAMB", "WAEC", "NECO"].includes(examination)) return respond({ error: "Choose JAMB, WAEC or NECO." }, 400);
     if (examYear !== null && (!Number.isInteger(examYear) || examYear < 1900 || examYear > new Date().getFullYear())) return respond({ error: "Choose a valid examination year." }, 400);
     if (!["practice", "cbt", "mock", "revision"].includes(mode)) return respond({ error: "Invalid examination mode." }, 400);
-    if (mode === "mock" && examination !== "JAMB") return respond({ error: "The full mock exam format is currently available for JAMB only." }, 400);
 
     const { data: profile, error: profileError } = await admin.from("profiles")
       .select("trial_count, is_subscribed").eq("user_id", user.id).single();
@@ -92,7 +116,7 @@ Deno.serve(async (req: Request) => {
       option_c: string;
       option_d: string;
       option_e: string | null;
-      diagram_url: string | null;
+      diagram_file: string | null;
       correct_answer: string;
       explanation: string | null;
       passage: string | null;
@@ -103,7 +127,7 @@ Deno.serve(async (req: Request) => {
     const questionPools = new Map<string, ExamQuestion[]>();
     for (const subject of subjects) {
       let questionQuery = admin.from("questions")
-        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,option_e,diagram_url,correct_answer,explanation,passage,question_type,exam_hint")
+        .select("id,subject,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,option_e,diagram_file,correct_answer,explanation,passage,question_type,exam_hint")
         .eq("subject", subject)
         .eq("examination", examination)
         .eq("is_published", true);
@@ -129,7 +153,11 @@ Deno.serve(async (req: Request) => {
 
     const allQuestions: ExamQuestion[] = [];
     for (const subject of subjects) {
+      const count = Number(subjectQuestionCounts[subject]);
       const shuffled = shuffle(questionPools.get(subject) ?? []);
+      if (shuffled.length < count) {
+        return respond({ error: `${subject} has only ${shuffled.length} available questions for the selected examination and year.` }, 400);
+      }
       let unseen = shuffled.filter((q) => !seen.has(q.id));
       let previouslySeen = shuffled.filter((q) => seen.has(q.id));
       // Measure coverage within this subject only; seen also contains other subjects.
@@ -216,8 +244,13 @@ Deno.serve(async (req: Request) => {
         allQuestions.push(...shuffle([...balanced, ...fill]).slice(0, count));
       }
     }
-    if (!allQuestions.length) return respond({ error: "No questions are available for the selected subjects." }, 404);
-
+      if (allQuestions.length !== totalRequestedCount) {
+        console.error("Question allocation mismatch:", {
+          expected: totalRequestedCount,
+          actual: allQuestions.length,
+        });
+        return respond({ error: "We could not prepare the exact number of questions requested. Please try again." }, 500);
+      }
     const prepared = allQuestions.map((q, index) => {
       const options = shuffle([
         { originalLabel: "A", text: q.option_a },
@@ -226,11 +259,14 @@ Deno.serve(async (req: Request) => {
         { originalLabel: "D", text: q.option_d },
         ...(q.option_e?.trim() ? [{ originalLabel: "E", text: q.option_e }] : []),
       ]);
+
       const optionOrder = options.map((option) => option.originalLabel);
       const displayOptions = options.map((option, optionIndex) => ({
-        label: String.fromCharCode(65 + optionIndex), text: option.text,
+        label: String.fromCharCode(65 + optionIndex),
+        text: option.text,
       }));
       const correct = options.findIndex((option) => option.originalLabel === q.correct_answer);
+
       return {
         question: q,
         position: index + 1,
@@ -240,7 +276,15 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    const { data: sessionResult, error: sessionError } = await admin.rpc("create_cbt_exam_session", {
+    if (prepared.length !== totalRequestedCount) {
+      console.error("Question allocation mismatch:", {
+        expected: totalRequestedCount,
+        actual: prepared.length,
+      });
+      return respond({ error: "We could not prepare the exact number of questions requested. Please try again." }, 500);
+    }
+
+    const { data: sessionResult, error: sessionError } = await admin.rpc("create_cbt_exam_session_with_settings", {
       p_user_id: user.id,
       p_mode: mode,
       p_subjects: subjects,
@@ -251,6 +295,8 @@ Deno.serve(async (req: Request) => {
         option_order: item.optionOrder,
         position: item.position,
       })),
+      p_subject_question_counts: subjectQuestionCounts,
+      p_allowed_duration_seconds: allowedDurationSeconds,
     });
     if (sessionError) {
       console.error("Could not create exam session:", sessionError.message);
@@ -270,10 +316,10 @@ Deno.serve(async (req: Request) => {
       year: item.question.year, difficulty: item.question.difficulty,
       question_text: item.question.question_text, options: item.displayOptions,
       ...((mode === "practice" || mode === "revision") ? { correct_answer: item.displayedCorrect, explanation: item.question.explanation } : {}),
-      passage: item.question.passage, diagram_url: item.question.diagram_url, question_type: item.question.question_type,
+      passage: item.question.passage, diagram_url: item.question.diagram_file, question_type: item.question.question_type,
       exam_hint: item.question.exam_hint,
     }));
-    return respond({ session, questions });
+    return respond({ session: { ...session, allowed_duration_seconds: allowedDurationSeconds, subject_question_counts: subjectQuestionCounts }, questions });
   } catch (error) {
     console.error("cbt-start failed", error);
     return respond({ error: "Unable to start the exam right now." }, 500);

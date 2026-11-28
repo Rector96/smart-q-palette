@@ -1,0 +1,65 @@
+name: ROCKCBT Launch Readiness
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - "fix/**"
+      - "launch/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rockcbt-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Supabase Edge Functions
+        run: |
+          deno check supabase/functions/cbt-start/index.ts
+          deno check supabase/functions/cbt-submit/index.ts
+          deno check supabase/functions/sdashapi-catalog/index.ts
+          deno check supabase/functions/sdashapi-start/index.ts
+          deno check supabase/functions/sdashapi-submit/index.ts
+          deno check supabase/functions/sdashapi-result/index.ts
+          deno check supabase/functions/sdashapi-practice-feedback/index.ts
+          deno check supabase/functions/live-quiz/index.ts
+          deno check supabase/functions/paystack-webhook/index.ts
+          deno check supabase/functions/paystack-verify/index.ts
+          deno check supabase/functions/referral-withdraw/index.ts
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build production bundle
+        run: npm run build

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SUBJECTS, EXAM_MODES, type ExamMode } from "@/lib/subjects";
 import {
-  Trophy, Target, Clock, ChevronRight, GraduationCap, Share2,
+  Trophy, Target, Clock, ChevronRight, Share2,
   Sparkles, Flame, Brain, Shield, Crown, Lock, BookOpen, Users, Gift, Search
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -152,7 +152,6 @@ const Dashboard = () => {
     ...EXAM_MODES.map(m => ({ id: m.id, name: m.name, description: m.description, icon: EXAM_MODE_ICONS[m.id] || Brain, action: () => navigate(`/select-subjects?mode=${m.id}`) })),
     { id: "library", name: "Library", description: "Study materials & books", icon: BookOpen, action: () => navigate("/library") },
     { id: "live-quiz", name: "Live Quiz", description: "Real-time quiz battles", icon: Users, action: () => navigate("/live-quiz") },
-    { id: "past-questions", name: "Past Questions", description: "WAEC and JAMB past questions", icon: GraduationCap, action: () => navigate("/past-questions") },
   ];
   const filteredSubjects = SUBJECTS.filter((subject) =>
     subject.name.toLowerCase().includes(subjectSearch.trim().toLowerCase())
@@ -228,7 +227,7 @@ const Dashboard = () => {
               <div className="dashboard-mode-grid">
                 {allModeCards.map((mode, index) => {
                   const Icon = mode.icon;
-                  const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz" && mode.id !== "past-questions";
+                  const locked = !isPro && attemptsLeft <= 0 && mode.id !== "revision" && mode.id !== "library" && mode.id !== "live-quiz";
                   const iconColors = ["bg-blue-50 text-blue-600", "bg-cyan-50 text-cyan-700", "bg-violet-50 text-violet-600", "bg-amber-50 text-amber-600", "bg-emerald-50 text-emerald-600", "bg-indigo-50 text-indigo-600"];
                   return (
                     <motion.div key={mode.id} whileTap={{ scale: 0.98 }} data-tour={mode.id === "library" ? "library" : mode.id === "live-quiz" ? "live-quiz" : undefined}>

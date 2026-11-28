@@ -217,6 +217,8 @@ export type Database = {
       }
       exam_sessions: {
         Row: {
+          allowed_duration_seconds: number
+          subject_question_counts: Json
           completed: boolean
           completed_at: string | null
           correct_answers: number
@@ -232,6 +234,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          allowed_duration_seconds?: number
+          subject_question_counts?: Json
           completed?: boolean
           completed_at?: string | null
           correct_answers?: number
@@ -247,6 +251,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          allowed_duration_seconds?: number
+          subject_question_counts?: Json
           completed?: boolean
           completed_at?: string | null
           correct_answers?: number
@@ -546,6 +552,7 @@ export type Database = {
           correct_answer: string
           created_at: string
           difficulty: string
+          diagram_file: string | null
           examination: string | null
           exam_hint: string | null
           explanation: string | null
@@ -568,6 +575,7 @@ export type Database = {
           correct_answer: string
           created_at?: string
           difficulty?: string
+          diagram_file?: string | null
           examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
@@ -590,6 +598,7 @@ export type Database = {
           correct_answer?: string
           created_at?: string
           difficulty?: string
+          diagram_file?: string | null
           examination?: string | null
           exam_hint?: string | null
           explanation?: string | null
@@ -971,6 +980,19 @@ export type Database = {
       }
       get_result_share_card: {
         Args: { p_token: string }
+        Returns: Json
+      }
+      create_cbt_exam_session_with_settings: {
+        Args: {
+          p_allowed_duration_seconds: number
+          p_exam_year: number | null
+          p_examination: string
+          p_mode: string
+          p_question_map: Json
+          p_subject_question_counts: Json
+          p_subjects: string[]
+          p_user_id: string
+        }
         Returns: Json
       }
       create_cbt_exam_session: {

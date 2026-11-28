@@ -35,6 +35,7 @@ type QuestionRow = Database["public"]["Tables"]["questions"]["Row"];
 type ResultQuestion = Pick<
   QuestionRow,
   | "id"
+  | "subject"
   | "topic"
   | "question_text"
   | "option_a"
@@ -44,6 +45,7 @@ type ResultQuestion = Pick<
   | "option_e"
   | "correct_answer"
   | "explanation"
+  | "diagram_file"
   | "diagram_url"
 >;
 type HistoryRow = Pick<
@@ -64,6 +66,10 @@ const getSessionShareSubject = (
   return [exam, subjects].filter(Boolean).join(" — ") || "Practice";
 };
 
+const cleanExplanation = (value: string) =>
+  value
+    .replace(/^\s*(?:(?:matches\s+pdf\s+answer\s+key|independently\s+verified)[^:]*):\s*/i, "")
+    .trim();
 const Results = () => {
   const { toast } = useToast();
   const { sessionId } = useParams();
@@ -74,14 +80,18 @@ const Results = () => {
   const [referralCode, setReferralCode] = useState("");
   const [topicBreakdown, setTopicBreakdown] = useState<Record<string, { correct: number; total: number }>>({});
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyLoadError, setHistoryLoadError] = useState("");
   const [answerFilter, setAnswerFilter] = useState<AnswerFilter>("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [isSdashApiResult, setIsSdashApiResult] = useState(false);
 
   useEffect(() => {
     setSession(null);
+    setIsSdashApiResult(false);
     setHistory([]);
+    setHistoryLoadError("");
     setTopicBreakdown({});
     setProfileName("");
     setReferralCode("");
@@ -102,52 +112,128 @@ const Results = () => {
           { data: sessionData, error: sessionError },
           { data: profile, error: profileError },
           { data: referralProfile, error: referralError },
-          { data: answers, error: historyError },
         ] = await Promise.all([
-          supabase.from("exam_sessions")
-            .select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,completed,started_at,completed_at,examination,exam_year")
-            .eq("id", sessionId)
-            .single(),
-          supabase.from("profiles")
-            .select("full_name")
-            .eq("user_id", user.id)
-            .single(),
-          supabase.from("referral_profiles")
-            .select("referral_code")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase.from("user_history")
-            .select("id,question_id,selected_answer,is_correct,session_id,questions(id,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url)")
-            .eq("session_id", sessionId)
-            .order("answered_at", { ascending: true }),
+          supabase.from("exam_sessions").select("id,user_id,mode,subjects,total_questions,correct_answers,score_percentage,duration_seconds,allowed_duration_seconds,subject_question_counts,completed,started_at,completed_at,examination,exam_year").eq("id", sessionId).eq("user_id", user.id).single(),
+          supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+          supabase.from("referral_profiles").select("referral_code").eq("user_id", user.id).maybeSingle(),
         ]);
 
         if (!active) return;
         if (sessionError) {
-          setLoadError(sessionError.message);
-          toast({ title: "Could not load quiz results", description: sessionError.message, variant: "destructive" });
+          // SdashAPI sessions live in their own protected tables. Fall back to
+          // the provider result endpoint while keeping this same Results screen.
+          const { data: providerData, error: providerError } = await supabase.functions.invoke(
+            "sdashapi-result",
+            { body: { sessionId } },
+          );
+          if (!active) return;
+          const providerResult = providerData?.result ?? providerData;
+          if (providerError || !providerResult?.ok || !Array.isArray(providerResult.questions)) {
+            const message = providerData?.message || providerError?.message || sessionError.message;
+            setLoadError(message);
+            toast({ title: "Could not load quiz results", description: message, variant: "destructive" });
+            return;
+          }
+
+          setIsSdashApiResult(true);
+          const normalizedSession = {
+            id: providerResult.session_id,
+            user_id: user.id,
+            mode: providerResult.exam_mode,
+            subjects: providerResult.subjects || [providerResult.subject].filter(Boolean),
+            total_questions: providerResult.total_questions,
+            correct_answers: providerResult.correct_count,
+            score_percentage: providerResult.score,
+            duration_seconds: providerResult.time_used_seconds ?? 0,
+            allowed_duration_seconds: providerResult.allowed_duration_seconds ?? providerResult.duration_seconds ?? 0,
+            subject_question_counts: providerResult.subject_question_counts || {},
+            completed: true,
+            started_at: providerResult.started_at,
+            completed_at: providerResult.submitted_at,
+            examination: providerResult.examination,
+            exam_year: providerResult.exam_year,
+          } as ExamSession;
+          setSession(normalizedSession);
+          if (profile?.full_name) setProfileName(profile.full_name);
+          if (referralProfile?.referral_code) setReferralCode(referralProfile.referral_code);
+
+          const providerHistory: HistoryRow[] = providerResult.questions.map((question: {
+            position: number; subject: string; topic?: string | null; question: string; options: Record<string, string>;
+            image?: string | null; selected_answer?: string | null; correct_answer: string;
+            is_correct?: boolean | null; solution?: string | null;
+          }) => {
+            const options = question.options || {};
+            const selectedAnswer = question.selected_answer || "X";
+            const resultQuestion = {
+              id: `${sessionId}-${question.position}`,
+              subject: question.subject,
+              topic: question.topic?.trim() || "Unknown",
+              question_text: question.question,
+              option_a: options.A || null,
+              option_b: options.B || null,
+              option_c: options.C || null,
+              option_d: options.D || null,
+              option_e: options.E || null,
+              correct_answer: question.correct_answer,
+              explanation: question.solution || null,
+              diagram_file: null,
+              diagram_url: question.image || null,
+            } as unknown as ResultQuestion;
+            return {
+              id: `${sessionId}-${question.position}`,
+              question_id: resultQuestion.id,
+              selected_answer: selectedAnswer,
+              is_correct: Boolean(question.is_correct),
+              session_id: sessionId!,
+              questions: resultQuestion,
+            } as HistoryRow;
+          });
+          setHistory(providerHistory);
+          setHistoryLoadError("");
           return;
         }
 
         setSession(sessionData);
-        if (profileError) {
-          toast({ title: "Could not load your profile", description: profileError.message, variant: "destructive" });
-        }
+        if (profileError) console.error("Could not load profile name for result:", profileError.message);
         if (profile?.full_name) setProfileName(profile.full_name);
-        if (referralError) {
-          toast({ title: "Could not load your referral code", description: referralError.message, variant: "destructive" });
-        }
+        if (referralError) console.error("Could not load referral code for result:", referralError.message);
         if (referralProfile?.referral_code) setReferralCode(referralProfile.referral_code);
 
-        if (historyError) {
-          toast({ title: "Could not load your answers", description: historyError.message, variant: "destructive" });
-          setHistory([]);
-          setTopicBreakdown({});
+        // Fetch answer rows separately so question embedding cannot hide a saved result.
+        const { data: answerRows, error: answersError } = await supabase.from("user_history")
+          .select("id,question_id,selected_answer,is_correct,session_id,answered_at")
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id)
+          .order("answered_at", { ascending: true });
+
+        if (!active) return;
+        if (answersError) {
+          setHistoryLoadError("Your score is saved, but the answer review could not be loaded. Please refresh or contact support.");
+          console.error("Could not load CBT answer rows:", answersError.message);
           return;
         }
 
-        const resultHistory = answers || [];
+        const questionIds = [...new Set((answerRows || []).map((answer) => answer.question_id))];
+        let questionsById = new Map<string, ResultQuestion>();
+        if (questionIds.length > 0) {
+          const { data: questionRows, error: questionsError } = await supabase.from("questions")
+            .select("id,subject,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_file,diagram_url")
+            .in("id", questionIds);
+          if (!active) return;
+          if (questionsError) {
+            setHistoryLoadError("Your score is available, but some question details could not be loaded. Please refresh or contact support.");
+            console.error("Could not load CBT question details:", questionsError.message);
+          } else {
+            questionsById = new Map((questionRows || []).map((question) => [question.id, question]));
+          }
+        }
+
+        const resultHistory: HistoryRow[] = (answerRows || []).map((answer) => ({
+          ...answer,
+          questions: questionsById.get(answer.question_id) || null,
+        }));
         setHistory(resultHistory);
+
         const breakdown: Record<string, { correct: number; total: number }> = {};
         resultHistory.forEach((answer) => {
           const topic = answer.questions?.topic || "Unknown";
@@ -156,6 +242,9 @@ const Results = () => {
           if (answer.is_correct) breakdown[topic].correct += 1;
         });
         setTopicBreakdown(breakdown);
+        if (resultHistory.length !== Number(sessionData.total_questions)) {
+          setHistoryLoadError((current) => current || "Your score is saved, but the answer review is incomplete. Please refresh or contact support.");
+        }
       } catch (error) {
         if (!active) return;
         const message = error instanceof Error ? error.message : "Please try again.";
@@ -173,6 +262,10 @@ const Results = () => {
   }, [sessionId, toast, user]);
 
   const createShareLink = async () => {
+    if (isSdashApiResult) {
+      toast({ title: "Sharing is not available yet", description: "SdashAPI result sharing will be added to the shared results flow." });
+      return "";
+    }
     if (!session || !sessionId || !user) return "";
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const { error } = await supabase.from("shared_exams").insert({
@@ -303,8 +396,19 @@ const Results = () => {
 
   const totalQuestions = Number(session.total_questions) || 0;
   const correctAnswers = Number(session.correct_answers) || 0;
-  const wrongAnswers = Math.max(0, totalQuestions - correctAnswers);
+  const unansweredAnswers = history.filter((answer) => answer.selected_answer?.toUpperCase() === "X").length;
+  const wrongAnswers = history.length === totalQuestions
+    ? history.filter((answer) => !answer.is_correct && answer.selected_answer?.toUpperCase() !== "X").length
+    : Math.max(0, totalQuestions - correctAnswers);
   const durationMinutes = Math.floor((Number(session.duration_seconds) || 0) / 60);
+  const allowedDurationMinutes = Math.ceil((Number(session.allowed_duration_seconds) || 3600) / 60);
+  const subjectBreakdown = history.reduce<Record<string, { correct: number; total: number }>>((result, answer) => {
+    const subject = answer.questions?.subject || "Unknown subject";
+    if (!result[subject]) result[subject] = { correct: 0, total: 0 };
+    result[subject].total += 1;
+    if (answer.is_correct) result[subject].correct += 1;
+    return result;
+  }, {});
   const roundedScore = Math.round(Number(session.score_percentage) || 0);
 
   return (
@@ -324,6 +428,7 @@ const Results = () => {
                 ? "Strong work. Keep building on what you know."
                 : "Review the explanations below and try again."}
           </p>
+          <p className="cbt-results-scoreline">Score: <strong>{roundedScore}%</strong> <span>·</span> Unanswered: <strong>{unansweredAnswers}/{totalQuestions}</strong></p>
         </div>
         <div className="cbt-results-actions">
           <Button type="button" className="cbt-results-retry" onClick={() => navigate("/select-subjects?mode=practice")}>
@@ -331,7 +436,7 @@ const Results = () => {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" className="cbt-results-share" disabled={sharing}>
+              <Button type="button" className="cbt-results-share" disabled={sharing || isSdashApiResult}>
                 <Share2 aria-hidden="true" /> Share Result <ChevronDown aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
@@ -363,7 +468,7 @@ const Results = () => {
 
       <div className="cbt-results-grid">
         <div className="cbt-results-left-column">
-          <section className="cbt-results-stats" aria-label="Quiz summary">
+          <section className="cbt-results-stats" aria-label="CBT result summary">
             <div className="cbt-results-stat cbt-results-stat-correct">
               <CheckCircle2 aria-hidden="true" />
               <span>Correct: {correctAnswers}/{totalQuestions}</span>
@@ -374,9 +479,29 @@ const Results = () => {
             </div>
             <div className="cbt-results-stat cbt-results-stat-time">
               <Clock aria-hidden="true" />
-              <span>Time: {durationMinutes} min</span>
+              <span>Time used: {durationMinutes} min</span>
+            </div>
+            <div className="cbt-results-stat cbt-results-stat-time">
+              <Clock aria-hidden="true" />
+              <span>Time allowed: {allowedDurationMinutes} min</span>
             </div>
           </section>
+
+          {Object.keys(subjectBreakdown).length > 1 && (
+            <section className="cbt-results-topic-panel" aria-labelledby="cbt-subject-title">
+              <div className="cbt-results-panel-heading">
+                <h2 id="cbt-subject-title">Subject Breakdown</h2>
+              </div>
+              <div className="cbt-results-topic-list">
+                {Object.entries(subjectBreakdown).map(([subject, stats]) => (
+                  <div key={subject} className="cbt-results-topic-row">
+                    <span>{subject}</span>
+                    <strong>{stats.correct}/{stats.total} correct · {Math.round((stats.correct / Math.max(stats.total, 1)) * 100)}%</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="cbt-results-topic-panel" aria-labelledby="cbt-topic-title">
             <div className="cbt-results-panel-heading">
@@ -440,6 +565,7 @@ const Results = () => {
             ))}
           </div>
 
+          {historyLoadError && <p className="cbt-results-review-warning" role="status">{historyLoadError}</p>}
           {filteredHistory.length > 0 ? (
             <div className="cbt-results-answer-grid">
               {filteredHistory.map(({ answer, index }) => {
@@ -457,29 +583,28 @@ const Results = () => {
                   <article className="cbt-results-answer-card" key={answer.id}>
                     <h3>Question {index + 1}</h3>
                     <p className="cbt-results-question-text">{question?.question_text || "Question text unavailable."}</p>
-                    {question?.diagram_url && (
+                    {(question?.diagram_file || question?.diagram_url) && (
                       <img
                         className="cbt-results-question-diagram"
-                        src={question.diagram_url}
+                        src={question.diagram_file || question.diagram_url}
                         alt={`Diagram for question ${index + 1}`}
                         loading="lazy"
                         decoding="async"
                       />
                     )}
-                    {!answer.is_correct && (
-                      <div className="cbt-results-answer-choice is-wrong">
-                        <XCircle aria-hidden="true" />
-                        <span>{selectedAnswer ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
-                      </div>
-                    )}
+                    <div className="cbt-results-answer-choice is-selected">
+                      {answer.is_correct ? <CheckCircle2 aria-hidden="true" /> : <XCircle aria-hidden="true" /> }
+                      <span>{selectedAnswer && selectedAnswer !== "X" ? `${selectedAnswer}) ${selectedText || "Your answer"}` : "You did not answer this question."}</span>
+                      <strong>Your answer</strong>
+                    </div>
                     <div className="cbt-results-answer-choice is-correct">
                       <CheckCircle2 aria-hidden="true" />
                       <span>{correctAnswer ? `${correctAnswer}) ${correctText || correctAnswer}` : "Correct answer unavailable."}</span>
-                      {!answer.is_correct && <strong>Correct Answer</strong>}
+                      <strong>Correct answer</strong>
                     </div>
                     <div className="cbt-results-explanation">
                       <h4>Explanation</h4>
-                      <p>{question?.explanation || "No explanation was provided for this question."}</p>
+                      <p>{question?.explanation?.trim() ? cleanExplanation(question.explanation) : "An explanation is not available for this question yet."}</p>
                     </div>
                   </article>
                 );

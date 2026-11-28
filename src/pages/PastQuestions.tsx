@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SDASHAPI_SUBJECTS, SDASHAPI_QUESTION_LIMIT, type SdashApiExamination } from "@/lib/sdashapi";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,8 +18,14 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 const PastQuestions = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const [examination, setExamination] = useState<SdashApiExamination>("WAEC");
+  const requestedExamination = searchParams.get("examination")?.toUpperCase();
+  const initialExamination: SdashApiExamination =
+    requestedExamination === "JAMB" || requestedExamination === "NECO" || requestedExamination === "WAEC"
+      ? requestedExamination
+      : "WAEC";
+  const [examination, setExamination] = useState<SdashApiExamination>(initialExamination);
   const [subject, setSubject] = useState("");
   const [year, setYear] = useState(String(CURRENT_YEAR - 1));
   const [questionCount, setQuestionCount] = useState(20);
@@ -105,7 +111,7 @@ const PastQuestions = () => {
           <Logo size="sm" showText={false} />
           <div>
             <p className="text-sm font-bold">Past Questions</p>
-            <p className="text-[10px] text-muted-foreground">WAEC and JAMB practice</p>
+            <p className="text-[10px] text-muted-foreground">JAMB, WAEC and NECO practice</p>
           </div>
         </div>
       </header>
@@ -121,7 +127,7 @@ const PastQuestions = () => {
             <Label className="text-sm font-semibold">Choose Examination</Label>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {(["WAEC", "JAMB"] as const).map((exam) => (
+            {(["JAMB", "WAEC", "NECO"] as const).map((exam) => (
               <motion.div key={exam} whileTap={{ scale: 0.98 }}>
                 <Card
                   role="button"
@@ -185,7 +191,7 @@ const PastQuestions = () => {
               onChange={(event) => setYear(event.target.value)}
               className="h-11"
             />
-            <p className="text-[10px] text-muted-foreground">Enter the specific WAEC or JAMB year you want to practise.</p>
+            <p className="text-[10px] text-muted-foreground">Enter the year for the examination you want to practise.</p>
           </CardContent>
         </Card>
 
