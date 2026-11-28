@@ -32,8 +32,8 @@ export const SUBJECTS: Subject[] = [
 export type ExamMode = "practice" | "cbt" | "mock" | "revision";
 
 export const EXAM_MODES = [
-  { id: "practice" as ExamMode, name: "Practice Mode", description: "Untimed, instant feedback", color: "150 60% 42%" },
-  { id: "cbt" as ExamMode, name: "CBT Exam", description: "60 questions, 60 min timer", color: "217 91% 60%" },
-  { id: "mock" as ExamMode, name: "Mock Exam", description: "Full JAMB simulation", color: "262 83% 58%" },
-  { id: "revision" as ExamMode, name: "Revision", description: "Review wrong answers", color: "38 92% 50%" },
+  { id: "practice" as ExamMode, name: "Practice Mode", description: "One subject, untimed practice", color: "150 60% 42%" },
+  { id: "cbt" as ExamMode, name: "CBT Exam", description: "Choose a subject, question count and duration", color: "217 91% 60%" },
+  { id: "mock" as ExamMode, name: "Mock Exam", description: "Four subjects with one shared exam timer", color: "262 83% 58%" },
+  { id: "revision" as ExamMode, name: "Revision", description: "Repeat questions due for review", color: "38 92% 50%" },
 ];
