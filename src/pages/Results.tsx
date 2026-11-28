@@ -89,6 +89,7 @@ const Results = () => {
 
   useEffect(() => {
     setSession(null);
+    setIsSdashApiResult(false);
     setHistory([]);
     setHistoryLoadError("");
     setTopicBreakdown({});
