@@ -39,6 +39,9 @@ alter table public.sdashapi_exam_sessions
   check (total_questions between 1 and 200);
 
 alter table public.sdashapi_session_questions
+  add column if not exists topic text;
+
+alter table public.sdashapi_session_questions
   drop constraint if exists sdashapi_session_questions_position_check;
 alter table public.sdashapi_session_questions
   add constraint sdashapi_session_questions_position_check
@@ -88,6 +91,7 @@ declare
   v_answer text;
   v_solution text;
   v_image text;
+  v_topic text;
   v_question_id bigint;
   v_subject_counts jsonb := '{}'::jsonb;
 begin
@@ -195,6 +199,10 @@ begin
     v_answer := upper(btrim(coalesce(v_question ->> 'answer', '')));
     v_solution := nullif(v_question ->> 'solution', '');
     v_image := nullif(v_question ->> 'image', '');
+    v_topic := coalesce(
+      nullif(btrim(v_question ->> 'topic'), ''),
+      nullif(btrim(v_question #>> '{metadata,topic}'), '')
+    );
 
     if v_question_text is null then
       raise exception 'Question text is missing at position %', v_position;
@@ -210,11 +218,11 @@ begin
 
     insert into public.sdashapi_session_questions (
       session_id, position, sdashapi_question_id, question_text,
-      options, image, subject
+      options, image, subject, topic
     )
     values (
       v_session_id, v_position, v_question_id, v_question_text,
-      v_options, v_image, v_question_subject
+      v_options, v_image, v_question_subject, v_topic
     );
 
     insert into private.sdashapi_answer_keys (
@@ -325,6 +333,7 @@ begin
       pg_catalog.jsonb_build_object(
         'position', q.position,
         'subject', q.subject,
+        'topic', q.topic,
         'question', q.question_text,
         'options', q.options,
         'image', q.image,
