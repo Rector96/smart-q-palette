@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
       return respond({ ok: false, message: "Invalid exam session." }, 400);
     }
 
-    if (!Array.isArray(answers) || answers.length > 100) {
+    if (!Array.isArray(answers) || answers.length > 240) {
       return respond({ ok: false, message: "Invalid submitted answers." }, 400);
     }
 
@@ -98,7 +98,7 @@ Deno.serve(async (req: Request) => {
 
       const timeSpent = Number(item.timeSpentSeconds ?? 0);
 
-      if (!Number.isInteger(position) || position < 1 || position > 100) {
+      if (!Number.isInteger(position) || position < 1 || position > 240) {
         return respond({ ok: false, message: "Invalid question position." }, 400);
       }
 
