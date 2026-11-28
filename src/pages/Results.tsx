@@ -45,6 +45,7 @@ type ResultQuestion = Pick<
   | "option_e"
   | "correct_answer"
   | "explanation"
+  | "diagram_file"
   | "diagram_url"
 >;
 type HistoryRow = Pick<
@@ -146,7 +147,7 @@ const Results = () => {
         let questionsById = new Map<string, ResultQuestion>();
         if (questionIds.length > 0) {
           const { data: questionRows, error: questionsError } = await supabase.from("questions")
-            .select("id,subject,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_url")
+            .select("id,subject,topic,question_text,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,diagram_file,diagram_url")
             .in("id", questionIds);
           if (!active) return;
           if (questionsError) {
@@ -508,10 +509,10 @@ const Results = () => {
                   <article className="cbt-results-answer-card" key={answer.id}>
                     <h3>Question {index + 1}</h3>
                     <p className="cbt-results-question-text">{question?.question_text || "Question text unavailable."}</p>
-                    {question?.diagram_url && (
+                    {(question?.diagram_file || question?.diagram_url) && (
                       <img
                         className="cbt-results-question-diagram"
-                        src={question.diagram_url}
+                        src={question.diagram_file || question.diagram_url}
                         alt={`Diagram for question ${index + 1}`}
                         loading="lazy"
                         decoding="async"
