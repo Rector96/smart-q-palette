@@ -403,4 +403,90 @@ execute function private.set_sdashapi_elapsed_duration();
 revoke all on function private.set_sdashapi_elapsed_duration()
   from public, anon, authenticated;
 
+
+-- Return practice feedback only after the student selects an answer.
+-- Correct answers remain in the private answer-key table until requested.
+create or replace function private.get_sdashapi_practice_feedback(
+  p_session_id uuid,
+  p_user_id uuid,
+  p_position integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_session public.sdashapi_exam_sessions%rowtype;
+  v_feedback jsonb;
+begin
+  if p_session_id is null or p_user_id is null
+     or p_position is null or p_position < 1 or p_position > 200 then
+    raise exception 'Invalid practice feedback request';
+  end if;
+
+  select *
+  into v_session
+  from public.sdashapi_exam_sessions
+  where id = p_session_id
+    and user_id = p_user_id
+  for update;
+
+  if not found then
+    raise exception 'Exam session not found';
+  end if;
+
+  if v_session.exam_mode <> 'practice' or v_session.status <> 'in_progress' then
+    raise exception 'Practice feedback is unavailable for this session';
+  end if;
+
+  select jsonb_build_object(
+    'position', q.position,
+    'subject', q.subject,
+    'correct_answer', k.correct_answer,
+    'solution', k.solution
+  )
+  into v_feedback
+  from public.sdashapi_session_questions q
+  join private.sdashapi_answer_keys k
+    on k.session_id = q.session_id
+   and k.question_position = q.position
+  where q.session_id = p_session_id
+    and q.position = p_position;
+
+  if v_feedback is null then
+    raise exception 'Question not found';
+  end if;
+
+  return jsonb_build_object('ok', true, 'feedback', v_feedback);
+end;
+$function$;
+
+revoke all on function private.get_sdashapi_practice_feedback(uuid, uuid, integer)
+  from public, anon, authenticated;
+
+grant execute on function private.get_sdashapi_practice_feedback(uuid, uuid, integer)
+  to service_role;
+
+create or replace function public.get_sdashapi_practice_feedback(
+  p_session_id uuid,
+  p_user_id uuid,
+  p_position integer
+)
+returns jsonb
+language sql
+security definer
+set search_path = ''
+as $function$
+  select private.get_sdashapi_practice_feedback(
+    p_session_id, p_user_id, p_position
+  );
+$function$;
+
+revoke all on function public.get_sdashapi_practice_feedback(uuid, uuid, integer)
+  from public, anon, authenticated;
+
+grant execute on function public.get_sdashapi_practice_feedback(uuid, uuid, integer)
+  to service_role;
+
 commit;
