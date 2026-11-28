@@ -17,9 +17,6 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Referral = lazy(() => import("./pages/Referral"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const SelectSubjects = lazy(() => import("./pages/SelectSubjects"));
-const PastQuestions = lazy(() => import("./pages/PastQuestions"));
-const SdashApiExam = lazy(() => import("./pages/SdashApiExam"));
-const SdashApiResult = lazy(() => import("./pages/SdashApiResult"));
 const Exam = lazy(() => import("./pages/Exam"));
 const Results = lazy(() => import("./pages/Results"));
 const AITutor = lazy(() => import("./pages/AITutor"));
@@ -79,9 +76,6 @@ const App = () => (
               <Route path="/ai-tutor" element={<ProtectedRoute><AppLayout><AITutor /></AppLayout></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
               <Route path="/select-subjects" element={<ProtectedRoute><AppLayout><SelectSubjects /></AppLayout></ProtectedRoute>} />
-              <Route path="/past-questions" element={<ProtectedRoute><AppLayout><PastQuestions /></AppLayout></ProtectedRoute>} />
-              <Route path="/past-questions/exam/:sessionId" element={<ProtectedRoute><SdashApiExam /></ProtectedRoute>} />
-              <Route path="/past-questions/result/:sessionId" element={<ProtectedRoute><AppLayout><SdashApiResult /></AppLayout></ProtectedRoute>} />
               <Route path="/results/:sessionId" element={<ProtectedRoute><Results /></ProtectedRoute>} />
               <Route path="/library" element={<ProtectedRoute><AppLayout><Library /></AppLayout></ProtectedRoute>} />
               <Route path="/reader/:id" element={<ProtectedRoute><Reader /></ProtectedRoute>} />
@@ -89,7 +83,6 @@ const App = () => (
               <Route path="/live-quiz" element={<ProtectedRoute><AppLayout><LiveQuiz /></AppLayout></ProtectedRoute>} />
               <Route path="/quiz-room/:roomCode" element={<ProtectedRoute><QuizRoom /></ProtectedRoute>} />
 
-              {/* SdashAPI Past Questions */}
 
               {/* Focus mode - no nav at all */}
               <Route path="/exam" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
