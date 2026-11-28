@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
     const headers = { AccessToken: accessToken, Accept: "application/json" };
     const endpoints = ["subjects", "exams", "years"];
     const responses = await Promise.all(endpoints.map(async (endpoint) => {
-      const response = await fetch(`https://www.sdashapi.com/api/v1/${endpoint}`, {
+      const response = await fetch(`https://sdashapi.com/api/v1/${endpoint}`, {
         headers,
         signal: AbortSignal.timeout(15000),
       });
