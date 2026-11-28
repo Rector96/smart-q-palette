@@ -85,6 +85,7 @@ const Results = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [isSdashApiResult, setIsSdashApiResult] = useState(false);
 
   useEffect(() => {
     setSession(null);
@@ -133,6 +134,7 @@ const Results = () => {
             return;
           }
 
+          setIsSdashApiResult(true);
           const normalizedSession = {
             id: providerResult.session_id,
             user_id: user.id,
@@ -259,6 +261,10 @@ const Results = () => {
   }, [sessionId, toast, user]);
 
   const createShareLink = async () => {
+    if (isSdashApiResult) {
+      toast({ title: "Sharing is not available yet", description: "SdashAPI result sharing will be added to the shared results flow." });
+      return "";
+    }
     if (!session || !sessionId || !user) return "";
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const { error } = await supabase.from("shared_exams").insert({
@@ -429,7 +435,7 @@ const Results = () => {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" className="cbt-results-share" disabled={sharing}>
+              <Button type="button" className="cbt-results-share" disabled={sharing || isSdashApiResult}>
                 <Share2 aria-hidden="true" /> Share Result <ChevronDown aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
