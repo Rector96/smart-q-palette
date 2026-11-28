@@ -383,7 +383,7 @@ const Exam = () => {
     const submission = useSdashApi
       ? questions.map((q) => ({
           position: Number(q.id.replace("sdashapi:", "")),
-          selectedAnswer: answersRef.current[q.id] || "X",
+          selectedAnswer: answersRef.current[q.id] || null,
           timeSpentSeconds: 0,
         }))
       : questions.map((q) => ({
