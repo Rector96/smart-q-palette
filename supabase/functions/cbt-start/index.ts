@@ -244,8 +244,13 @@ Deno.serve(async (req: Request) => {
         allQuestions.push(...shuffle([...balanced, ...fill]).slice(0, count));
       }
     }
-    if (!allQuestions.length) return respond({ error: "No questions are available for the selected subjects." }, 404);
-
+      if (allQuestions.length !== totalRequestedCount) {
+        console.error("Question allocation mismatch:", {
+          expected: totalRequestedCount,
+          actual: allQuestions.length,
+        });
+        return respond({ error: "We could not prepare the exact number of questions requested. Please try again." }, 500);
+      }
     const prepared = allQuestions.map((q, index) => {
       const options = shuffle([
         { originalLabel: "A", text: q.option_a },
@@ -254,11 +259,14 @@ Deno.serve(async (req: Request) => {
         { originalLabel: "D", text: q.option_d },
         ...(q.option_e?.trim() ? [{ originalLabel: "E", text: q.option_e }] : []),
       ]);
+
       const optionOrder = options.map((option) => option.originalLabel);
       const displayOptions = options.map((option, optionIndex) => ({
-        label: String.fromCharCode(65 + optionIndex), text: option.text,
+        label: String.fromCharCode(65 + optionIndex),
+        text: option.text,
       }));
       const correct = options.findIndex((option) => option.originalLabel === q.correct_answer);
+
       return {
         question: q,
         position: index + 1,
@@ -268,10 +276,10 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    if (allQuestions.length !== totalRequestedCount) {
+    if (prepared.length !== totalRequestedCount) {
       console.error("Question allocation mismatch:", {
         expected: totalRequestedCount,
-        actual: allQuestions.length,
+        actual: prepared.length,
       });
       return respond({ error: "We could not prepare the exact number of questions requested. Please try again." }, 500);
     }

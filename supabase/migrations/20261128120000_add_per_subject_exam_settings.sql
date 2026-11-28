@@ -1,3 +1,4 @@
+
 alter table public.exam_sessions
   add column if not exists allowed_duration_seconds integer not null default 3600
     check (allowed_duration_seconds between 60 and 86400),
@@ -152,5 +153,10 @@ begin
 end;
 $function$;
 
-revoke all on function public.create_cbt_exam_session_with_settings(uuid, text, text[], text, integer, jsonb, jsonb, integer) from public, anon, authenticated;
-grant execute on function public.create_cbt_exam_session_with_settings(uuid, text, text[], text, integer, jsonb, jsonb, integer) to service_role;
+revoke all on function public.create_cbt_exam_session_with_settings(
+  uuid, text, text[], text, integer, jsonb, jsonb, integer
+) from public, anon, authenticated;
+
+grant execute on function public.create_cbt_exam_session_with_settings(
+  uuid, text, text[], text, integer, jsonb, jsonb, integer
+) to service_role;

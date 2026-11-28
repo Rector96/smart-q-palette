@@ -68,6 +68,7 @@ const Exam = () => {
   const [loading, setLoading] = useState(false);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submissionComplete, setSubmissionComplete] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [timeLeft, setTimeLeft] = useState(customDuration);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -329,6 +330,7 @@ const Exam = () => {
     if (!user || !sessionId || submittingRef.current) return;
     submittingRef.current = true;
     setShowConfirmSubmit(false);
+    setSubmissionComplete(false);
     setSubmitting(true);
     if (timerRef.current) window.clearInterval(timerRef.current);
     timerRef.current = null;
@@ -350,20 +352,36 @@ const Exam = () => {
       });
       return;
     }
+    setSubmissionComplete(true);
 
-    // Check if this is user's first completed CBT and send email
-    const { count } = await supabase.from("exam_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true);
-    if (count === 1) {
+    // Send the first-exam email in the background so it cannot block results.
+    void (async () => {
       try {
-        const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
+        const { count, error: countError } = await supabase
+          .from("exam_sessions")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("completed", true);
+
+        if (countError || count !== 1) return;
+
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", user.id)
+          .single();
+
         await supabase.functions.invoke("send-email", {
-          body: { type: "first_cbt", email: user.email, name: prof?.full_name || "Student" },
+          body: {
+            type: "first_cbt",
+            email: user.email,
+            name: prof?.full_name || "Student",
+          },
         });
       } catch (error) {
         console.error("Could not send first-exam email:", error);
       }
-    }
-    
+    })();
     await new Promise(r => setTimeout(r, 2000));
     navigate(`/results/${sessionId}`);
   };
@@ -478,7 +496,7 @@ const Exam = () => {
 
   return (
     <>
-      {submitting && <ExamSubmitOverlay />}
+      {submitting && <ExamSubmitOverlay isComplete={submissionComplete} />}
     <div className="exam-page min-h-[100dvh] overflow-x-clip bg-background flex flex-col">
       {/* Header */}
       <header data-tour="exam-tools" className="exam-mobile-header border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20 lg:hidden">
