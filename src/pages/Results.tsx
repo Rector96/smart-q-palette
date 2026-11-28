@@ -118,8 +118,75 @@ const Results = () => {
 
         if (!active) return;
         if (sessionError) {
-          setLoadError(sessionError.message);
-          toast({ title: "Could not load quiz results", description: sessionError.message, variant: "destructive" });
+          // SdashAPI sessions live in their own protected tables. Fall back to
+          // the provider result endpoint while keeping this same Results screen.
+          const { data: providerData, error: providerError } = await supabase.functions.invoke(
+            "sdashapi-result",
+            { body: { sessionId } },
+          );
+          if (!active) return;
+          const providerResult = providerData?.result ?? providerData;
+          if (providerError || !providerResult?.ok || !Array.isArray(providerResult.questions)) {
+            const message = providerData?.message || providerError?.message || sessionError.message;
+            setLoadError(message);
+            toast({ title: "Could not load quiz results", description: message, variant: "destructive" });
+            return;
+          }
+
+          const normalizedSession = {
+            id: providerResult.session_id,
+            user_id: user.id,
+            mode: providerResult.exam_mode,
+            subjects: providerResult.subjects || [providerResult.subject].filter(Boolean),
+            total_questions: providerResult.total_questions,
+            correct_answers: providerResult.correct_count,
+            score_percentage: providerResult.score,
+            duration_seconds: providerResult.time_used_seconds ?? 0,
+            allowed_duration_seconds: providerResult.allowed_duration_seconds ?? providerResult.duration_seconds ?? 0,
+            subject_question_counts: providerResult.subject_question_counts || {},
+            completed: true,
+            started_at: providerResult.started_at,
+            completed_at: providerResult.submitted_at,
+            examination: providerResult.examination,
+            exam_year: providerResult.exam_year,
+          } as ExamSession;
+          setSession(normalizedSession);
+          if (profile?.full_name) setProfileName(profile.full_name);
+          if (referralProfile?.referral_code) setReferralCode(referralProfile.referral_code);
+
+          const providerHistory: HistoryRow[] = providerResult.questions.map((question: {
+            position: number; subject: string; question: string; options: Record<string, string>;
+            image?: string | null; selected_answer?: string | null; correct_answer: string;
+            is_correct?: boolean | null; solution?: string | null;
+          }) => {
+            const options = question.options || {};
+            const selectedAnswer = question.selected_answer || "X";
+            const resultQuestion = {
+              id: `${sessionId}-${question.position}`,
+              subject: question.subject,
+              topic: "Past Questions",
+              question_text: question.question,
+              option_a: options.A || null,
+              option_b: options.B || null,
+              option_c: options.C || null,
+              option_d: options.D || null,
+              option_e: options.E || null,
+              correct_answer: question.correct_answer,
+              explanation: question.solution || null,
+              diagram_file: null,
+              diagram_url: question.image || null,
+            } as unknown as ResultQuestion;
+            return {
+              id: `${sessionId}-${question.position}`,
+              question_id: resultQuestion.id,
+              selected_answer: selectedAnswer,
+              is_correct: Boolean(question.is_correct),
+              session_id: sessionId!,
+              questions: resultQuestion,
+            } as HistoryRow;
+          });
+          setHistory(providerHistory);
+          setHistoryLoadError("");
           return;
         }
 
