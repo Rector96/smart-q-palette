@@ -104,8 +104,8 @@ Deno.serve(async (req: Request) => {
     const limit = Number(body.limit ?? 20);
     const durationSeconds = Number(body.durationSeconds ?? 0);
 
-    if (!["WAEC", "JAMB"].includes(examination)) {
-      return respond({ ok: false, message: "Choose WAEC or JAMB." }, 400);
+    if (!["WAEC", "JAMB", "NECO"].includes(examination)) {
+      return respond({ ok: false, message: "Choose JAMB, WAEC or NECO." }, 400);
     }
 
     if (!/^[a-z][a-z\s-]{1,49}$/.test(subject)) {
@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
   return respond({ ok: false, message: "Invalid exam duration." }, 400);
 }
 
-    const providerType = examination === "JAMB" ? "utme" : "wassce";
+    const providerType = examination === "JAMB" ? "utme" : examination === "NECO" ? "neco" : "wassce";
 
     const url = new URL("https://www.sdashapi.com/api/v1/q");
     url.searchParams.set("subject", subject);
