@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const token = req.headers.get("Authorization")?.replace(/^Bearer\\s+/i, "").trim();
+    const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
     if (!token) {
       return respond({ ok: false, message: "Authentication required." }, 401);
     }
