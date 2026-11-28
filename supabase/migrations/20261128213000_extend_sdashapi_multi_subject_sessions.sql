@@ -73,11 +73,11 @@ begin
     raise exception 'User ID is required';
   end if;
 
-  if p_mode not in ('practice', 'cbt', 'mock') then
+  if p_mode is null or p_mode not in ('practice', 'cbt', 'mock') then
     raise exception 'Invalid exam mode';
   end if;
 
-  if p_examination not in ('WAEC', 'JAMB', 'NECO') then
+  if p_examination is null or p_examination not in ('WAEC', 'JAMB', 'NECO') then
     raise exception 'Unsupported examination';
   end if;
 
@@ -98,6 +98,10 @@ begin
   if (p_mode in ('practice', 'cbt') and cardinality(p_subjects) <> 1)
      or (p_mode = 'mock' and cardinality(p_subjects) <> 4) then
     raise exception 'The selected mode has an invalid subject count';
+  end if;
+
+  if p_duration_seconds is null then
+    raise exception 'Exam duration is required';
   end if;
 
   if p_mode = 'practice' then
