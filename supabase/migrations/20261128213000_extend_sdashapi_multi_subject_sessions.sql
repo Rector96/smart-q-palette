@@ -264,4 +264,92 @@ grant execute on function public.create_sdashapi_multi_subject_exam_session(
   uuid, text, text, integer, text[], jsonb, jsonb, integer
 ) to service_role;
 
+
+-- Extend result payloads so the shared results screen can render subject
+-- breakdowns and the server-authoritative overall duration.
+create or replace function private.get_sdashapi_exam_result(
+  p_session_id uuid,
+  p_user_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_session public.sdashapi_exam_sessions%rowtype;
+  v_questions jsonb;
+begin
+  if p_session_id is null or p_user_id is null then
+    raise exception 'Session and user are required';
+  end if;
+
+  select *
+  into v_session
+  from public.sdashapi_exam_sessions
+  where id = p_session_id
+    and user_id = p_user_id;
+
+  if not found then
+    raise exception 'Exam session not found';
+  end if;
+
+  if v_session.status <> 'submitted' then
+    raise exception 'Results are not available until submission';
+  end if;
+
+  select coalesce(
+    pg_catalog.jsonb_agg(
+      pg_catalog.jsonb_build_object(
+        'position', q.position,
+        'subject', q.subject,
+        'question', q.question_text,
+        'options', q.options,
+        'image', q.image,
+        'selected_answer', a.selected_answer,
+        'correct_answer', k.correct_answer,
+        'is_correct', a.is_correct,
+        'solution', k.solution,
+        'time_spent_seconds', a.time_spent_seconds
+      )
+      order by q.position
+    ),
+    '[]'::jsonb
+  )
+  into v_questions
+  from public.sdashapi_session_questions q
+  join private.sdashapi_answer_keys k
+    on k.session_id = q.session_id
+   and k.question_position = q.position
+  left join public.sdashapi_attempt_answers a
+    on a.session_id = q.session_id
+   and a.question_position = q.position
+  where q.session_id = p_session_id;
+
+  return pg_catalog.jsonb_build_object(
+    'ok', true,
+    'session_id', v_session.id,
+    'examination', v_session.examination,
+    'subject', v_session.subject,
+    'subjects', v_session.subjects,
+    'subject_question_counts', v_session.subject_question_counts,
+    'exam_mode', v_session.exam_mode,
+    'exam_year', v_session.exam_year,
+    'total_questions', v_session.total_questions,
+    'correct_count', v_session.correct_count,
+    'score', v_session.score,
+    'duration_seconds', v_session.duration_seconds,
+    'allowed_duration_seconds', v_session.allowed_duration_seconds,
+    'started_at', v_session.started_at,
+    'submitted_at', v_session.submitted_at,
+    'questions', v_questions
+  );
+end;
+$function$;
+
+revoke all on function private.get_sdashapi_exam_result(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function private.get_sdashapi_exam_result(uuid, uuid)
+  to service_role;
+
 commit;
