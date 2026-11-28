@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const QUESTION_PRESETS = [10, 20, 40, 60];
 type ExamType = "JAMB" | "WAEC" | "NECO";
-type CatalogItem = { examination: ExamType; year: number; subject: string };
+type CatalogItem = { examination: ExamType; year: number; subject: string; name?: string };
 
 const subjectIcon = (name: string) => {
   const key = name.toLowerCase().replace(/[^a-z]/g, "");
@@ -34,7 +34,7 @@ const SelectSubjects = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);\n  const [catalogProvider, setCatalogProvider] = useState<"local" | "sdashapi">("local");
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
   const [examination, setExamination] = useState<ExamType | "">("");
@@ -47,35 +47,49 @@ const SelectSubjects = () => {
 
   const isMock = mode === "mock";
   const maxSubjects = isMock ? 4 : 1;
-  const totalQuestionCount = selected.reduce((total, subject) => total + (Number(questionCounts[subject]) || 0), 0);
+  const totalQuestionCount = selected.reduce((total, subject) => total + (Number(questionCounts[subject]) || 0), 0);\n  const maxQuestionsPerSubject = catalogProvider === "sdashapi" ? 50 : 60;\n  const maxTotalQuestions = catalogProvider === "sdashapi" ? 200 : 720;\n  const getSubjectLabel = (subject: string) => catalog.find((item) => item.subject === subject)?.name || subject;
 
   useEffect(() => {
     let active = true;
+    const applyCatalog = (availableCatalog: CatalogItem[]) => {
+      setCatalog(availableCatalog);
+      if (preselected) {
+        const match = availableCatalog.find((item) =>
+          item.subject.toLowerCase() === preselected.toLowerCase() ||
+          item.name?.toLowerCase() === preselected.toLowerCase()
+        );
+        if (match) {
+          setExamination(match.examination);
+          setSelectedYear(String(match.year));
+          setSelected([match.subject]);
+        }
+      } else if (mode === "revision" && availableCatalog.length > 0) {
+        const firstAvailableExam = availableCatalog.find((item) => item.examination === "JAMB") || availableCatalog[0];
+        setExamination(firstAvailableExam.examination);
+      }
+    };
     const loadCatalog = async () => {
       setCatalogLoading(true);
-      const { data, error } = await supabase.functions.invoke("cbt-catalog", { body: {} });
+      const { data: providerData, error: providerError } = await supabase.functions.invoke("sdashapi-catalog", { body: {} });
       if (!active) return;
-      if (error || !Array.isArray(data?.catalog)) {
-        setCatalogError(data?.error || error?.message || "We could not load available examinations.");
+      if (providerError || providerData?.ok === false) {
+        setCatalogError(providerData?.message || providerError?.message || "We could not load available examinations.");
+      } else if (providerData?.active === true && Array.isArray(providerData.catalog)) {
+        setCatalogProvider("sdashapi");
+        applyCatalog(providerData.catalog as CatalogItem[]);
       } else {
-        const availableCatalog = data.catalog as CatalogItem[];
-        setCatalog(availableCatalog);
-        if (preselected) {
-          const match = availableCatalog.find((item) => item.subject.toLowerCase() === preselected.toLowerCase());
-          if (match) {
-            setExamination(match.examination);
-            setSelectedYear(String(match.year));
-            setSelected([match.subject]);
-          }
-        } else if (mode === "revision" && availableCatalog.length > 0) {
-          // Preselect an available exam source so revision students can choose a subject immediately.
-          const firstAvailableExam = availableCatalog.find((item) => item.examination === "JAMB") || availableCatalog[0];
-          setExamination(firstAvailableExam.examination);
+        const { data, error } = await supabase.functions.invoke("cbt-catalog", { body: {} });
+        if (!active) return;
+        if (error || !Array.isArray(data?.catalog)) {
+          setCatalogError(data?.error || error?.message || "We could not load available examinations.");
+        } else {
+          setCatalogProvider("local");
+          applyCatalog(data.catalog as CatalogItem[]);
         }
       }
       setCatalogLoading(false);
     };
-    loadCatalog();
+    void loadCatalog();
     return () => { active = false; };
   }, []);
 
@@ -137,13 +151,13 @@ const SelectSubjects = () => {
     const isTimedMode = mode === "cbt" || mode === "mock";
     const parsedCustomMinutes = Number(customMinutes);
     const counts = Object.fromEntries(selected.map((subject) => [subject, Number(questionCounts[subject])]));
-    const invalidSubject = selected.find((subject) => !Number.isInteger(counts[subject]) || counts[subject] < 1 || counts[subject] > 60);
+    const invalidSubject = selected.find((subject) => !Number.isInteger(counts[subject]) || counts[subject] < 1 || counts[subject] > maxQuestionsPerSubject);
     if (invalidSubject) {
-      toast({ title: "Check the question count", description: `Enter between 1 and 60 questions for ${invalidSubject}.`, variant: "destructive" });
+      toast({ title: "Check the question count", description: `Enter between 1 and ${maxQuestionsPerSubject} questions for ${getSubjectLabel(invalidSubject)}.`, variant: "destructive" });
       return;
     }
-    if (totalQuestionCount < 1 || totalQuestionCount > 720) {
-      toast({ title: "Invalid total question count", description: "The combined exam must contain no more than 720 questions.", variant: "destructive" });
+    if (totalQuestionCount < 1 || totalQuestionCount > maxTotalQuestions) {
+      toast({ title: "Invalid total question count", description: `The combined exam must contain no more than ${maxTotalQuestions} questions.`, variant: "destructive" });
       return;
     }
     if (isTimedMode && (!Number.isInteger(parsedCustomMinutes) || parsedCustomMinutes < 1 || parsedCustomMinutes > 1440)) {
@@ -158,7 +172,7 @@ const SelectSubjects = () => {
       counts: JSON.stringify(counts),
       count: String(totalQuestionCount),
       ...(isTimedMode ? { timer: String(parsedCustomMinutes) } : {}),
-      adaptive: String(adaptivePractice && (mode === "practice" || mode === "revision")),
+      adaptive: String(adaptivePractice && catalogProvider === "local" && (mode === "practice" || mode === "revision")),\n      provider: catalogProvider === "sdashapi" ? "sdashapi" : "local",
     });
     navigate(`/exam?${params.toString()}`);
   };
@@ -205,7 +219,7 @@ const SelectSubjects = () => {
                       <CardContent className="p-4 text-center">
                         <GraduationCap className="h-6 w-6 mx-auto mb-2 text-primary" />
                         <p className="text-xs font-medium">{exam}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{hasContent ? "ROCKCBT bank ready" : "No local bank yet"}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{hasContent ? (catalogProvider === "sdashapi" ? "SdashAPI catalog" : "ROCKCBT bank ready") : "No questions yet"}</p>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -251,7 +265,7 @@ const SelectSubjects = () => {
                       })}
                     </div>
                     )}
-                    <p className="text-[10px] text-muted-foreground">Choose a year to view the subjects available for that year.</p>
+                    <p className="text-[10px] text-muted-foreground">{catalogProvider === "sdashapi" ? "SdashAPI publishes global subject and year lists. Exact question availability is checked securely when you start." : "Choose a year to view the subjects available for that year."}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -274,7 +288,7 @@ const SelectSubjects = () => {
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {availableSubjects.map((name) => {
-                      const Icon = subjectIcon(name);
+                      const Icon = subjectIcon(getSubjectLabel(name));
                       const isSelected = selected.includes(name);
                       return (
                         <motion.div key={name} whileTap={{ scale: 0.97 }}>
@@ -282,7 +296,7 @@ const SelectSubjects = () => {
                             <CardContent className="p-4 text-center relative">
                               {isSelected && <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center"><Check className="h-3 w-3 text-primary-foreground" /></div>}
                               <Icon className="h-6 w-6 mx-auto mb-2 text-primary" />
-                              <p className="text-xs font-medium">{name}</p>
+                              <p className="text-xs font-medium">{getSubjectLabel(name)}</p>
                             </CardContent>
                           </Card>
                         </motion.div>
@@ -297,7 +311,7 @@ const SelectSubjects = () => {
 
         {selected.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            {(mode === "practice" || mode === "revision") && (
+            {(mode === "practice" || mode === "revision") && catalogProvider === "local" && (
               <Card className={cn("border-2 shadow-sm transition-colors", adaptivePractice ? "border-primary/60 bg-primary/5" : "border-border/50")}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3">
@@ -328,16 +342,16 @@ const SelectSubjects = () => {
                 </div>
                 {selected.map((subject) => (
                   <div key={subject} className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3 last:border-0 last:pb-0">
-                    <Label htmlFor={`question-count-${subject}`} className="text-sm font-medium">{subject}</Label>
+                    <Label htmlFor={`question-count-${subject}`} className="text-sm font-medium">{getSubjectLabel(subject)}</Label>
                     <div className="flex items-center gap-2">
-                      {[10, 20, 40, 60].map((preset) => (
+                      {[10, 20, 40, maxQuestionsPerSubject].map((preset) => (
                         <Button key={preset} type="button" size="sm" variant={Number(questionCounts[subject]) === preset ? "default" : "outline"} className="h-8 px-2 text-xs" onClick={() => setQuestionCounts((current) => ({ ...current, [subject]: String(preset) }))}>{preset}</Button>
                       ))}
                       <Input id={`question-count-${subject}`} type="text" inputMode="numeric" value={questionCounts[subject] ?? ""} onChange={(event) => setQuestionCounts((current) => ({ ...current, [subject]: event.target.value.replace(/\D/g, "").slice(0, 2) }))} className="h-9 w-16 text-sm" placeholder="10" />
                     </div>
                   </div>
                 ))}
-                <p className="text-xs text-muted-foreground">Choose 1–60 questions for each subject. The total updates automatically.</p>
+                <p className="text-xs text-muted-foreground">Choose 1–{maxQuestionsPerSubject} questions for each subject. The total updates automatically.</p>
               </CardContent>
             </Card>
 
@@ -361,7 +375,7 @@ const SelectSubjects = () => {
             )}
 
             <div className="flex justify-center">
-              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || selected.some((subject) => !Number.isInteger(Number(questionCounts[subject])) || Number(questionCounts[subject]) < 1 || Number(questionCounts[subject]) > 60) || ((mode === "cbt" || mode === "mock") && (!Number.isInteger(Number(customMinutes)) || Number(customMinutes) < 1 || Number(customMinutes) > 1440))} className="h-10 px-8 text-sm shadow-md">
+              <Button onClick={handleStart} disabled={!examination || !selectedYear || selected.length === 0 || (isMock && selected.length !== 4) || selected.some((subject) => !Number.isInteger(Number(questionCounts[subject])) || Number(questionCounts[subject]) < 1 || Number(questionCounts[subject]) > maxQuestionsPerSubject) || ((mode === "cbt" || mode === "mock") && (!Number.isInteger(Number(customMinutes)) || Number(customMinutes) < 1 || Number(customMinutes) > 1440))} className="h-10 px-8 text-sm shadow-md">
                 Start {mode === "practice" ? "Practice" : mode === "cbt" ? "Exam" : mode === "mock" ? "Mock Exam" : "Revision"} — {totalQuestionCount} Questions
               </Button>
             </div>
