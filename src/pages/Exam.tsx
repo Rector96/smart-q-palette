@@ -369,7 +369,12 @@ const Exam = () => {
   };
   submitRef.current = handleSubmit;
 
-  const formatTime = (seconds: number) => `${Math.ceil(Math.max(0, seconds) / 60)} min`;
+  const formatTime = (seconds: number) => {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainingSeconds = safeSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
 
   const getSubjectName = (id: string) => SUBJECTS.find(s => s.id === id)?.name || id;
 
